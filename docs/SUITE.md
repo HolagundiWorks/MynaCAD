@@ -134,6 +134,7 @@ Saving: O-Draft writes the drawing back into the `.osp` only when its bytes chan
 | Shared WinUI chrome | O-UI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |
 | ShilpiDB → `.osp` migration (historical) | Each app repo `docs/MIGRATION-OSP.md` — do not use **ShilpiDB** in new user text |
 | Installers | O-Studio `installer/suite/README.md`; O-CoreOp `docs/PACKAGING.md`, `docs/SUITE-PACKAGING.md` |
+| Testing | O-Studio `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
 
 ## 7. Conventions
 
