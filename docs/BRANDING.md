@@ -81,11 +81,11 @@ The database server and the company file use plain icons, not the orb: a databas
 
 | Use | Typeface | Source and licence |
 |---|---|---|
-| **The names of the apps and the suite** (O-Studio, O-CoreOp, O-Draft, O-Form, in tiles, headers, lockups) | **Studio Grotesk** | Jetsmax Studio. A commercial font: the free demo is for personal use only; a licence for the family is bought from the publisher (MyFonts / Creative Market) |
-| **Display text** (page and section titles, large numbers) | **Mazius Display** | Collletttivo, 2018, free (SIL Open Font Licence). Written "Maius Display" in the brief: confirm that this is the font meant |
+| **The names of the apps and the suite** (O-Studio, O-CoreOp, O-Draft, O-Form, in tiles, headers, lockups) | **Apfel Grotezk** | Collletttivo, free (SIL Open Font Licence). Chosen on 2026-11-01 as the free grotesk; it replaces the commercial Studio Grotesk (demo personal-use only), which can be swapped in later by changing one constant in `O.Ui.SuiteFonts` |
+| **Display text** (page and section titles, large numbers) | **Mazius Display** | Collletttivo, free (SIL Open Font Licence). Written "Maius Display" in the brief; taken to be this font |
 | Body text and controls | Segoe UI Variable | the Windows system font |
 
-The files are **not** in the repositories. Put `StudioGrotesk-*.otf` / `.ttf` and `MaziusDisplay-*.otf` / `.ttf` in `Assets\Fonts` beside each app; `O.Ui.SuiteFonts.Names` and `.Display` use them from there, or the installed fonts of the same name, or the fallbacks (Segoe UI Variable Display for names, Sitka Display for display), so an app always starts. Until the files are added every screen shows the fallbacks. The brand sheet is set in Segoe UI for the same reason.
+The files (`ApfelGrotezk-Regular/Mittel/Fett.otf`, `MaziusDisplay-Regular/Bold.otf`, with their licence texts) are bundled in `o-ui` `O.Ui/Assets/Fonts` and copied beside every app that references O.Ui; `O.Ui.SuiteFonts.Names` and `.Display` load them from `Assets\Fonts`, else an installed font of the same name, else the fallbacks (Segoe UI Variable Display, Sitka Display). The brand sheet is drawn in Segoe UI.
 
 Rules: the name of an app is always written with a capital O and a hyphen (O-CoreOp, not OCoreOp, not "CoreOp" alone in the UI) and always in the Names font; never in capitals; never AQC, AOS, AAD, ShilpiDB or OSAS in user text.
 
