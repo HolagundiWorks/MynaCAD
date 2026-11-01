@@ -63,15 +63,17 @@ Rules
 
 ## 3. The AI agent
 
-The AI agent is the **ring of the mark, lit**, on a Mirage disc. It is the only thing in the suite that wears all four colours.
+The AI agent is **the logo itself** on a round Mirage tile. Its **three circles** (the big C, the bowl under it and the ring at the centre) are each lit in a different colour of the suite, so the agent wears all four colours (Mirage is the tile).
 
 | State | Look |
 |---|---|
-| **Running** | The ring and the glow behind it turn through Flame Orange, Wild Sand, Deep Sea Green and Mirage, two seconds to each colour, eased, and the glow breathes every four seconds. On the Mirage disc the tones are lifted so that they can be seen: `#FF5B04`, `#E4EEF0`, `#1496A0`, `#4F7C93` |
-| **Waiting** (starting) | A steady amber ring (`#D29922`) with a faint glow |
-| **Not running / off** | A grey ring (`#8B949E`), no glow, the whole orb at half strength |
+| **Running** | The three circles pass the colours on: every two seconds each circle takes the colour of the next one, eased, so at any moment the three circles show three of the four colours and in eight seconds every circle has worn all four. A fainter, wider copy behind each circle is the glow, and it breathes every four seconds. On the dark tile the tones are lifted so that they can be seen: Flame Orange `#FF5B04`, Wild Sand `#E4EEF0`, Deep Sea Green `#1496A0`, Mirage `#4F7C93` |
+| **Waiting** (starting) | The three circles are one steady amber (`#D29922`) with a faint glow |
+| **Not running / off** | The three circles are grey (`#8B949E`), no glow, the whole orb at half strength |
 
-Files: `o-ui/brand/ai/ai-orb.svg` (the animated master: the four arcs turn once every eight seconds), `ai-orb-<size>.png` (still). In the launcher it is `AiOrb` (`native/Adms.LoginWidget/AiOrb.cs`), in the app bar and on the Services page. The orb is round, never on a tile.
+At rest (the still artwork) the C is Flame Orange, the bowl Wild Sand and the ring Deep Sea Green on the Mirage tile. The mark is drawn at 74 % of the tile so that the glow has room. The orb is round, never on a square tile.
+
+Files: `o-ui/brand/ai/ai-orb.svg` (the animated master: each circle's colour cycles through the four tones in eight seconds, offset by one step from the circle before), `ai-orb-<size>.png` (still). In the launcher it is `AiOrb` (`native/Adms.LoginWidget/AiOrb.cs`), in the app bar and on the Services page.
 
 The database server and the company file use plain icons, not the orb: a database icon and a folder icon, lit (orange wash) while they run and dim grey when they do not.
 
@@ -98,7 +100,7 @@ Rules: the name of an app is always written with a capital O and a hyphen (O-Cor
 
 | Part | State |
 |---|---|
-| Palette, the four marks, ICO and tiles, lockups, brand sheet, orb artwork | done: `o-ui` `feat/brand` |
+| Palette, the four marks, ICO and tiles, lockups, brand sheet, the AI orb artwork (the logo, three circles in three colours) | done: `o-ui` `feat/brand` |
 | Accent colour files per app (`SuiteAccent.Orange / Mirage / Sea / Sand`, with light, dark and navigation themes) | done |
 | `SuiteFonts` (Names, Display with fallbacks), `SuiteApp.Form` | done; the font files are not added |
 | Launcher: marks in tiles, O-Form tile, orange accent, animated AI orb, Names font for app names, Display font for titles | done |
