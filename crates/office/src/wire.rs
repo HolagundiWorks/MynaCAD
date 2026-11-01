@@ -8,9 +8,13 @@ pub const ENV_COMPANY: &str = "OSTUDIO_COMPANY";
 pub const ENV_TICKET: &str = "OSTUDIO_TICKET";
 pub const ENV_USER: &str = "OSTUDIO_USER";
 pub const ENV_OFFICE_DLL: &str = "OSTUDIO_OFFICE_DLL";
+pub const ENV_PROJECT_ID: &str = "OSTUDIO_PROJECT_ID";
+pub const ENV_PROJECT_OSP: &str = "OSTUDIO_PROJECT_OSP";
 
 pub const PROJECT_FORMAT: &str = "osp";
 pub const ACTIVE_PROJECT_FORMAT: &str = "studio-active-project";
+pub const SELECTED_PROJECT_FORMAT: &str = "studio-selected-project";
+pub const SELECTED_PROJECT_FILE: &str = "selected-project.json";
 
 pub fn local_path(name: &str) -> std::path::PathBuf {
     let base = std::env::var_os("LOCALAPPDATA")
