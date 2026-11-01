@@ -11,6 +11,8 @@ mod levels_file;
 pub mod pdf;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pdfread;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod raster;
 pub mod svg;
 
 use aad_doc::{Drawing, Space};

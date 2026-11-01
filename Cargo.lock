@@ -164,6 +164,7 @@ dependencies = [
  "aad-geom",
  "aad-render",
  "criterion",
+ "image",
  "lopdf",
  "miniz_oxide 0.8.9",
  "serde",

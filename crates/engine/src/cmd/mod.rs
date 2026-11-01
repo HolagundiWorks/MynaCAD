@@ -44,6 +44,8 @@ mod notes;
 mod package;
 mod param;
 mod pdfimport;
+mod import;
+mod svgimport;
 mod pline_opts;
 pub(crate) mod project;
 mod projfile;
@@ -243,6 +245,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(floorregion::specs());
         v.extend(underlay::specs());
         v.extend(pdfimport::specs());
+        v.extend(import::specs());
         v.extend(schedule::specs());
         v.extend(notes::specs());
         v.extend(legend::specs());

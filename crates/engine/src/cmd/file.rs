@@ -78,6 +78,25 @@ pub fn set_pdf_reader(h: PdfReadHook) {
 pub fn pdf_reader() -> Option<PdfReadHook> {
     PDF_READ.get().copied()
 }
+/// A picture file (PNG, JPEG, TIFF) as 8-bit grey pixels, row 0 on top, transparent pixels light. Optional, like the PDF reader.
+pub struct Raster {
+    pub width: usize,
+    pub height: usize,
+    pub gray: Vec<u8>,
+}
+
+pub type RasterReadHook = fn(&[u8]) -> std::result::Result<Raster, String>;
+
+static RASTER_READ: OnceLock<RasterReadHook> = OnceLock::new();
+
+pub fn set_raster_reader(h: RasterReadHook) {
+    let _ = RASTER_READ.set(h);
+}
+
+pub fn raster_reader() -> Option<RasterReadHook> {
+    RASTER_READ.get().copied()
+}
+
 pub fn io() -> Option<&'static IoHooks> {
     IO.get()
 }

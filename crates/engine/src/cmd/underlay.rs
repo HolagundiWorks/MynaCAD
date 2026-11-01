@@ -46,7 +46,7 @@ fn layer_param(p: &Value) -> String {
 }
 
 /// Millimetres in one drawing unit.
-fn unit_mm(s: &Session, cmd: &str) -> Result<f64> {
+pub(super) fn unit_mm(s: &Session, cmd: &str) -> Result<f64> {
     let u = super::hcw::drawing_units(s.doc()?, cmd, &Value::Null)?.metres() * 1000.0;
     if u.is_finite() && u > 0.0 { Ok(u) } else { Err(bad(cmd, "the drawing units are not set; run `drawing.units` first")) }
 }
@@ -55,11 +55,11 @@ fn handles_on(s: &Session, layer: &str) -> Result<Vec<Handle>> {
     Ok(s.doc()?.model.iter().filter(|e| e.common.layer.eq_ignore_ascii_case(layer)).map(|e| e.handle).collect())
 }
 
-fn records(s: &Session) -> Vec<Value> {
+pub(super) fn records(s: &Session) -> Vec<Value> {
     s.doc().map(|d| project::get(d, KEY)).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default()
 }
 
-fn save_records(s: &mut Session, list: Vec<Value>) -> Result<()> {
+pub(super) fn save_records(s: &mut Session, list: Vec<Value>) -> Result<()> {
     project::set(s.doc_mut()?, KEY, &Value::Array(list));
     Ok(())
 }

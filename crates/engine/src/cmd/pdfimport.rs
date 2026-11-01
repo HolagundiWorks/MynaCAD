@@ -106,7 +106,7 @@ struct Counts {
     texts: usize,
 }
 
-fn run_import(s: &mut Session, p: &Value) -> Result<Value> {
+pub(super) fn run_import(s: &mut Session, p: &Value) -> Result<Value> {
     #[cfg(target_arch = "wasm32")]
     {
         let _ = (s, p);

@@ -23,6 +23,8 @@ miniz_oxide = "0.8"
 # Reads the vector paths of a PDF page for the underlay (MIT, pure Rust). Native only: its random-number dependency has no web backend.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lopdf = { version = "0.45", default-features = false }
+# Pictures for `import` (PNG, JPEG, TIFF).
+image = { workspace = true }
 
 [dev-dependencies]
 tiny-skia = { workspace = true }
