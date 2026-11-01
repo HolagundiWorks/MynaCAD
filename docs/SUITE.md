@@ -14,7 +14,7 @@ The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI)
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
 | **O-Form**, **O-Dynamo** | Planned, not built | | `O-Form`, `O-Dynamo` | |
 
-**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `ai\auth.token`). O-Studio starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (O-Studio), `aad-office::wire` (O-Draft).
+**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). O-Studio starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (O-Studio), `aad-office::wire` (O-Draft).
 
 Other names:
 
@@ -25,6 +25,7 @@ Other names:
 | **Take-off** | Quantities measured from a drawing. Recorded by O-Draft into the project file; read by O-CoreOp |
 | **Revision** | The counter inside a project file (`meta.revision`). Every save by any program is one revision. Apps compare revisions to know someone else wrote |
 | **Active-project pointer** | `%LOCALAPPDATA%\O-Studio\active-project.json`, written by O-Draft: which project file is open there, so O-CoreOp can open the same one |
+| **Locked project** | The project chosen in the **launcher** (or O-Studio) for this PC: `%LOCALAPPDATA%\O-Studio\selected-project.json` (company, project id, code, name, project file, who locked it). O-CoreOp and O-Draft open it directly and have no New, Open or Save as project. It cannot be changed while O-CoreOp or O-Draft is running |
 | **Ticket** | One-time sign-in token **O-Studio** gives an app it starts: 32 random bytes, two minutes, one use. The password is never passed on (`OSTUDIO_TICKET` in the environment) |
 | **Persona** | In O-CoreOp, Project Manager/PMC or Contractor: each has its own letterhead and numbering |
 | **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). **O-Studio** hosts **Olmo 3 7B**; **O-CoreOp** and **O-Draft** are clients only |
@@ -77,7 +78,7 @@ Users are added, re-roled and re-passworded in **O-Studio** (Office > Users or c
 | Take-off strip (row 2) | **Take-off tools only** (Ext wall, Int wall, Beam, … Record, Map layers, phase pickers) while **Take-off** is on in Classic workspace |
 | Right | Layers / Properties / Blocks tabbed stack |
 | Bottom bar | Snap/ortho/polar toggles, coordinates, units, **Take-off toggle** (next to Nameplate) |
-| File | Open/Save as `.dwg`, `.dxf` or **`.osp`** (Project: drawing and take-off) |
+| File | Save, Close, Export, Print/Plot, History. No New, Open or Save as: the project is chosen and locked in the **launcher**, and O-Draft opens its project file (made on first open). Drawing setup (floors, layer sets, tabs) stays in O-Draft |
 | Command line | Every tool is also a typed command, e.g. `takeoff.record` |
 
 Details: `docs/UI_UX.md`.
@@ -89,7 +90,7 @@ Details: `docs/UI_UX.md`.
 | Main ribbon | One text tab per section: Project, RCC steel, Civil BOQ, Schedule, Contracts, Stores, Outputs (Ctrl+1 to Ctrl+7). Office, Accounts and HR live in O-Studio |
 | Sub ribbon | One text tab per page of the open section |
 | Take-off page | Reads the take-off from the open `.osp`; shows "O-Draft updated the take-off" when O-Draft writes; Import brings it into the estimate |
-| File | Open/Save as `.osp` (older `.bbsproj` and `.json` still open; Save as puts them in `.osp`). No company menu: the company comes from **O-Studio** (launch from Studio or redeem ticket) |
+| File | Save, Take-off, Import from CAD, Export. No New, Open or Save as project: the project is chosen and locked in the **launcher**, and O-CoreOp opens it. No company menu: the company comes from **O-Studio** (launch from the launcher or Studio, which redeems a ticket) |
 | Bottom shell | Full-bleed status row + floating Ask pill (`O.Ui` `SuiteBottomStatusBar`, `SuiteAskBar`) — O-Draft layout is canonical |
 | Assistant (Olmo) | Hosted from O-Studio on `:8742`; O-CoreOp and O-Draft are clients |
 
@@ -112,7 +113,8 @@ Details: `docs/WINUI-SHELL.md`.
 | O-Studio -> apps | Starts the app with `OSTUDIO_COMPANY` + one-time `OSTUDIO_TICKET` (and Olmo client env when applicable) | on launch |
 | Company -> apps | `office.dll` (C ABI from `office-ffi`), read by the app | on open |
 | O-Draft -> O-CoreOp | Both open the **same `.osp`**. O-Draft's `takeoff.record` writes headers/rows/annotated PDF in one revision; O-CoreOp polls `meta.revision` every 2 s and notifies | about 2 s, no server |
-| O-Draft -> O-CoreOp (which file) | Active-project pointer: `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
+| Launcher -> apps (which project) | The launcher locks one project (`selected-project.json`) and starts O-CoreOp and O-Draft with `OSTUDIO_PROJECT_ID` + `OSTUDIO_PROJECT_OSP`; an app started alone, or a double-clicked `.osp`, asks the launcher (`O-Studio.Launcher.exe --launch <app>` / `--open <file>`), which signs in, locks the project and starts the app | on launch |
+| O-Draft -> O-CoreOp (which file) | Active-project pointer (kept for one release; the lock decides now): `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
 | Two programs, one file | SQLite WAL, immediate write transactions, 5 s busy timeout: writers take turns, every commit is exactly one revision, readers never block (tested with 4 writers x 40 commits) | immediate |
 | Machine -> machine | O-Studio syncs `.osp` with **Neon** by revision (connector MVP; see `docs/CLOUD-NEON.md`); a viewer on tablet/phone reads what O-Studio pushed and sends markups back | Postgres revision + Object Storage |
 
@@ -125,6 +127,7 @@ Saving: O-Draft writes the drawing back into the `.osp` only when its bytes chan
 | Topic | Document |
 |---|---|
 | Project file format and sync plan | O-Studio `docs/ODP-PROJECT-FILE-AND-SYNC.md` (filename keeps the working name) |
+| Project hierarchy and security | `docs/PROJECT-HIERARCHY-AND-SECURITY.md` |
 | Suite architecture and integration map | O-Studio `docs/suite-architecture.md`, `docs/suite-hub.md` |
 | Suite hub and wire | O-Studio `docs/suite-hub.md`, `Office.Shared/SuiteWire.cs` |
 | Company file ABI | O-Studio `docs/office-abi.md` |
