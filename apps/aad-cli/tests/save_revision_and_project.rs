@@ -37,3 +37,16 @@ fn a_drawing_inside_a_project_file_opens() {
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
     assert!(String::from_utf8_lossy(&o.stdout).contains("entityCount"));
 }
+
+#[test]
+fn saving_over_a_file_keeps_the_first_version_as_bak() {
+    let out = temp("keep.dxf");
+    let bak = PathBuf::from(format!("{}.bak", out.display()));
+    let _ = std::fs::remove_file(&bak);
+    let _ = std::fs::remove_file(&out);
+    for _ in 0..2 {
+        let o = cli(&["run", "--sample", "--save", out.to_str().unwrap()]);
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    }
+    assert!(bak.is_file(), "no .bak beside {}", out.display());
+}

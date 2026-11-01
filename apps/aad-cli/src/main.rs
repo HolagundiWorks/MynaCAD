@@ -217,7 +217,12 @@ fn export(s: &Session, out: &str) -> Result<(), String> {
 fn export_framed(s: &Session, out: &str, window: Option<Bounds2>) -> Result<(), String> {
     let d = s.doc().map_err(|e| e.to_string())?;
     let bytes = aad_io::write_framed(d, out, window).map_err(|e| e.to_string())?;
-    std::fs::write(out, &bytes).map_err(|e| format!("{out}: {e}"))?;
+    if aad_io::is_image(out) {
+        std::fs::write(out, &bytes).map_err(|e| format!("{out}: {e}"))?;
+    } else {
+        // Like a save in the app: the file being replaced is kept once as `<out>.bak`.
+        aad_engine::cmd::file::store(out, &bytes).map_err(|e| e.to_string())?;
+    }
     eprintln!("wrote {out} ({} bytes)", bytes.len());
     if !aad_io::is_image(out) {
         if let Err(e) = aad_engine::revision::record(out, &bytes, d.entity_count()) {

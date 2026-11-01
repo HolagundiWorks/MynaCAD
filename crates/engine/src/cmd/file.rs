@@ -331,7 +331,7 @@ pub(crate) fn save_to(s: &mut Session, path: &str) -> Result<usize> {
 
 /// Put saved bytes where the user gets them: natively the file at `path` (written atomically); on
 /// the web, which has no file system, a browser download named after `path` via [`deliver`].
-fn store(path: &str, bytes: &[u8]) -> Result<()> {
+pub fn store(path: &str, bytes: &[u8]) -> Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         // Keep the file being replaced as `<path>.bak` the first time it is overwritten, so the
