@@ -3487,6 +3487,10 @@ mod tests {
         let open = opened.control_one("app.open", &json!({ "path": path.to_string_lossy() }));
         assert_eq!(open["ok"], true, "{open}");
         assert!(opened.stats().entities >= 1);
+        // The shell publishes the open file to the other suite apps from the chrome state, whoever opened it.
+        let chrome: serde_json::Value = serde_json::from_str(&opened.chrome_json()).unwrap();
+        let active = chrome["documents"].as_array().unwrap().iter().find(|d| d["active"] == true).unwrap();
+        assert_eq!(active["path"], path.to_string_lossy().as_ref(), "{chrome}");
         let save = opened.control_one("app.save", &json!({}));
         assert_eq!(save["ok"], true, "{save}");
         let missing = opened.control_one("app.open", &json!({}));

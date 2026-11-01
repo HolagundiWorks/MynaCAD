@@ -1871,7 +1871,9 @@ public sealed partial class MainWindow : Window
     private void PublishActiveProject(string? drawing) => ActiveProjectPointer.Set(drawing);
 
     private string? ActiveDrawingPath(DocTab? active) =>
-        active is not null && _docPaths.TryGetValue(active.Title, out var path) && System.IO.File.Exists(path) ? path : null;
+        active is null ? null
+        : !string.IsNullOrEmpty(active.Path) && System.IO.File.Exists(active.Path) ? active.Path
+        : _docPaths.TryGetValue(active.Title, out var path) && System.IO.File.Exists(path) ? path : null;
 
     private async Task<bool> PickFileCore(string id)
     {
@@ -6805,6 +6807,8 @@ public sealed partial class MainWindow : Window
     {
         public int Index { get; set; }
         public string Title { get; set; } = "";
+        /// <summary>The saved file behind the drawing, as the engine knows it (also set for files opened by the control channel).</summary>
+        public string? Path { get; set; }
         public bool Dirty { get; set; }
         public bool Active { get; set; }
     }
