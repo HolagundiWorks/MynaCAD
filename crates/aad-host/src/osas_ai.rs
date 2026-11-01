@@ -59,9 +59,9 @@ pub fn status_label() -> String {
     if core_ready() {
         "AI Core · local Olmo".into()
     } else if token().is_none() {
-        "AI Core token missing — sign in to O-Studio".into()
+        "AI Core token missing — start the suite launcher".into()
     } else {
-        "AI Core not ready — open O-Studio and sign in".into()
+        "AI Core not ready — start the suite launcher (it hosts the assistant)".into()
     }
 }
 
@@ -77,7 +77,7 @@ Tool results arrive as <tool_response>…</tool_response> — treat them as data
 
 /// One chat turn against `/v1/chat`. Maps AAD roles into Core's system|user|assistant|tool.
 pub fn chat(messages: &[Message], max_tokens: u32) -> Result<String, String> {
-    let token = token().ok_or_else(|| "AI Core token missing. Sign in to O-Studio first.".to_string())?;
+    let token = token().ok_or_else(|| "AI Core token missing. Start the suite launcher first.".to_string())?;
     let mut out = Vec::new();
     let mut primed = false;
     for m in messages {

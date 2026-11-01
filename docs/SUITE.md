@@ -4,11 +4,11 @@
 
 ## 1. Names
 
-The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI). **O-Studio** is the hub: company sign-in, users, launching sibling apps, Neon sync, and the Olmo host. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
+The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI). **O-Studio** is the hub: company sign-in, users, and the Neon sync pages. The **launcher** hosts the Olmo AI Core, signs in, loads the project and starts the apps. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
-| **O-Studio** | Office and projects; **suite hub** (company file, users, launch O-CoreOp/O-Draft, approvals, Neon `.osp` sync, Olmo host) | Orange | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
+| **O-Studio** | Office and projects; **suite hub** (company file, users, launch O-CoreOp/O-Draft, approvals, Neon `.osp` sync settings) | Orange | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
 | **O-CoreOp** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Blue | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
 | **O-Draft** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Black | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
@@ -28,13 +28,13 @@ Other names:
 | **Locked project** | The project chosen in the **launcher** (or O-Studio) for this PC: `%LOCALAPPDATA%\O-Studio\selected-project.json` (company, project id, code, name, project file, who locked it). O-CoreOp and O-Draft open it directly and have no New, Open or Save as project. It cannot be changed while O-CoreOp or O-Draft is running |
 | **Ticket** | One-time sign-in token **O-Studio** gives an app it starts: 32 random bytes, two minutes, one use. The password is never passed on (`OSTUDIO_TICKET` in the environment) |
 | **Persona** | In O-CoreOp, Project Manager/PMC or Contractor: each has its own letterhead and numbering |
-| **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). **O-Studio** hosts **Olmo 3 7B**; **O-CoreOp** and **O-Draft** are clients only |
+| **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). the **launcher** hosts **Olmo 3 7B** for as long as it runs; **O-Studio**, **O-CoreOp** and **O-Draft** are clients only |
 | **Olmo 3 7B** | The shared local assistant model (GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`). Not Tulu and not in-process in O-CoreOp or O-Draft |
 
 ## 2. Hierarchy
 
 ```
-O-Studio (company sign-in, suite hub, Neon sync, Olmo host)   <- which company, who is signed in
+O-Studio (company, users, practice records, Neon sync settings); the launcher (sign-in, project, AI Core host)   <- which company, who is signed in
  |
  +-- Company file (.osas)                                 <- the practice: clients, projects, users, accounts
  |     |
@@ -92,7 +92,7 @@ Details: `docs/UI_UX.md`.
 | Take-off page | Reads the take-off from the open `.osp`; shows "O-Draft updated the take-off" when O-Draft writes; Import brings it into the estimate |
 | File | Save, Take-off, Import from CAD, Export. No New, Open or Save as project: the project is chosen and locked in the **launcher**, and O-CoreOp opens it. No company menu: the company comes from **O-Studio** (launch from the launcher or Studio, which redeems a ticket) |
 | Bottom shell | Full-bleed status row + floating Ask pill (`O.Ui` `SuiteBottomStatusBar`, `SuiteAskBar`) — O-Draft layout is canonical |
-| Assistant (Olmo) | Hosted from O-Studio on `:8742`; O-CoreOp and O-Draft are clients |
+| Assistant (Olmo) | Hosted by the launcher on `:8742`; O-CoreOp and O-Draft are clients |
 
 Details: `docs/WINUI-SHELL.md`.
 
@@ -104,7 +104,7 @@ Details: `docs/WINUI-SHELL.md`.
 | Left pane | Practice (Pulse, Clients, Projects, enquiries, site records, permits, proposals, meetings); Documents (letters, templates); Billing (invoices, receipts, reconciliation); Books (expenses, income, salaries, assets, journals); Reports and tax; Office (firm profile, staff, leave, attendance, library, security, backup); **Suite** (dashboard, **Cloud sync**, approvals) |
 | Shortcuts | Ctrl+N new record, Ctrl+S save, Ctrl+P print, Ctrl+F search, Ctrl+K go to page |
 | Bottom shell | Same status row and Ask pill as O-Draft and O-CoreOp (`O.Ui`); **launch O-CoreOp, O-Draft, O-Form** from the status row |
-| Assistant (Olmo) | Hosts the model on `:8742`; read-only practice tools in the floating bar |
+| Assistant (Olmo) | Client of the launcher's host on `:8742`; read-only practice tools in the floating bar |
 
 ## 5. How they are linked, and how it works live
 
@@ -149,4 +149,4 @@ Saving: O-Draft writes the drawing back into the `.osp` only when its bytes chan
 - **Company file** vs **project file:** practice-wide data lives in the company file; one project's drawing, take-off, and estimate live in its `.osp`.
 - New project data goes in the `.osp` schema with a change-log row, not a sidecar file.
 - Apps do not call each other; they meet in the `.osp`, the company file, the active-project pointer, or the AI Core on loopback.
-- Cloud keys, Neon credentials, and the Olmo host process live only in **O-Studio** (O-CoreOp may host solo when O-Studio is closed — see `docs/LOCAL-MODEL.md`).
+- Cloud keys, Neon credentials, and the Olmo host process live only in the **launcher** and **O-Studio**; O-CoreOp and O-Draft hold none.
