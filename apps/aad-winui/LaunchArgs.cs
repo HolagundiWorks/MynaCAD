@@ -43,6 +43,11 @@ public sealed class LaunchArgs
             }
             files.Add(a);
         }
+        // Locked to a project by the launcher: the project file is the one drawing to open.
+        if (files.Count == 0 && ProjectLock.Path is { } locked)
+        {
+            files.Add(locked);
+        }
         if (control is null
             && ushort.TryParse(Environment.GetEnvironmentVariable("AAD_CONTROL_PORT"), out var fromEnv))
         {

@@ -196,6 +196,26 @@ public sealed partial class MainWindow : Window
             {
                 continue;
             }
+            // A project the launcher just made has a folder but no project file yet: the first drawing creates it.
+            if (ProjectLock.IsLockedFile(path) && !File.Exists(path))
+            {
+                var folder = System.IO.Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+                {
+                    History.Text = "The folder of the locked project was not found: " + folder + ". Choose the project again in the launcher.";
+                    continue;
+                }
+                Native.Execute(_host, "new", "{}");
+                if (!await SaveFileAsync(path))
+                {
+                    History.Text = Native.LastError(_host);
+                    continue;
+                }
+                ShellPrefs.RememberRecent(path);
+                any = true;
+                _docKey = "";
+                continue;
+            }
             if (!await OpenFileAsync(path))
             {
                 History.Text = Native.LastError(_host);
@@ -2619,6 +2639,11 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        // Locked to a project by the launcher: no commands that make or open a project or drawing file.
+        foreach (var menu in menus)
+        {
+            PruneLocked(menu);
+        }
         foreach (var menu in menus)
         {
             var top = new MenuBarItem { Title = menu.Title, FontSize = Density.FontBody };
@@ -2634,6 +2659,15 @@ public sealed partial class MainWindow : Window
         RememberKey(true, false, Windows.System.VirtualKey.Number1, "ui.panel.properties");
         RememberKey(true, false, Windows.System.VirtualKey.NumberPad1, "ui.panel.properties");
         EnsureHelp();
+    }
+
+    private static void PruneLocked(MenuNode node)
+    {
+        node.Items.RemoveAll(child => ProjectLock.IsHidden(child.Id));
+        foreach (var child in node.Items)
+        {
+            PruneLocked(child);
+        }
     }
 
     private void EnsureHelp()
