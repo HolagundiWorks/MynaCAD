@@ -15,4 +15,6 @@ Limits: files up to 256 MB; at most 200 000 SVG polylines; a picture larger than
 
 Code: `crates/engine/src/cmd/import.rs` (dispatch, picture tracing), `svgimport.rs` (SVG reader), `crates/io/src/raster.rs` (PNG, JPEG and TIFF decoding, installed as the host's `set_raster_reader`).
 
-Not yet done: the File > Import... menu item in the WinUI shell (the command exists and the engine lists it in the File menu), a file dialog filter for the nine extensions, and test-plan cases.
+In the app: **File > Import…** (and the **+** at the left of the prompt) opens the file dialog for the nine kinds and runs `import` with the chosen path. Test cases: DRF-FIL-19 to DRF-FIL-25 in O-Studio `docs/testing/PLAN-O-DRAFT.md`.
+
+Not yet done: a real-world check on other programs' DXF, DWG, PDF and SVG output (only files written by O-Draft and hand-made samples were tried), and running `import` on a worker thread (a large PDF or picture holds the window for a few seconds).

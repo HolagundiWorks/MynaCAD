@@ -179,9 +179,9 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Border Width="{StaticResource AskAvatarSize}" Height="{StaticResource AskAvatarSize}" CornerRadius="{StaticResource CornerRadiusAskAvatar}" Background="{ThemeResource SurfaceSecondaryBrush}" VerticalAlignment="Center">
+                        <Button x:Name="AskAttach" Width="{StaticResource AskAvatarSize}" Height="{StaticResource AskAvatarSize}" MinWidth="0" MinHeight="0" Padding="0" BorderThickness="0" CornerRadius="{StaticResource CornerRadiusAskAvatar}" Background="{ThemeResource SurfaceSecondaryBrush}" VerticalAlignment="Center" Click="OnAskAttach" AutomationProperties.Name="Import a file into the drawing" ToolTipService.ToolTip="Import a file: DXF, DWG, PDF, SVG, PNG, JPEG or TIFF">
                             <FontIcon Glyph="&#xE710;" FontSize="{StaticResource FontSizeBody}" Foreground="{ThemeResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        </Button>
                         <TextBox
                             x:Name="AiInput"
                             Grid.Column="1"

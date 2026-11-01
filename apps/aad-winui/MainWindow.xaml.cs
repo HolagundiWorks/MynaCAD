@@ -569,6 +569,11 @@ public sealed partial class MainWindow : Window
             _ = PickFile(id);
             return;
         }
+        if (id == "import")
+        {
+            _ = ImportFile();
+            return;
+        }
         if (id == "close")
         {
             _ = CloseActive();
@@ -1016,6 +1021,11 @@ public sealed partial class MainWindow : Window
         if (id is "open" or "qsave" or "saveas")
         {
             _ = PickFile(id);
+            return;
+        }
+        if (id == "import")
+        {
+            _ = ImportFile();
             return;
         }
         if (id is "pasteclip" or "pasteblock")
@@ -1964,6 +1974,40 @@ public sealed partial class MainWindow : Window
         _docKey = "";
         AfterCommand();
         return true;
+    }
+
+    /// <summary>File > Import: DXF and DWG are merged into the open drawing, PDF and SVG arrive as geometry, pictures are traced to outlines (docs/import.md).</summary>
+    private void OnAskAttach(object sender, RoutedEventArgs e) => _ = ImportFile();
+
+    private async Task ImportFile()
+    {
+        if (_host == IntPtr.Zero)
+        {
+            return;
+        }
+        var picker = new FileOpenPicker();
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+        foreach (var ext in new[] { ".dxf", ".dwg", ".pdf", ".svg", ".png", ".jpg", ".jpeg", ".tif", ".tiff" })
+        {
+            picker.FileTypeFilter.Add(ext);
+        }
+        var file = await picker.PickSingleFileAsync();
+        if (file == null)
+        {
+            return;
+        }
+        History.Text = "Importing " + file.Name + "...";
+        var args = JsonSerializer.Serialize(new Dictionary<string, object> { ["path"] = file.Path });
+        if (Native.Execute(_host, "import", args) != 0)
+        {
+            History.Text = Native.LastError(_host);
+        }
+        else
+        {
+            HideWelcome();
+        }
+        _docKey = "";
+        AfterCommand();
     }
 
     private void OnAppClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
