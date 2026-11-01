@@ -8,11 +8,11 @@ The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI)
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
-| **O-Studio** | Office and projects; **suite hub** (company file, users, launch O-CoreOp/O-Draft, approvals, Neon `.osp` sync settings) | Orange | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
-| **O-CoreOp** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Blue | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
-| **O-Draft** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Black | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
+| **O-Studio** | Office and projects; **suite hub** (company file, users, launch O-CoreOp/O-Draft, approvals, Neon `.osp` sync settings) | Flame Orange `#FF5B04` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
+| **O-CoreOp** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Wild Sand `#E4EEF0` | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
+| **O-Draft** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Dark Slate Blue (Mirage) `#16232B` | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
-| **O-Form**, **O-Dynamo** | Planned, not built | | `O-Form`, `O-Dynamo` | |
+| **O-Form**, **O-Dynamo** | Planned, not built | O-Form: Deep Sea Green `#075056` | `O-Form`, `O-Dynamo` | |
 
 **Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). O-Studio starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (O-Studio), `aad-office::wire` (O-Draft).
 
@@ -138,6 +138,7 @@ Saving: O-Draft writes the drawing back into the `.osp` only when its bytes chan
 | ShilpiDB → `.osp` migration (historical) | Each app repo `docs/MIGRATION-OSP.md` — do not use **ShilpiDB** in new user text |
 | Installers | O-Studio `installer/suite/README.md`; O-CoreOp `docs/PACKAGING.md`, `docs/SUITE-PACKAGING.md` |
 | Testing | O-Studio `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
+| Brand (palette, the mark, the AI agent orb, type) | O-Studio `docs/BRANDING.md`; artwork and colour files in `o-ui` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
 
 ## 7. Conventions
 
