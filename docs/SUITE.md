@@ -4,7 +4,7 @@
 
 ## 1. Names
 
-The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI). **O-Studio** is the hub: company sign-in, users, and the Neon sync pages. The **launcher** hosts the Olmo AI Core, signs in, loads the project and starts the apps. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
+The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI). **O-Studio** is the hub: company sign-in, users, and the Neon sync settings. The **launcher** hosts the Olmo AI Core, runs the Neon sync, signs in, loads the project and starts the apps. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
@@ -34,7 +34,7 @@ Other names:
 ## 2. Hierarchy
 
 ```
-O-Studio (company, users, practice records, Neon sync settings); the launcher (sign-in, project, AI Core host)   <- which company, who is signed in
+O-Studio (company, users, practice records, Neon sync settings); the launcher (sign-in, project, AI Core host, cloud sync)   <- which company, who is signed in
  |
  +-- Company file (.osas)                                 <- the practice: clients, projects, users, accounts
  |     |
