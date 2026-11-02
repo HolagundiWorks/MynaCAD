@@ -3686,7 +3686,7 @@ public sealed partial class MainWindow : Window
         }
         if (_roomSettingsWindow == null)
         {
-            _roomSettingsWindow = RoomSettingsWindow.Open(this, _host, AfterCommand);
+            _roomSettingsWindow = RoomSettingsWindow.Open(this, _host, AfterCommand, () => UnitsBox.SelectedItem as string ?? "");
             _roomSettingsWindow.Closed += (_, _) => _roomSettingsWindow = null;
         }
         PresentToolWindow(_roomSettingsWindow);

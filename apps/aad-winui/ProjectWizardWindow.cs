@@ -137,6 +137,11 @@ internal static class ProjectWizardWindow
         var storey = Density.DialogField("3.0", "Floor to floor height (m)");
         var slab = Density.DialogField("150", "Slab (mm)");
         var beam = Density.DialogField("450", "Beam depth (mm)");
+        const string AnyUnit = "A bare number is in the unit shown. Any unit can be typed: 3m, 10ft, 3000mm, 9'6\"";
+        foreach (var lengthBox in new[] { storey, slab, beam })
+        {
+            ToolTipService.SetToolTip(lengthBox, AnyUnit);
+        }
         var oneLevelPerFloor = new CheckBox { Content = "One level (tab) per floor", IsChecked = true, MinHeight = Density.ControlHeight };
         var floorRows = new StackPanel { Spacing = Density.SpaceXs };
         var floorBoxes = new List<(TextBox Name, TextBox Height)>();
@@ -150,7 +155,7 @@ internal static class ProjectWizardWindow
         page3.Children.Add(DialogLayout.Labeled("Default slab thickness (mm)", slab));
         page3.Children.Add(DialogLayout.Labeled("Default beam depth including slab (mm)", beam));
         page3.Children.Add(oneLevelPerFloor);
-        page3.Children.Add(Density.Secondary("Floors (edit a name or a height in metres; changing the counts above rebuilds this list):", TextWrapping.Wrap));
+        page3.Children.Add(Density.Secondary("Floors (edit a name or a height, in metres unless you type a unit such as 10ft; changing the counts above rebuilds this list):", TextWrapping.Wrap));
         page3.Children.Add(floorRows);
 
         static bool Number(string text, out double value) =>
@@ -162,7 +167,7 @@ internal static class ProjectWizardWindow
             floorBoxes.Clear();
             var above = Number(floorsAbove.Text, out var a) && a >= 0 && a <= 59 ? (int)a : 0;
             var below = Number(basements.Text, out var b) && b >= 0 && b <= 10 ? (int)b : 0;
-            var height = Number(storey.Text, out var h) && h >= 2 && h <= 30 ? h : 3.0;
+            var height = LengthText.TryParse(storey.Text, "m", out var h) && h >= 2 && h <= 30 ? h : 3.0;
             var names = new List<string>();
             for (var i = below; i >= 1; i--)
             {
@@ -378,7 +383,7 @@ internal static class ProjectWizardWindow
             var floors = new List<object>();
             foreach (var (n, h) in floorBoxes)
             {
-                floors.Add(new Dictionary<string, object> { ["name"] = n.Text.Trim(), ["height"] = Number(h.Text, out var v) ? v : 3.0 });
+                floors.Add(new Dictionary<string, object> { ["name"] = n.Text.Trim(), ["height"] = LengthText.TryParse(h.Text, "m", out var v) ? v : 3.0 });
             }
             var layers = new List<string>();
             if (layerStandard.IsChecked == true)
@@ -409,11 +414,11 @@ internal static class ProjectWizardWindow
                 body.Remove("floors");
                 body.Remove("levels");
             }
-            if (Number(slab.Text, out var sm))
+            if (LengthText.TryParse(slab.Text, "mm", out var sm))
             {
                 body["slabMm"] = sm;
             }
-            if (Number(beam.Text, out var bm))
+            if (LengthText.TryParse(beam.Text, "mm", out var bm))
             {
                 body["beamMm"] = bm;
             }

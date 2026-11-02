@@ -534,6 +534,23 @@ impl Default for Session {
     }
 }
 
+/// Split a typed line at spaces, keeping a number together with a unit typed after a space: `5 m,0`
+/// is the one token `5m,0`, and `line 0,0 2 ft<45` ends in `2ft<45`.
+fn split_tokens(line: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for tok in line.split_whitespace() {
+        let ends_in_number = out.last().is_some_and(|prev| prev.ends_with(|c: char| c.is_ascii_digit() || c == '.'));
+        if ends_in_number && units::starts_with_unit_word(tok) {
+            if let Some(prev) = out.last_mut() {
+                prev.push_str(tok);
+            }
+        } else {
+            out.push(tok.to_string());
+        }
+    }
+    out
+}
+
 impl Session {
     pub fn new() -> Self {
         let mut s = Session::empty();
@@ -1056,14 +1073,14 @@ impl Session {
                     return Ok(());
                 }
                 // Expressions like "LINE 0,0 5,5" in one line: first token is the command.
-                let mut parts = t.split_whitespace();
-                let name = parts.next().unwrap_or("");
-                self.start(name)?;
+                let mut parts = split_tokens(t).into_iter();
+                let name = parts.next().unwrap_or_default();
+                self.start(&name)?;
                 for rest in parts {
                     if self.running.is_none() {
                         break;
                     }
-                    self.typed(rest)?;
+                    self.typed(&rest)?;
                 }
                 Ok(())
             }
@@ -1073,11 +1090,11 @@ impl Session {
                 if text_prompt || !t.contains(' ') {
                     return self.typed(t);
                 }
-                for tok in t.split_whitespace() {
+                for tok in split_tokens(t) {
                     if self.running.is_none() {
                         break;
                     }
-                    self.typed(tok)?;
+                    self.typed(&tok)?;
                 }
                 Ok(())
             }
@@ -1159,10 +1176,28 @@ impl Session {
                 }
                 match rest.split_once(' ') {
                     Some((tok, r)) => {
+                        // A unit typed after a space belongs to the number before it: `5 m,0`.
+                        let mut tok = tok.to_string();
+                        let mut r = r;
+                        let mut joined = false;
+                        loop {
+                            let (next, after) = r.trim_start().split_once(' ').unwrap_or((r.trim_start(), ""));
+                            if tok.ends_with(|c: char| c.is_ascii_digit() || c == '.') && units::starts_with_unit_word(next) {
+                                tok.push_str(next);
+                                r = after;
+                                joined = true;
+                            } else {
+                                break;
+                            }
+                        }
                         if self.running.is_none() {
-                            self.start(tok)?;
+                            self.start(&tok)?;
                         } else {
-                            self.typed(tok)?;
+                            self.typed(&tok)?;
+                        }
+                        // The unit was the last word of the line: nothing more to type (an empty token would be Enter).
+                        if joined && r.is_empty() {
+                            break;
                         }
                         rest = r;
                     }

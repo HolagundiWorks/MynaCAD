@@ -32,6 +32,18 @@ declared length fields) still take numbers in drawing units; the command line ac
 (`units-annotation.md`). Checked by `forms::tests` and `crates/engine/tests/forms.rs`
 (`architecture_commands_take_a_length_in_any_unit`, `lists_and_fixed_unit_fields_take_units_too`).
 
+Added 2026-11-02: the length cells of the opening schedule (width, height, sill, metres) take units
+(`the_openings_table_takes_a_unit_in_each_length_cell`); the dialog label says the drawing's unit where it used to
+say "drawing units", and a length field's help line says that any unit can be typed; the Project Wizard (floor to floor
+in m, slab and beam in mm, floor heights in m), the Smart Blocks form (into the parameter's own unit) and Room Label
+Settings (text height) read a typed unit through `LengthText` (`apps/aad-winui/LengthText.cs`, the same suffixes as the
+engine); `underlay.calibrate` takes `length` as text with its own unit (`"3.5m"`, `"12ft"`).
+
+Unit words accepted after a number (command line, forms, JSON): `mm`, `cm`, `dm`, `m`, `km`, `µm`/`um`, `in`, `ft`,
+`yd`, `mi` and the long forms (`inch`, `feet`, `metres`, `meters`, `kilometres`, ...); feet-inches `1'6"`; scientific
+numbers (`1.5e1cm`). A unit typed after a space joins the number (`5 ft,0`, `2 cm<45`), but `m`, `in`, `mi`, `um` and
+`dm` alone after a space stay keywords (`CHAMFER ... 1 M` is Multiple): type `5m` or `5 m,0`.
+
 Forms exist for: `project`, `floors`, `beams`, `schedule`, `takeoff.rates`, `room`, `hcwlayers` (choices: standard, permit, presentation, both, all),
 `takeoff.linear|brick|beams|columns|rects|paint|ceiling|floor|area|slab`, `wall.draw`, `wall.door`,
 `wall.window`, `grid.axis`, `column.place`, `lintel.draw`, `stair.plan`, `lift.shaft`, `rail.draw`,

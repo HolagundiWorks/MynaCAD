@@ -22,6 +22,8 @@ pub struct Col {
     pub key: &'static str,
     pub label: &'static str,
     pub numeric: bool,
+    /// Set for a length column: what a bare number means, and what a typed unit converts into.
+    pub len: Option<Len>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -133,25 +135,25 @@ impl Form {
 }
 
 const UNITS: &[&str] = &["", "mm", "cm", "m", "in", "ft"];
-const FLOOR_COLS: &[Col] = &[Col { key: "name", label: "Name", numeric: false }];
+const FLOOR_COLS: &[Col] = &[Col { key: "name", label: "Name", numeric: false, len: None }];
 const OPENING_COLS: &[Col] = &[
-    Col { key: "name", label: "Mark", numeric: false },
-    Col { key: "kind", label: "Kind (door, window, ventilator)", numeric: false },
-    Col { key: "type", label: "Type", numeric: false },
-    Col { key: "length", label: "Width (m)", numeric: true },
-    Col { key: "height", label: "Height (m)", numeric: true },
-    Col { key: "sill", label: "Sill (m)", numeric: true },
-    Col { key: "block", label: "Blocks", numeric: false },
-    Col { key: "floor", label: "Floor", numeric: false },
+    Col { key: "name", label: "Mark", numeric: false, len: None },
+    Col { key: "kind", label: "Kind (door, window, ventilator)", numeric: false, len: None },
+    Col { key: "type", label: "Type", numeric: false, len: None },
+    Col { key: "length", label: "Width (m)", numeric: true, len: Some(Len::M) },
+    Col { key: "height", label: "Height (m)", numeric: true, len: Some(Len::M) },
+    Col { key: "sill", label: "Sill (m)", numeric: true, len: Some(Len::M) },
+    Col { key: "block", label: "Blocks", numeric: false, len: None },
+    Col { key: "floor", label: "Floor", numeric: false, len: None },
 ];
 const RATE_COLS: &[Col] = &[
-    Col { key: "takeoff", label: "Item", numeric: false },
-    Col { key: "unit", label: "Unit", numeric: false },
-    Col { key: "rate", label: "Rate", numeric: true },
+    Col { key: "takeoff", label: "Item", numeric: false, len: None },
+    Col { key: "unit", label: "Unit", numeric: false, len: None },
+    Col { key: "rate", label: "Rate", numeric: true, len: None },
 ];
-const NOTE_COLS: &[Col] = &[Col { key: "text", label: "Note", numeric: false }];
+const NOTE_COLS: &[Col] = &[Col { key: "text", label: "Note", numeric: false, len: None }];
 const LEGEND_COLS: &[Col] =
-    &[Col { key: "name", label: "Layer or symbol", numeric: false }, Col { key: "description", label: "Description", numeric: false }];
+    &[Col { key: "name", label: "Layer or symbol", numeric: false, len: None }, Col { key: "description", label: "Description", numeric: false, len: None }];
 
 const TAKEOFF: &[Field] = &[
     field("units", "Units (blank: the drawing's)", Kind::Choice(UNITS)),
@@ -814,11 +816,13 @@ fn parse_fields(form: &Form, input: &Value, picks: bool) -> Result<Value> {
                             continue;
                         }
                         if c.numeric {
-                            let n = t
-                                .parse::<f64>()
-                                .ok()
+                            let parsed = match c.len {
+                                Some(len) => crate::units::parse_distance_as(&t, len.unit()).map(tidy),
+                                None => t.parse::<f64>().ok(),
+                            };
+                            let n = parsed
                                 .filter(|x| x.is_finite())
-                                .ok_or_else(|| bad(f, format!("{}: `{t}` is not a number", c.label)))?;
+                                .ok_or_else(|| bad(f, format!("{}: `{t}` is not a {}", c.label, if c.len.is_some() { "length" } else { "number" })))?;
                             o.insert(c.key.into(), json!(n));
                         } else {
                             o.insert(c.key.into(), json!(t));

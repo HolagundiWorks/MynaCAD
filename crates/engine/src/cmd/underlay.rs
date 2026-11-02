@@ -30,7 +30,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{path: PDF file, page?: 1, at?: [x, y] (lower left of the page, default [0, 0]), scale?: drawing mm per paper mm (default 1), layer?: \"PDF-UNDERLAY\"} → {layer, page, paths, widthMm, heightMm, skipped, truncated, warnings}"),
         CommandSpec::new("underlay.calibrate", "Calibrate PDF Underlay", run_calibrate)
             .menu(&["Architecture", "Take-off", "Calibrate PDF Underlay"])
-            .params("{p1: [x, y], p2: [x, y] (two points on the underlay a known distance apart), length: the real distance, unit?: \"mm\"|\"m\"|\"cm\"|\"ft\"|\"in\" (default mm), layer?} → {layer, factor, scaleDenominator}"),
+            .params("{p1: [x, y], p2: [x, y] (two points on the underlay a known distance apart), length: the real distance (a number in `unit`, or text with its own unit such as 3.5m or 12ft), unit?: \"mm\"|\"m\"|\"cm\"|\"ft\"|\"in\" (default mm), layer?} → {layer, factor, scaleDenominator}"),
         CommandSpec::new("underlay.list", "List PDF Underlays", run_list).menu(&["Architecture", "Take-off", "List PDF Underlays"]).params("{} → {underlays: [{layer, file, page, scale, calibrated, entities}]}").noundo(),
         CommandSpec::new("underlay.remove", "Remove PDF Underlay", run_remove)
             .menu(&["Architecture", "Take-off", "Remove PDF Underlay"])
@@ -210,7 +210,17 @@ fn run_calibrate(s: &mut Session, p: &Value) -> Result<Value> {
     let per_unit = to_mm(unit_name).ok_or_else(|| {
         bad("underlay.calibrate", format!("unknown unit `{}`; use mm, cm, m, in or ft", unit_name.chars().take(20).collect::<String>()))
     })?;
-    let length = f64_or(p, "length", f64::NAN);
+    // The real distance may carry its own unit (`"3.5m"`, `"12ft"`, `"1'6\""`); a bare number is in `unit`.
+    let (length, per_unit) = match p.get("length").and_then(Value::as_str).map(str::trim) {
+        Some(t) => match t.parse::<f64>() {
+            Ok(v) => (v, per_unit),
+            Err(_) => match crate::units::parse_distance_as(t, Some(crate::annot::Unit::Mm)) {
+                Some(mm) => (mm, 1.0),
+                None => return Err(bad("underlay.calibrate", format!("`length` {t:?} is not a distance: use a number, or one with a unit such as 3.5m or 12ft"))),
+            },
+        },
+        None => (f64_or(p, "length", f64::NAN), per_unit),
+    };
     if !(length.is_finite() && length > 0.0) {
         return Err(bad("underlay.calibrate", "`length` must be the real distance between the two points, greater than zero"));
     }

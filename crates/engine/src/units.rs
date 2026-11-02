@@ -138,45 +138,19 @@ pub fn parse_distance_as(s: &str, drawn: Option<Unit>) -> Option<f64> {
         Some(r) => (true, r.trim()),
         None => (false, t),
     };
-    let lower = body.to_ascii_lowercase();
+    let lower = body.to_lowercase();
     // Word and metric suffixes (longest first). Allow a space: `5 m`, `12.5cm`, `10 ft`.
-    for (suffix, unit) in [
-        ("inches", Unit::In),
-        ("inch", Unit::In),
-        ("feet", Unit::Ft),
-        ("foot", Unit::Ft),
-        ("mm", Unit::Mm),
-        ("cm", Unit::Cm),
-        ("ft", Unit::Ft),
-        ("in", Unit::In),
-        ("m", Unit::M),
-    ] {
+    for (suffix, metres_per, unit) in SUFFIXES {
         if let Some(num) = lower.strip_suffix(suffix) {
             let num = num.trim();
-            if num.is_empty() {
-                continue;
-            }
-            if num.chars().any(|c| c.is_ascii_alphabetic()) {
+            if num.is_empty() || has_stray_letters(num) {
                 continue;
             }
             let v: f64 = parse_mixed(num)?;
-            let out = convert_from(unit, v, drawn)?;
-            let out = if neg { -out } else { out };
-            return out.is_finite().then_some(out);
-        }
-    }
-    // Extra SketchUp-style lengths without a dedicated [`Unit`] variant (metres factor).
-    for (suffix, metres_per) in [("yards", 0.9144), ("yard", 0.9144), ("yd", 0.9144), ("km", 1000.0)] {
-        if let Some(num) = lower.strip_suffix(suffix) {
-            let num = num.trim();
-            if num.is_empty() || num.chars().any(|c| c.is_ascii_alphabetic()) {
-                continue;
-            }
-            let v: f64 = parse_mixed(num)?;
-            let metres = v * metres_per;
-            let out = match drawn {
-                Some(drawn) => metres / drawn.metres(),
-                None => v,
+            let out = match (drawn, unit) {
+                (None, _) => v,
+                (Some(drawn), Some(unit)) => convert_from(*unit, v, Some(drawn))?,
+                (Some(drawn), None) => v * metres_per / drawn.metres(),
             };
             let out = if neg { -out } else { out };
             return out.is_finite().then_some(out);
@@ -205,6 +179,87 @@ pub fn parse_distance_as(s: &str, drawn: Option<Unit>) -> Option<f64> {
     let v = parse_mixed(body)?;
     let v = if neg { -v } else { v };
     v.is_finite().then_some(v)
+}
+
+/// Unit words a distance may end in, longest first where one ends with another (`mm` before `m`).
+/// Metres per unit, and the [`Unit`] when the drawing can be in it.
+const SUFFIXES: &[(&str, f64, Option<Unit>)] = &[
+    ("inches", 0.0254, Some(Unit::In)),
+    ("inch", 0.0254, Some(Unit::In)),
+    ("feet", 0.3048, Some(Unit::Ft)),
+    ("foot", 0.3048, Some(Unit::Ft)),
+    ("yards", 0.9144, None),
+    ("yard", 0.9144, None),
+    ("yd", 0.9144, None),
+    ("miles", 1609.344, None),
+    ("mile", 1609.344, None),
+    ("mi", 1609.344, None),
+    ("kilometres", 1000.0, None),
+    ("kilometers", 1000.0, None),
+    ("kilometre", 1000.0, None),
+    ("kilometer", 1000.0, None),
+    ("km", 1000.0, None),
+    ("millimetres", 0.001, Some(Unit::Mm)),
+    ("millimeters", 0.001, Some(Unit::Mm)),
+    ("millimetre", 0.001, Some(Unit::Mm)),
+    ("millimeter", 0.001, Some(Unit::Mm)),
+    ("mm", 0.001, Some(Unit::Mm)),
+    ("centimetres", 0.01, Some(Unit::Cm)),
+    ("centimeters", 0.01, Some(Unit::Cm)),
+    ("centimetre", 0.01, Some(Unit::Cm)),
+    ("centimeter", 0.01, Some(Unit::Cm)),
+    ("cm", 0.01, Some(Unit::Cm)),
+    ("decimetres", 0.1, None),
+    ("decimeters", 0.1, None),
+    ("decimetre", 0.1, None),
+    ("decimeter", 0.1, None),
+    ("dm", 0.1, None),
+    ("micrometres", 1e-6, None),
+    ("micrometers", 1e-6, None),
+    ("micrometre", 1e-6, None),
+    ("micrometer", 1e-6, None),
+    ("µm", 1e-6, None),
+    ("um", 1e-6, None),
+    ("metres", 1.0, Some(Unit::M)),
+    ("meters", 1.0, Some(Unit::M)),
+    ("metre", 1.0, Some(Unit::M)),
+    ("meter", 1.0, Some(Unit::M)),
+    ("ft", 0.3048, Some(Unit::Ft)),
+    ("in", 0.0254, Some(Unit::In)),
+    ("m", 1.0, Some(Unit::M)),
+];
+
+/// True when `num` holds letters that are not a scientific exponent (`1.5e3` is a number, `1.5x` is not).
+fn has_stray_letters(num: &str) -> bool {
+    let chars: Vec<char> = num.chars().collect();
+    let mut exponents = 0;
+    for (i, c) in chars.iter().enumerate() {
+        if !c.is_alphabetic() {
+            continue;
+        }
+        let before = i > 0 && (chars[i - 1].is_ascii_digit() || chars[i - 1] == '.');
+        let after = chars.get(i + 1).is_some_and(|n| n.is_ascii_digit() || *n == '+' || *n == '-');
+        if !matches!(c, 'e' | 'E') || !before || !after {
+            return true;
+        }
+        exponents += 1;
+    }
+    exponents > 1
+}
+
+/// True when `token` is a unit word, optionally followed by more point text (`m`, `mm,0`, `ft<45`).
+/// The command line uses it to keep a number and its unit together when they were typed with a space.
+pub fn starts_with_unit_word(token: &str) -> bool {
+    let lower = token.to_lowercase();
+    let word: String = lower.chars().take_while(|c| c.is_alphabetic()).collect();
+    let rest = &lower[word.len()..];
+    if word.is_empty() || !SUFFIXES.iter().any(|(s, _, _)| *s == word) {
+        return false;
+    }
+    // `m`, `in`, `mi`, `um` and `dm` alone are also keywords (`1 M` is "Multiple" after a chamfer distance), so they
+    // only join the number when the point goes on in the same word: `5 m,0`, `2 in<45`.
+    let ambiguous = matches!(word.as_str(), "m" | "in" | "mi" | "um" | "dm");
+    rest.starts_with([',', '<']) || (rest.is_empty() && !ambiguous)
 }
 
 /// Convert a value measured in `from` into drawing units (`drawn`), or leave it in `from` when unset.
@@ -408,6 +463,50 @@ mod tests {
         assert!((v - 2000.0).abs() < 1e-9);
         let inch = with_drawn_unit(Some(Unit::Mm), || parse_distance("10\"")).unwrap();
         assert!((inch - 254.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn any_unit_converts_into_the_drawing_unit() {
+        let mm = |t: &str| parse_distance_as(t, Some(Unit::Mm));
+        let near = |a: Option<f64>, b: f64| (a.unwrap() - b).abs() < 1e-6;
+        assert!(near(mm("1.5e1cm"), 150.0));
+        assert!(near(mm("3.5e2mm"), 350.0));
+        assert!(near(mm("5 meters"), 5000.0));
+        assert!(near(mm("5metres"), 5000.0));
+        assert!(near(mm("4dm"), 400.0));
+        assert!(near(mm("100000um"), 100.0));
+        assert!(near(mm("250µm"), 0.25));
+        assert!(near(mm("1mi"), 1_609_344.0));
+        assert!(near(mm("12yd"), 10972.8));
+        assert!(near(mm("1km"), 1_000_000.0));
+        assert!(near(mm("-2m"), -2000.0));
+        assert!(near(mm("5M"), 5000.0));
+        // Imperial drawing.
+        let inch = |t: &str| parse_distance_as(t, Some(Unit::In));
+        assert!(near(inch("2.54cm"), 1.0));
+        assert!(near(inch("1m"), 39.37007874015748));
+        assert!(near(inch("1yd"), 36.0));
+        // Foot drawing.
+        assert!(near(parse_distance_as("12in", Some(Unit::Ft)), 1.0));
+        // Not numbers.
+        assert_eq!(mm("5xm"), None);
+        assert_eq!(mm("e3m"), None);
+        assert_eq!(mm("1e2e3m"), None);
+        assert_eq!(mm("m"), None);
+        assert_eq!(mm("infm"), None);
+    }
+
+    #[test]
+    fn unit_words_join_the_number_before_them() {
+        assert!(starts_with_unit_word("m,0"));
+        assert!(!starts_with_unit_word("m"), "a lone M is the Multiple keyword");
+        assert!(starts_with_unit_word("mm"));
+        assert!(starts_with_unit_word("mm,0"));
+        assert!(starts_with_unit_word("ft<45"));
+        assert!(starts_with_unit_word("Meters"));
+        assert!(!starts_with_unit_word("u"));
+        assert!(!starts_with_unit_word("mx"));
+        assert!(!starts_with_unit_word("1m"));
     }
 
     #[test]

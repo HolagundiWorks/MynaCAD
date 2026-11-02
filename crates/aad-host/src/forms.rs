@@ -1,7 +1,7 @@
 //! Form descriptions for the WinUI dialog. The field list is the engine's; this only writes it as JSON.
 
 use aad_engine::Session;
-use aad_engine::forms::{self, Kind};
+use aad_engine::forms::{self, Kind, Len};
 use serde_json::{Value, json};
 
 /// JSON for the settings dialog of `id`, or `None` when the command has no dialog fields.
@@ -9,17 +9,34 @@ pub fn form_json(session: &Session, id: &str) -> Option<String> {
     let form = forms::get(id.trim())?;
     form.dialog_fields().next()?;
     let prefill = forms::prefill(session, form);
+    let drawn = session.doc().ok().and_then(aad_engine::annot::drawing_unit);
     let mut rooms = Value::Null;
     let fields: Vec<Value> = form
         .fields
         .iter()
         .map(|field| {
+            // A length can be typed in any unit; "drawing units" names the unit this drawing is in.
+            let unit_name = match field.len {
+                Some(Len::Drawing) => drawn.map(|u| u.name()),
+                Some(Len::Mm) => Some("mm"),
+                Some(Len::M) => Some("m"),
+                None => None,
+            };
+            let label = match (field.len, drawn) {
+                (Some(Len::Drawing), Some(u)) => field.label.replace("drawing units", u.name()),
+                _ => field.label.to_string(),
+            };
+            let help = if field.len.is_some() {
+                format!("{} A bare number is in {}; a unit can be typed: 12in, 300mm, 0.3m, 1'6\".", field.help, unit_name.unwrap_or("drawing units")).trim().to_string()
+            } else {
+                field.help.to_string()
+            };
             let mut value = json!({
                 "key": field.key,
-                "label": field.label,
+                "label": label,
                 "default": field.default,
                 "required": field.required,
-                "help": field.help,
+                "help": help,
                 "pick": field.is_pick(),
                 "value": prefill.get(field.key).cloned().unwrap_or(Value::Null),
             });

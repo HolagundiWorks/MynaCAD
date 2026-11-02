@@ -132,7 +132,7 @@ internal static class SmartBlockWindow
                 else
                 {
                     input = Density.DialogField(Number(param.Default), param.Label);
-                    ToolTipService.SetToolTip(input, param.Range());
+                    ToolTipService.SetToolTip(input, param.Range() + (LengthText.MetresPer(param.Unit) != null ? ". Any unit can be typed: 12in, 0.3m." : ""));
                 }
                 inputs.Add((param, input));
                 fields.Children.Add(Density.FieldRow(param.Caption(), input));
@@ -156,7 +156,8 @@ internal static class SmartBlockWindow
                         {
                             break;
                         }
-                        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number))
+                        // A length may carry any unit (12in, 0.3m); it is converted into the parameter's own unit.
+                        if (!LengthText.TryParse(text, param.Unit, out var number))
                         {
                             status.Text = param.Label + ": enter a number (" + param.Range() + ").";
                             return null;

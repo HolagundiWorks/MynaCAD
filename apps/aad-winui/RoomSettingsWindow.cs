@@ -27,7 +27,7 @@ internal static class RoomSettingsWindow
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public static Window Open(Window owner, IntPtr host, Action changed)
+    public static Window Open(Window owner, IntPtr host, Action changed, Func<string>? drawingUnit = null)
     {
         var theme = owner.Content is FrameworkElement shell ? shell.RequestedTheme : ElementTheme.Default;
         var status = Density.Secondary("", TextWrapping.Wrap);
@@ -152,10 +152,11 @@ internal static class RoomSettingsWindow
                 Run(new Dictionary<string, object?> { ["textHeight"] = null });
                 return;
             }
-            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)
-                && !double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out v))
+            // The height is in the unit chosen above (or the drawing's); a length typed with a unit is converted into it.
+            var chosen = Units[Math.Max(0, units.SelectedIndex)].Value;
+            if (!LengthText.TryParse(text, chosen.Length > 0 ? chosen : drawingUnit?.Invoke(), out var v))
             {
-                Fail("Text height must be a positive number, or blank.");
+                Fail("Text height must be a positive length (for example 250, 10in or 0.25m), or blank.");
                 return;
             }
             Run(new { textHeight = v });

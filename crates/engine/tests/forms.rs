@@ -222,6 +222,19 @@ fn lists_and_fixed_unit_fields_take_units_too() {
 }
 
 #[test]
+fn the_openings_table_takes_a_unit_in_each_length_cell() {
+    let f = forms::get("schedule").expect("schedule form");
+    let p = forms::parse_input(f, &json!({"openings": [["D1", "door", "", "900mm", "2100", "", "", ""], ["W1", "window", "", "3'", "1.2", "0.9m", "", ""]]})).unwrap();
+    let rows = p["openings"].as_array().unwrap();
+    assert_eq!(rows[0]["length"], json!(0.9));
+    assert_eq!(rows[0]["height"], json!(2100.0), "a bare number stays in metres");
+    assert!((rows[1]["length"].as_f64().unwrap() - 0.9144).abs() < 1e-9);
+    assert_eq!(rows[1]["sill"], json!(0.9));
+    let e = forms::parse_input(f, &json!({"openings": [["D1", "door", "", "wide", "", "", "", ""]]})).unwrap_err().to_string();
+    assert!(e.contains("not a length"), "{e}");
+}
+
+#[test]
 fn the_dialog_and_prompts_take_units_and_say_what_is_wrong() {
     let f = forms::get("wall.draw").unwrap();
     let p = aad_engine::units::with_drawn_unit(Some(aad_engine::annot::Unit::Mm), || {
