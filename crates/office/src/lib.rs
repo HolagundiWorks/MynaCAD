@@ -13,10 +13,7 @@ mod link;
 mod wire;
 
 pub use link::Link;
-pub use wire::{
-    local_path, ACTIVE_PROJECT_FORMAT, ENV_COMPANY, ENV_OFFICE_DLL, ENV_TICKET, LOCAL_APP_FOLDER,
-    PROJECT_FORMAT,
-};
+pub use wire::{ACTIVE_PROJECT_FORMAT, ENV_COMPANY, ENV_OFFICE_DLL, ENV_TICKET, LOCAL_APP_FOLDER, PROJECT_FORMAT, local_path};
 
 use std::path::PathBuf;
 
@@ -43,11 +40,7 @@ impl Settings {
     /// From the environment O-Studio starts an app with.
     pub fn from_environment() -> Self {
         let get = |name: &str| std::env::var(name).ok().filter(|v| !v.trim().is_empty());
-        Settings {
-            company: get(ENV_COMPANY).map(PathBuf::from),
-            ticket: get(ENV_TICKET),
-            library: get(ENV_OFFICE_DLL).map(PathBuf::from),
-        }
+        Settings { company: get(ENV_COMPANY).map(PathBuf::from), ticket: get(ENV_TICKET), library: get(ENV_OFFICE_DLL).map(PathBuf::from) }
     }
 
     /// The library to load: the one named, else `office.dll` beside the program, else the one O-Studio is installed with.

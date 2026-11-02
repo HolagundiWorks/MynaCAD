@@ -23,13 +23,27 @@ fn main() {
         let band = aad_render::tessellation_band(px);
         for (label, text, fill) in [("all", true, true), ("no text", false, true), ("no fill", true, false), ("neither", false, false)] {
             let opts = Options {
-                tolerance: aad_render::tessellation_tolerance(band), min_dash: px * 2.0, text, fill, text_greek: false, fill_tint: true,
-                lineweights: true, view_height: height, view_center: Some(Vec2::new(cx, cy)), plot_style_table: None, screen_px: 0.0,
+                tolerance: aad_render::tessellation_tolerance(band),
+                min_dash: px * 2.0,
+                text,
+                fill,
+                text_greek: false,
+                fill_tint: true,
+                lineweights: true,
+                view_height: height,
+                view_center: Some(Vec2::new(cx, cy)),
+                plot_style_table: None,
+                screen_px: 0.0,
             };
             let t = Instant::now();
             let list = aad_render::build(&doc, &Space::Model, &opts);
             let tri: usize = list.prims.iter().filter(|p| matches!(p.kind, Kind::Tris | Kind::Mask)).map(|p| p.len as usize).sum();
-            println!("band {band} {label:>8}: build {:>6.1} ms, prims {:>7}, tri verts {:>8}", t.elapsed().as_secs_f64() * 1000.0, list.prims.len(), tri);
+            println!(
+                "band {band} {label:>8}: build {:>6.1} ms, prims {:>7}, tri verts {:>8}",
+                t.elapsed().as_secs_f64() * 1000.0,
+                list.prims.len(),
+                tri
+            );
         }
     }
     for step in 0..6 {
@@ -67,7 +81,18 @@ fn main() {
         let mesh_ms = t.elapsed().as_secs_f64() * 1000.0;
         println!(
             "height {:>9.0} band {:>3} text={} fill={} tint={} | build {:>7.1} ms prims {:>7} polyverts {:>8} trisverts {:>8} other {:>5} | mesh {:>7.1} ms ({} mesh words)",
-            height, band, lod.text, lod.fill, lod.fill_tint, build_ms, list.prims.len(), poly, tris, other, mesh_ms, m.lines.len() / 4 + m.tris.len() / 4 + m.quads.len() / 4 + m.rings.len() / 4
+            height,
+            band,
+            lod.text,
+            lod.fill,
+            lod.fill_tint,
+            build_ms,
+            list.prims.len(),
+            poly,
+            tris,
+            other,
+            mesh_ms,
+            m.lines.len() / 4 + m.tris.len() / 4 + m.quads.len() / 4 + m.rings.len() / 4
         );
     }
 }

@@ -50,6 +50,27 @@ public sealed partial class MainWindow
 
     private const string TraceMark = "◐";
 
+    /// <summary>
+    /// How a level is written on the tabs and menus, counted from the base level: the base level is <c>L0</c>, the levels above it
+    /// <c>L1</c>, <c>L2</c>..., and the levels below it <c>-L1</c>, <c>-L2</c>... The base level is the one at elevation 0 (the datum),
+    /// or the one nearest it. The level's own name stays in the tooltip.
+    /// </summary>
+    internal static string LevelCode(int offsetFromBase) =>
+        offsetFromBase == 0 ? "L0" : offsetFromBase > 0 ? "L" + offsetFromBase : "-L" + -offsetFromBase;
+
+    private static string LevelCodeOf(LevelTab level, IReadOnlyList<LevelTab> all)
+    {
+        if (all.Count == 0)
+        {
+            return LevelCode(0);
+        }
+
+        var ordered = all.OrderBy(l => l.Elevation).ToList();
+        var baseIndex = ordered.IndexOf(ordered.OrderBy(l => Math.Abs(l.Elevation)).First());
+        var index = ordered.FindIndex(l => l.Id == level.Id);
+        return LevelCode(index < 0 ? 0 : index - baseIndex);
+    }
+
     private string _levelKey = "";
     private string _sheetKey = "";
     private List<LevelTab> _cachedLevels = new();
@@ -79,7 +100,7 @@ public sealed partial class MainWindow
         {
             // The drawing has one implicit level: show it as the tab it is, so the bar is never empty.
             var only = SeamlessTab.Create(
-                new TextBlock { Text = "Level 1", FontSize = Density.FontCaption, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center },
+                new TextBlock { Text = LevelCode(0), FontSize = Density.FontCaption, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center },
                 true,
                 TabEdge.Bottom,
                 SeamlessTab.LabelPadding);
@@ -106,7 +127,7 @@ public sealed partial class MainWindow
         }
         label.Children.Add(new TextBlock
         {
-            Text = level.Name,
+            Text = LevelCodeOf(level, _cachedLevels),
             MaxWidth = 140,
             FontSize = Density.FontCaption,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -233,9 +254,10 @@ public sealed partial class MainWindow
             return;
         }
         _sheetKey = key;
-        SheetRail.Children.Clear();
-        SheetRailHost.Visibility = Visibility.Visible;
-        SheetRail.Children.Add(MakeRailEntry(
+        SheetRailHost.Visibility = Visibility.Collapsed;
+        TabRow.Children.Clear();
+        _activeTabName = state.SheetSets.FirstOrDefault(x => x.Active)?.Name ?? "Design";
+        TabRow.Children.Add(MakeTopTab(
             "Design",
             "Design: draw the building. Sheet-set annotation is not shown.",
             state.DesignMode,
@@ -245,27 +267,109 @@ public sealed partial class MainWindow
         {
             var item = set;
             var tip = item.Name + ": annotation for each level" + (item.LayerPrefix.Length > 0 ? ", on layers starting " + item.LayerPrefix : "");
-            SheetRail.Children.Add(MakeRailEntry(
+            TabRow.Children.Add(MakeTopTab(
                 item.Name,
                 tip,
                 item.Active,
                 () => RunShellCommand("sheetset.activate", new Dictionary<string, object> { ["set"] = item.Id }),
                 () => BuildSheetSetMenu(item)));
         }
-        // Without tabs the rail would be empty: this makes the standard discipline tabs (and layers, symbols).
+
+        // Without tabs the row would hold only Design: this makes the standard discipline tabs (and layers, symbols).
         if (state.SheetSets.Count == 0)
         {
-            SheetRail.Children.Add(MakeRailEntry(
+            TabRow.Children.Add(MakeTopTab(
                 "+ Drawing tabs",
                 "Add the standard tabs: Working drawing, Electrical, Plumbing, Interior and False ceiling, each with its layers and symbols.",
                 false,
-                () => RunShellCommand("sheetset.standard", new Dictionary<string, object>())));
+                () => RunShellCommand("sheetset.standard", new Dictionary<string, object>()),
+                badge: false));
         }
+    }
+
+    /// <summary>The page badge of a tab ("A1 L"): its paper size and orientation, as saved by <c>sheet.page</c>.</summary>
+    private string PageBadge(string tab)
+    {
+        if (_host == IntPtr.Zero || Native.Execute(_host, "sheet.page", JsonSerializer.Serialize(new Dictionary<string, object> { ["tab"] = tab })) != 0)
+        {
+            return "";
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(Native.ReadResult(_host));
+            var paper = doc.RootElement.TryGetProperty("paper", out var p) ? p.GetString() : "A1";
+            var landscape = !doc.RootElement.TryGetProperty("landscape", out var l) || l.ValueKind != JsonValueKind.False;
+            return paper + " " + (landscape ? "L" : "P");
+        }
+        catch (JsonException)
+        {
+            return "";
+        }
+    }
+
+    /// <summary>
+    /// A horizontal drawing tab: a name and, beside it, the tab's paper size and orientation. The active tab has an accent underline.
+    /// Clicking the badge opens the page size controls of that tab; right-click opens its menu.
+    /// </summary>
+    private Button MakeTopTab(string name, string tip, bool active, Action activate, Func<MenuFlyout>? menu = null, bool badge = true)
+    {
+        var accent = Density.ThemeBrush("AccentBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Density.SpaceSm, VerticalAlignment = VerticalAlignment.Center };
+        row.Children.Add(new TextBlock
+        {
+            Text = name,
+            FontSize = Density.FontBody,
+            FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        if (badge)
+        {
+            var text = PageBadge(name);
+            if (text.Length > 0)
+            {
+                var chip = new TextBlock { Text = text, FontSize = Density.FontCaption, Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center };
+                ToolTipService.SetToolTip(chip, "Paper size and orientation of " + name + ": click for page size");
+                chip.Tapped += (_, e) =>
+                {
+                    e.Handled = true;
+                    ShowPageLayout(TabRowHost, name);
+                };
+                row.Children.Add(chip);
+            }
+        }
+
+        var tab = new Button
+        {
+            Content = row,
+            MinHeight = Density.ControlHeight,
+            Padding = new Thickness(Density.SpaceMd, 2, Density.SpaceMd, 2),
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderBrush = active ? accent : new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0, 0, 0, 2),
+            CornerRadius = new CornerRadius(0),
+        };
+        AutomationProperties.SetName(tab, (active ? "Current tab: " : "Switch to ") + name);
+        ToolTipService.SetToolTip(tab, tip + (menu != null ? "  (right-click for more)" : ""));
+        tab.Click += (_, _) => activate();
+        if (menu != null)
+        {
+            tab.RightTapped += (_, e) =>
+            {
+                e.Handled = true;
+                menu().ShowAt(tab, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
+            };
+        }
+
+        return tab;
     }
 
     private MenuFlyout BuildDesignSheetMenu()
     {
         var menu = new MenuFlyout { Placement = FlyoutPlacementMode.RightEdgeAlignedTop };
+        var page = new MenuFlyoutItem { Text = "Page size..." };
+        page.Click += (_, _) => ShowPageLayout(TabRowHost, "Design");
+        menu.Items.Add(page);
         var history = new MenuFlyoutItem { Text = "History" };
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
         menu.Items.Add(history);
@@ -278,6 +382,9 @@ public sealed partial class MainWindow
         var saveMilestone = new MenuFlyoutItem { Text = "Save milestone..." };
         saveMilestone.Click += (_, _) => _ = SaveMilestoneAsync("sheet", set.Id, set.Name);
         menu.Items.Add(saveMilestone);
+        var page = new MenuFlyoutItem { Text = "Page size..." };
+        page.Click += (_, _) => ShowPageLayout(TabRowHost, set.Name);
+        menu.Items.Add(page);
         var history = new MenuFlyoutItem { Text = "History" };
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
         menu.Items.Add(history);
@@ -324,6 +431,8 @@ public sealed partial class MainWindow
         }
         return entry;
     }
+
+    private void OnLevelsWindow(object sender, RoutedEventArgs e) => OpenStorySettings();
 
     private void OnAddLevel(object sender, RoutedEventArgs e)
     {
@@ -445,7 +554,7 @@ public sealed partial class MainWindow
         var menu = new MenuFlyout { Placement = FlyoutPlacementMode.TopEdgeAlignedLeft };
         foreach (var level in targets)
         {
-            var item = new MenuFlyoutItem { Text = level.Name };
+            var item = new MenuFlyoutItem { Text = LevelCodeOf(level, _cachedLevels) + "  " + level.Name };
             var id = level.Id;
             item.Click += (_, _) => StartLevelSend("level.moveto", id);
             menu.Items.Add(item);
@@ -462,7 +571,7 @@ public sealed partial class MainWindow
         var menu = new MenuFlyout();
         foreach (var level in targets)
         {
-            var item = new MenuFlyoutItem { Text = level.Name };
+            var item = new MenuFlyoutItem { Text = LevelCodeOf(level, _cachedLevels) + "  " + level.Name };
             var id = level.Id;
             item.Click += (_, _) => StartLevelSend("level.copyto", id);
             menu.Items.Add(item);

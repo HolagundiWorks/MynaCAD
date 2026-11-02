@@ -504,7 +504,7 @@ fn ellipse(cx: f64, cy: f64, rx: f64, ry: f64) -> Poly {
 }
 
 fn points(s: &str) -> Vec<(f64, f64)> {
-    numbers(s).chunks_exact(2).map(|c| (c[0], c[1])).collect()
+    numbers(s).as_chunks::<2>().0.iter().map(|c| (c[0], c[1])).collect()
 }
 
 /// Read an SVG file. Sizes are in millimetres on the paper (an SVG without a size is read at 96 pixels per inch).
@@ -536,7 +536,8 @@ pub fn read(src: &str) -> Result<Svg, String> {
     let mut skip = 0usize;
     let mut seen_root = false;
     for t in &all {
-        let hidden = matches!(t.name.as_str(), "defs" | "clippath" | "mask" | "symbol" | "marker" | "pattern" | "style" | "metadata" | "title" | "desc");
+        let hidden =
+            matches!(t.name.as_str(), "defs" | "clippath" | "mask" | "symbol" | "marker" | "pattern" | "style" | "metadata" | "title" | "desc");
         if t.closing {
             if skip > 0 {
                 if hidden || t.name == "g" || t.name == "svg" || t.name == "a" || t.name == "switch" {

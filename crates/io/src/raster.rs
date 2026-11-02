@@ -47,8 +47,8 @@ mod tests {
         img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
         let g = read_gray(&png).unwrap();
         assert_eq!((g.width, g.height), (4, 3));
-        assert_eq!(g.gray[1 * 4 + 1], 0);
-        assert_eq!(g.gray[1 * 4 + 2], 255);
+        assert_eq!(g.gray[4 + 1], 0);
+        assert_eq!(g.gray[4 + 2], 255);
         assert!(read_gray(b"not a picture").is_err());
     }
 

@@ -64,7 +64,13 @@ fn cleanup(path: &Path) {
 }
 
 fn read_vdb(path: &Path) -> std::collections::BTreeMap<u64, Value> {
-    aad_odp::Odp::open(path).unwrap().takeoff_as_records().unwrap().into_iter().map(|(id, payload)| (id, serde_json::from_slice(&payload).unwrap_or(Value::Null))).collect()
+    aad_odp::Odp::open(path)
+        .unwrap()
+        .takeoff_as_records()
+        .unwrap()
+        .into_iter()
+        .map(|(id, payload)| (id, serde_json::from_slice(&payload).unwrap_or(Value::Null)))
+        .collect()
 }
 
 fn kind(id: u64) -> u64 {

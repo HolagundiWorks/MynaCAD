@@ -85,6 +85,7 @@ public sealed partial class MainWindow
                     return;
                 }
                 ShellPrefs.RememberRecent(filePath);
+                await KeepOnlyActiveDrawingAsync();
                 HideWelcome();
                 _docKey = "";
                 AfterCommand();

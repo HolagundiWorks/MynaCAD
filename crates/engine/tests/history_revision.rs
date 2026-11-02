@@ -47,14 +47,12 @@ fn save_and_restore_round_trip_model() {
 
     let saved = s.execute("history.save", &json!({"name": "m1", "scope": "project"})).unwrap();
     let id = saved["id"].as_u64().unwrap();
-    assert!(
-        {
-            // the history of a drawing that is not a project file is the sidecar path + ".history.osp"
-            let mut p = path.as_os_str().to_os_string();
-            p.push(".history.osp");
-            PathBuf::from(p).exists()
-        }
-    );
+    assert!({
+        // the history of a drawing that is not a project file is the sidecar path + ".history.osp"
+        let mut p = path.as_os_str().to_os_string();
+        p.push(".history.osp");
+        PathBuf::from(p).exists()
+    });
 
     let handles: Vec<_> = s.doc().unwrap().model.handles().iter().map(|h| json!(h.hex())).collect();
     s.execute("erase", &json!({"handles": handles})).unwrap();

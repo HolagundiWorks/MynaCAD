@@ -216,7 +216,12 @@ fn run_calibrate(s: &mut Session, p: &Value) -> Result<Value> {
             Ok(v) => (v, per_unit),
             Err(_) => match crate::units::parse_distance_as(t, Some(crate::annot::Unit::Mm)) {
                 Some(mm) => (mm, 1.0),
-                None => return Err(bad("underlay.calibrate", format!("`length` {t:?} is not a distance: use a number, or one with a unit such as 3.5m or 12ft"))),
+                None => {
+                    return Err(bad(
+                        "underlay.calibrate",
+                        format!("`length` {t:?} is not a distance: use a number, or one with a unit such as 3.5m or 12ft"),
+                    ));
+                }
             },
         },
         None => (f64_or(p, "length", f64::NAN), per_unit),

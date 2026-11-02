@@ -93,7 +93,15 @@ fn project_doc_assets_and_markups_round_trip() {
     let mut odp = Odp::create(&path, "House").unwrap();
     let mut e = odp.edit().unwrap();
     e.put_project_doc("{\"project\":{\"name\":\"House \u{2014} \u{c4}\"}}").unwrap();
-    e.put_asset(&Asset { id: "a1".into(), slot: Some(7), name: "annotated.pdf".into(), mime: "application/pdf".into(), sha256: String::new(), bytes: vec![1, 2, 3] }).unwrap();
+    e.put_asset(&Asset {
+        id: "a1".into(),
+        slot: Some(7),
+        name: "annotated.pdf".into(),
+        mime: "application/pdf".into(),
+        sha256: String::new(),
+        bytes: vec![1, 2, 3],
+    })
+    .unwrap();
     e.put_markup(&Markup {
         id: "m1".into(),
         drawing: "house.dwg".into(),
@@ -129,7 +137,10 @@ fn files_that_are_not_projects_are_refused() {
     std::fs::write(&text, b"this is not sqlite").unwrap();
     assert!(matches!(Odp::open(&text), Err(Error::NotAProject(_))));
     let other = dir.path().join("b.db");
-    rusqlite::Connection::open(&other).unwrap().execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT); INSERT INTO meta VALUES ('format','something-else');").unwrap();
+    rusqlite::Connection::open(&other)
+        .unwrap()
+        .execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT); INSERT INTO meta VALUES ('format','something-else');")
+        .unwrap();
     assert!(matches!(Odp::open(&other), Err(Error::NotAProject(_))));
     assert!(Odp::open(&dir.path().join("missing.osp")).is_err());
 }

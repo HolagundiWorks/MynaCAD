@@ -21,7 +21,14 @@
             FontSize="{StaticResource FontSizeBody}"
             AutomationProperties.Name="Menu" />
         <!-- Standard tools: layer, draw/modify/annotate, architecture (one row under the menu). -->
-        <Border x:Name="ToolStripHost" Grid.Row="1" Style="{StaticResource ToolStripChromeStyle}" BorderThickness="0,0,0,1" AutomationProperties.Name="Drawing and architecture tools" AutomationProperties.LandmarkType="Navigation">
+        <!-- Drawing tabs across the top: Design, then one tab per discipline, each with its own paper size and orientation. -->
+        <StackPanel Grid.Row="1" Orientation="Vertical">
+        <Border x:Name="TabRowHost" Background="{ThemeResource SurfaceBrush}" BorderBrush="{ThemeResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="{StaticResource PaddingSm}" AutomationProperties.Name="Drawing tabs">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="TabRow" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" />
+            </ScrollViewer>
+        </Border>
+        <Border x:Name="ToolStripHost" Style="{StaticResource ToolStripChromeStyle}" BorderThickness="0,0,0,1" AutomationProperties.Name="Drawing and architecture tools" AutomationProperties.LandmarkType="Navigation">
             <ScrollViewer VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceSm}" Margin="{StaticResource PaddingSm}">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceMd}" VerticalAlignment="Center" AutomationProperties.Name="Layer">
@@ -43,6 +50,7 @@
                 </StackPanel>
             </ScrollViewer>
         </Border>
+        </StackPanel>
         <!-- Take-off tools on their own row (Classic take-off mode). -->
         <Border x:Name="TakeoffToolStripHost" Grid.Row="2" Style="{StaticResource ToolStripChromeStyle}" BorderThickness="0,0,0,1" Visibility="Collapsed" AutomationProperties.Name="Take-off tools" AutomationProperties.LandmarkType="Navigation">
             <ScrollViewer VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto">
@@ -280,6 +288,9 @@
                     <Button x:Name="AddLevelButton" Click="OnAddLevel" AutomationProperties.Name="Add level" ToolTipService.ToolTip="Add a level" Style="{StaticResource IconButtonStyle}">
                         <local:DrawnIcon Kind="plus" />
                     </Button>
+                    <Button x:Name="LevelsButton" Click="OnLevelsWindow" AutomationProperties.Name="Levels: names, elevations and heights" ToolTipService.ToolTip="Levels: names, elevations and heights" Style="{StaticResource IconButtonStyle}">
+                        <local:DrawnIcon Kind="gear" />
+                    </Button>
                     <TextBlock x:Name="LevelHint" VerticalAlignment="Center" Margin="{StaticResource PaddingMd}" FontSize="{StaticResource FontSizeCaption}" Opacity="0.7" AutomationProperties.Name="Level mode" />
                 </StackPanel>
             </ScrollViewer>
@@ -292,19 +303,14 @@
             </Grid.ColumnDefinitions>
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceSm}">
-                    <Button Click="OnNewDrawing" AutomationProperties.Name="New drawing" ToolTipService.ToolTip="New drawing" Style="{StaticResource IconButtonStyle}">
-                        <local:DrawnIcon Kind="plus" />
+                    <!-- One drawing per window. The toggle switches the view between the model and the page layout. -->
+                    <Button x:Name="SpaceToggle" Click="OnSpaceToggle" MinHeight="{StaticResource ControlHeight}" Padding="{StaticResource PaddingControl}" AutomationProperties.Name="Model or page layout" ToolTipService.ToolTip="Switch between the model and the page layout">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                            <local:DrawnIcon x:Name="SpaceIcon" Kind="model" />
+                            <TextBlock x:Name="SpaceLabel" Text="Model" FontSize="{StaticResource FontSizeCaption}" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
                     <StackPanel x:Name="DrawingTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Open drawings" />
-                    <Button
-                        x:Name="NameplateButton"
-                        Content="Nameplate"
-                        MinHeight="{StaticResource ControlHeight}"
-                        FontSize="{StaticResource FontSizeCaption}"
-                        Padding="{StaticResource PaddingControl}"
-                        Click="OnNameplateMenu"
-                        AutomationProperties.Name="Nameplate designer"
-                        ToolTipService.ToolTip="Design Nameplate L (landscape) or Nameplate P (portrait)" />
 <ToggleButton
                         x:Name="TakeoffModeButton"
                         Content="Take-off"
@@ -351,23 +357,6 @@
                     SelectionChanged="OnUnitsPicked"
                     AutomationProperties.Name="Drafting units"
                     ToolTipService.ToolTip="Drafting units. Geometry is stored in these units; scale at plot." />
-                <ComboBox
-                    x:Name="PaperBox"
-                    MinWidth="{StaticResource DialogActionMinWidth}"
-                    MinHeight="{StaticResource ControlHeight}"
-                    FontSize="{StaticResource FontSizeBody}"
-                    PlaceholderText="Paper"
-                    SelectionChanged="OnPaperPicked"
-                    AutomationProperties.Name="Page size"
-                    ToolTipService.ToolTip="ISO page size (A0–A4) for the nameplate" />
-                <ComboBox
-                    x:Name="OrientBox"
-                    MinWidth="{StaticResource OrientComboMinWidth}"
-                    MinHeight="{StaticResource ControlHeight}"
-                    FontSize="{StaticResource FontSizeBody}"
-                    SelectionChanged="OnOrientPicked"
-                    AutomationProperties.Name="Page orientation"
-                    ToolTipService.ToolTip="Landscape or portrait for the nameplate" />
 
                 <Button x:Name="LayersButton" Click="OnLayers" AutomationProperties.Name="Open layer manager" ToolTipService.ToolTip="Layers" Style="{StaticResource IconButtonStyle}">
                     <local:DrawnIcon Kind="layers" />
@@ -396,6 +385,38 @@
             </StackPanel>
         </Grid>
         </Border>
+        <!-- Page layout: shown from the "Page layout" tab of the left rail (code puts this panel in a flyout). -->
+        <StackPanel x:Name="PageLayoutPanel" Visibility="Collapsed" Spacing="{StaticResource SpaceMd}" Padding="{StaticResource PaddingMd}" MinWidth="220">
+            <TextBlock x:Name="PageLayoutTitle" Text="Page layout" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="260" />
+            <TextBlock Text="Paper size" FontSize="{StaticResource FontSizeCaption}" Foreground="{ThemeResource TextSecondaryBrush}" />
+            <ComboBox
+                x:Name="PaperBox"
+                MinWidth="{StaticResource DialogActionMinWidth}"
+                MinHeight="{StaticResource ControlHeight}"
+                FontSize="{StaticResource FontSizeBody}"
+                PlaceholderText="Paper"
+                SelectionChanged="OnPaperPicked"
+                AutomationProperties.Name="Page size"
+                ToolTipService.ToolTip="ISO page size (A0–A4) for the nameplate" />
+            <TextBlock Text="Orientation" FontSize="{StaticResource FontSizeCaption}" Foreground="{ThemeResource TextSecondaryBrush}" />
+            <ComboBox
+                x:Name="OrientBox"
+                MinWidth="{StaticResource OrientComboMinWidth}"
+                MinHeight="{StaticResource ControlHeight}"
+                FontSize="{StaticResource FontSizeBody}"
+                SelectionChanged="OnOrientPicked"
+                AutomationProperties.Name="Page orientation"
+                ToolTipService.ToolTip="Landscape or portrait for the nameplate" />
+            <Button
+                x:Name="NameplateButton"
+                Content="Nameplate"
+                MinHeight="{StaticResource ControlHeight}"
+                FontSize="{StaticResource FontSizeCaption}"
+                Padding="{StaticResource PaddingControl}"
+                Click="OnNameplateMenu"
+                AutomationProperties.Name="Nameplate designer"
+                ToolTipService.ToolTip="Design Nameplate L (landscape) or Nameplate P (portrait)" />
+        </StackPanel>
         <!-- Welcome: shown after splash until New / Open / Project Wizard (or a launch file opens). -->
         <Grid
             x:Name="WelcomeOverlay"

@@ -271,7 +271,9 @@ impl Odp {
     }
 
     pub fn markups(&self, drawing: &str) -> Result<Vec<Markup>> {
-        let mut st = self.conn.prepare("SELECT id, drawing, author, created, kind, json, text, resolved FROM markup WHERE drawing = ?1 ORDER BY created, id")?;
+        let mut st = self
+            .conn
+            .prepare("SELECT id, drawing, author, created, kind, json, text, resolved FROM markup WHERE drawing = ?1 ORDER BY created, id")?;
         let rows = st.query_map(params![drawing], |r| {
             Ok((
                 r.get::<_, String>(0)?,

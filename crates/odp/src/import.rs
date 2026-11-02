@@ -45,7 +45,10 @@ impl Odp {
                     headers.insert(slot, serde_json::from_slice(payload).map_err(|e| Error::Import(format!("a take-off header is not JSON: {e}")))?);
                 }
                 k if ROW_KINDS.contains(&k) => {
-                    rows.insert((slot, k, n), serde_json::from_slice(payload).map_err(|e| Error::Import(format!("a take-off row is not JSON: {e}")))?);
+                    rows.insert(
+                        (slot, k, n),
+                        serde_json::from_slice(payload).map_err(|e| Error::Import(format!("a take-off row is not JSON: {e}")))?,
+                    );
                 }
                 KIND_PDF => {
                     pdf.entry(slot).or_default().insert(n, payload.as_slice());

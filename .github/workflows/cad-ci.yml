@@ -59,6 +59,16 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      # The WinUI shell references the shared design library by a sibling path (..\..\..\o-ui), so it is checked out
+      # inside the workspace and copied beside the repository folder before the shell is built.
+      - uses: actions/checkout@v4
+        with:
+          repository: HolagundiWorks/O-UI
+          ref: feat/brand
+          path: o-ui
+      - name: Put the design library beside the repository
+        shell: pwsh
+        run: Copy-Item -Recurse -Force o-ui (Join-Path (Split-Path $env:GITHUB_WORKSPACE) 'o-ui')
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-dotnet@v4

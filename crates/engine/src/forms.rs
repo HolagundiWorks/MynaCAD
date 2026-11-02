@@ -152,8 +152,10 @@ const RATE_COLS: &[Col] = &[
     Col { key: "rate", label: "Rate", numeric: true, len: None },
 ];
 const NOTE_COLS: &[Col] = &[Col { key: "text", label: "Note", numeric: false, len: None }];
-const LEGEND_COLS: &[Col] =
-    &[Col { key: "name", label: "Layer or symbol", numeric: false, len: None }, Col { key: "description", label: "Description", numeric: false, len: None }];
+const LEGEND_COLS: &[Col] = &[
+    Col { key: "name", label: "Layer or symbol", numeric: false, len: None },
+    Col { key: "description", label: "Description", numeric: false, len: None },
+];
 
 const TAKEOFF: &[Field] = &[
     field("units", "Units (blank: the drawing's)", Kind::Choice(UNITS)),
@@ -418,7 +420,6 @@ pub static FORMS: &[Form] = &[
             field("block", "Block (from the Blocks panel; opening width comes from the block)", Kind::Text),
             field("name", "Schedule mark (for example D2)", Kind::Text),
             field("openingType", "Type", Kind::Choice(&["single", "double", "sliding", "folding"])).def("single"),
-            field("width", "Width override (drawing units; blank: block width)", Kind::Number).drawing(),
             field("openingHeight", "Opening height (drawing units; blank: up to the lintel)", Kind::Number).drawing(),
             field("sill", "Sill height (drawing units; blank: 0)", Kind::Number).drawing(),
             field("lintelMode", "Lintel", Kind::Choice(&["standard", "custom"])).def("standard"),
@@ -427,7 +428,8 @@ pub static FORMS: &[Form] = &[
             field("side", "Side", Kind::Choice(&["up", "down"])).def("up"),
             field("thickness", "Wall thickness (blank: read from the wall)", Kind::Number).drawing(),
             field("deduct", "Deduct from the wall in the take-off", Kind::Bool).def("true"),
-            field("at", "Door centre on the wall", Kind::Point).req(),
+            field("p1", "First side of the door: pick the jamb on the wall", Kind::Point).req(),
+            field("p2", "Other side of the door: the width is the distance between the two picks", Kind::Point).req(),
         ],
     },
     Form {
@@ -438,14 +440,14 @@ pub static FORMS: &[Form] = &[
             field("block", "Block (from the Blocks panel; opening width comes from the block)", Kind::Text),
             field("name", "Schedule mark (for example W3)", Kind::Text),
             field("openingType", "Type", Kind::Choice(&["fixed", "casement", "sliding", "ventilator"])).def("casement"),
-            field("width", "Width override (drawing units; blank: block width)", Kind::Number).drawing(),
             field("openingHeight", "Opening height (drawing units; blank: up to the lintel)", Kind::Number).drawing(),
             field("sill", "Sill height (drawing units; blank: 0.9 m)", Kind::Number).drawing(),
             field("lintelMode", "Lintel", Kind::Choice(&["standard", "custom"])).def("standard"),
             field("head", "Custom head height (drawing units)", Kind::Number).drawing(),
             field("thickness", "Wall thickness (blank: read from the wall)", Kind::Number).drawing(),
             field("deduct", "Deduct from the wall in the take-off", Kind::Bool).def("true"),
-            field("at", "Window centre on the wall", Kind::Point).req(),
+            field("p1", "First side of the window: pick the jamb on the wall", Kind::Point).req(),
+            field("p2", "Other side of the window: the width is the distance between the two picks", Kind::Point).req(),
         ],
     },
     Form {
@@ -820,9 +822,9 @@ fn parse_fields(form: &Form, input: &Value, picks: bool) -> Result<Value> {
                                 Some(len) => crate::units::parse_distance_as(&t, len.unit()).map(tidy),
                                 None => t.parse::<f64>().ok(),
                             };
-                            let n = parsed
-                                .filter(|x| x.is_finite())
-                                .ok_or_else(|| bad(f, format!("{}: `{t}` is not a {}", c.label, if c.len.is_some() { "length" } else { "number" })))?;
+                            let n = parsed.filter(|x| x.is_finite()).ok_or_else(|| {
+                                bad(f, format!("{}: `{t}` is not a {}", c.label, if c.len.is_some() { "length" } else { "number" }))
+                            })?;
                             o.insert(c.key.into(), json!(n));
                         } else {
                             o.insert(c.key.into(), json!(t));
@@ -1075,12 +1077,12 @@ mod tests {
     #[test]
     fn parse_input_types_values_and_refuses_bad_ones() {
         let f = get("wall.door").unwrap();
-        let p = parse_input(f, &json!({"name": "D2", "swing": "RIGHT", "deduct": false, "at": [1, 2], "width": ""})).unwrap();
-        assert_eq!(p, json!({"name": "D2", "swing": "right", "deduct": false, "at": [1.0, 2.0]}));
-        assert!(parse_input(f, &json!({"at": [1, 2], "swing": "sideways"})).is_err());
-        assert!(parse_input(f, &json!({"at": [1, 2], "width": "abc"})).is_err());
-        assert!(parse_input(f, &json!({"width": "900"})).is_err(), "the position is required");
-        assert!(parse_input(f, &json!({"at": [1, "x"]})).is_err());
+        let p = parse_input(f, &json!({"name": "D2", "swing": "RIGHT", "deduct": false, "p1": [1, 2], "p2": [4, 2], "sill": ""})).unwrap();
+        assert_eq!(p, json!({"name": "D2", "swing": "right", "deduct": false, "p1": [1.0, 2.0], "p2": [4.0, 2.0]}));
+        assert!(parse_input(f, &json!({"p1": [1, 2], "p2": [4, 2], "swing": "sideways"})).is_err());
+        assert!(parse_input(f, &json!({"p1": [1, 2], "p2": [4, 2], "sill": "abc"})).is_err());
+        assert!(parse_input(f, &json!({"width": "900"})).is_err(), "the two sides are required");
+        assert!(parse_input(f, &json!({"p1": [1, "x"], "p2": [4, 2]})).is_err());
         let g = get("column.place").unwrap();
         assert_eq!(parse_input(g, &json!({"size": "230, 450"})).unwrap(), json!({"size": [230.0, 450.0]}));
         assert_eq!(parse_input(g, &json!({"size": "300"})).unwrap(), json!({"size": 300.0}));

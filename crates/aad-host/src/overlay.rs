@@ -548,10 +548,15 @@ fn add_site_origin(list: &mut DisplayList, at: Vec2, scale: f64, icon_px: f64, p
     }
     add_poly(list, &[at, x_end], SITE_X_INK, true);
     add_poly(list, &[at, y_end], SITE_Y_INK, true);
-    add_poly(list, &square(at, half), overlay_ink(paper), true);
+    // A plain + at the origin (the point the cursor snaps to), and the letter O beside it.
+    let plus = 8.0 * icon_px / scale;
+    let ink = overlay_ink(paper);
+    add_poly(list, &[Vec2::new(at.x - plus, at.y), Vec2::new(at.x + plus, at.y)], ink, true);
+    add_poly(list, &[Vec2::new(at.x, at.y - plus), Vec2::new(at.x, at.y + plus)], ink, true);
+    let _ = half;
     let label_at = Vec2::new(at.x + 10.0 * icon_px / scale, at.y - 14.0 * icon_px / scale);
     if label_at.is_finite() {
-        add_label(list, label_at, scale, icon_px, "SITE", paper);
+        add_label(list, label_at, scale, icon_px, "O", paper);
     }
 }
 

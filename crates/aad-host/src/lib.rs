@@ -536,12 +536,7 @@ fn install_formats() {
 /// The drawing inside a project file (`.osp`): its bytes and its name, which says whether it is DWG or DXF.
 fn read_project_drawing(path: &str) -> Result<(Vec<u8>, String), String> {
     let odp = aad_odp::Odp::open(std::path::Path::new(path)).map_err(|e| format!("{path}: {e}"))?;
-    let name = odp
-        .drawing_names()
-        .map_err(|e| format!("{path}: {e}"))?
-        .into_iter()
-        .next()
-        .ok_or_else(|| format!("{path} holds no drawing yet"))?;
+    let name = odp.drawing_names().map_err(|e| format!("{path}: {e}"))?.into_iter().next().ok_or_else(|| format!("{path} holds no drawing yet"))?;
     let drawing = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.ok_or_else(|| format!("{path}: the drawing {name} is missing"))?;
     Ok((drawing.bytes, drawing.name))
 }
@@ -553,7 +548,12 @@ fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_
     let p = std::path::Path::new(path);
     let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("Project").to_string();
     let mut odp = if p.exists() { aad_odp::Odp::open(p) } else { aad_odp::Odp::create(p, &stem) }.map_err(|e| format!("{path}: {e}"))?;
-    let name = odp.drawing_names().map_err(|e| format!("{path}: {e}"))?.into_iter().next().unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
+    let name = odp
+        .drawing_names()
+        .map_err(|e| format!("{path}: {e}"))?
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
     let bytes = aad_io::write(drawing, &name).map_err(|e| e.to_string())?;
     let same = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.is_some_and(|d| d.sha256 == aad_odp::sha256_hex(&bytes));
     if !same {
@@ -2490,7 +2490,10 @@ impl Host {
             gpu.present(key, built, &uniform)?;
         }
         self.paint = Some(stamp);
-        perf::note(&t_all, &format!("redraw: mesh {t_mesh:.1}, cursor+overlay {:.1}, gpu present {:.1} ms", t_overlay - t_mesh, perf::lap(&t_all) - t_overlay));
+        perf::note(
+            &t_all,
+            &format!("redraw: mesh {t_mesh:.1}, cursor+overlay {:.1}, gpu present {:.1} ms", t_overlay - t_mesh, perf::lap(&t_all) - t_overlay),
+        );
         Ok(())
     }
 }

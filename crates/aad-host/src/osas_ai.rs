@@ -14,11 +14,7 @@ const ENV_AI_HOST: &str = "OSTUDIO_AI_HOST";
 const ENV_AI_PORT: &str = "OSTUDIO_AI_PORT";
 
 fn data_dir() -> PathBuf {
-    std::env::var_os("LOCALAPPDATA")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("O-Studio")
-        .join("ai")
+    std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join("O-Studio").join("ai")
 }
 
 fn token() -> Option<String> {

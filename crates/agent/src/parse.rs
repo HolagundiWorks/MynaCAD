@@ -164,7 +164,10 @@ mod olmo_tests {
 
     #[test]
     fn olmos_own_form_is_read() {
-        let c = parse_tool_call("<function_calls>find_objects_in_window(x1=0, y1=0, x2=100.5, y2=50, layers=[\"A,B\", \"C\"], deep=True)</function_calls>").unwrap();
+        let c = parse_tool_call(
+            "<function_calls>find_objects_in_window(x1=0, y1=0, x2=100.5, y2=50, layers=[\"A,B\", \"C\"], deep=True)</function_calls>",
+        )
+        .unwrap();
         assert_eq!(c.name, "find_objects_in_window");
         assert_eq!(c.arguments["x2"], serde_json::json!(100.5));
         assert_eq!(c.arguments["layers"], serde_json::json!(["A,B", "C"]));
@@ -182,6 +185,9 @@ mod olmo_tests {
         assert!(parse_tool_call("<function_calls>audit_drawing(</function_calls>").is_err());
         assert!(parse_tool_call("<function_calls>a b()</function_calls>").is_err());
         assert!(parse_tool_call("<function_calls>x(k)</function_calls>").is_err());
-        assert!(matches!(parse_tool_call("<function_calls>a()</function_calls><function_calls>b()</function_calls>"), Err(ParseError::MultipleCalls)));
+        assert!(matches!(
+            parse_tool_call("<function_calls>a()</function_calls><function_calls>b()</function_calls>"),
+            Err(ParseError::MultipleCalls)
+        ));
     }
 }

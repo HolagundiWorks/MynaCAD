@@ -692,7 +692,15 @@ pub(crate) fn opening_width_of(kind: &EntityKind) -> Option<f64> {
 }
 
 fn opening(s: &mut Session, p: &Value, cmd: &str, door: bool) -> Result<Value> {
-    let at = point_req(cmd, p, "at")?;
+    // Two picks, one on each side of the opening (`p1`, `p2`), give its width and place it; `at` gives only the centre.
+    let jambs = match (point_param(p, "p1"), point_param(p, "p2")) {
+        (Some(a), Some(b)) if a.is_finite() && b.is_finite() => Some((a, b)),
+        _ => None,
+    };
+    let at = match jambs {
+        Some((a, b)) => (a + b) * 0.5,
+        None => point_req(cmd, p, "at")?,
+    };
     let mm = per_mm(s);
     let layer = str_param(p, "layer").unwrap_or(WALL).to_string();
     let user_block = str_param(p, "block").map(str::to_string).filter(|n| !n.is_empty());
@@ -715,6 +723,8 @@ fn opening(s: &mut Session, p: &Value, cmd: &str, door: bool) -> Result<Value> {
     let to_du = |m: f64| m / to_m;
     let block_w = resolved_block.as_ref().and_then(|n| block_plan_width(s.doc().ok()?, n));
     let width = match (p.get("width").and_then(Value::as_f64), block_w, &entry) {
+        // The two picks decide the width; it is projected on the wall below.
+        _ if jambs.is_some() => jambs.map_or(0.0, |(a, b)| a.dist(b)),
         (Some(w), _, _) => w,
         (None, Some(w), _) => w,
         (None, None, Some(e)) => to_du(e["length"].as_f64().unwrap_or(0.9)),
@@ -726,16 +736,36 @@ fn opening(s: &mut Session, p: &Value, cmd: &str, door: bool) -> Result<Value> {
     let thick_param = p.get("thickness").and_then(Value::as_f64);
     let angle = match p.get("angle").and_then(Value::as_f64) {
         Some(a) => a.to_radians(),
-        None => nearest_wall_angle(s.doc()?, &layer, at, 400.0 * mm).ok_or_else(|| bad(cmd, "no wall line near `at`: give `angle`"))?,
+        None => match nearest_wall_angle(s.doc()?, &layer, at, 400.0 * mm) {
+            Some(a) => a,
+            // No wall near the picks: the line through them is the direction of the opening.
+            None => match jambs {
+                Some((a, b)) if a.dist(b) > 1e-9 => (b - a).y.atan2((b - a).x),
+                _ => return Err(bad(cmd, "no wall line near `at`: give `angle`")),
+            },
+        },
     };
     let u = Vec2::new(angle.cos(), angle.sin());
-    let fr = Frame { origin: at, u, v: Vec2::new(-u.y, u.x) };
+    // The width is the distance between the picks along the wall, however the picks sit across it.
+    let width = match jambs {
+        Some((a, b)) => (b - a).dot(u).abs(),
+        None => width,
+    };
+    if !(width.is_finite() && width > 0.0) {
+        return Err(bad(cmd, "the two picks are on the same spot along the wall: pick the two sides of the opening"));
+    }
+    let mut fr = Frame { origin: at, u, v: Vec2::new(-u.y, u.x) };
     let reach = thick_param.map_or(400.0 * mm, |t| t / 2.0 + 1e-6);
     let (cut, faces) = cut_wall_lines(s, &layer, &fr, width, reach)?;
-    let thick = thick_param.unwrap_or_else(|| {
-        let (lo, hi) = faces.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(l, h), f| (l.min(*f), h.max(*f)));
-        if hi > lo { hi - lo } else { 230.0 * mm }
-    });
+    let (face_lo, face_hi) = faces.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(l, h), f| (l.min(*f), h.max(*f)));
+    let thick = thick_param.unwrap_or(if face_hi > face_lo { face_hi - face_lo } else { 230.0 * mm });
+    // Picks made along one face of the wall: the opening still sits on the wall's centre line.
+    let at = if jambs.is_some() && face_hi > face_lo {
+        fr.origin = at + fr.v * ((face_lo + face_hi) * 0.5);
+        fr.origin
+    } else {
+        at
+    };
     let standard = super::project::standard_lintel(s.doc()?);
     let mut op = Opening {
         door,
@@ -991,5 +1021,40 @@ mod tests {
         assert_eq!(i.attrib_value("OLINTEL"), Some("standard"));
         assert!((i.attrib_value("OHEIGHT").unwrap().parse::<f64>().unwrap() - 1.8).abs() < 1e-6);
         assert!((i.attrib_value("OHEAD").unwrap().parse::<f64>().unwrap() - 2.1).abs() < 1e-6);
+    }
+
+    fn wall_session() -> Session {
+        let mut s = Session::new();
+        s.execute("drawing.units", &json!({"units": "mm", "mode": "metadata"})).unwrap();
+        s.execute("wall.draw", &json!({ "points": [[0.0, 0.0], [4000.0, 0.0]], "thickness": 200.0 })).unwrap();
+        s
+    }
+
+    fn insert_of(s: &Session, hex: &str) -> (aad_geom::Vec2, f64, f64) {
+        let h = Handle::parse_hex(hex).unwrap();
+        let EntityKind::Insert(i) = &s.doc().unwrap().entity(h).unwrap().kind else { panic!("an opening is an insert") };
+        (i.insert.xy(), i.rotation, i.attrib_value("OWIDTH").unwrap().parse().unwrap())
+    }
+
+    #[test]
+    fn two_picks_give_the_width_and_the_place() {
+        // Picks on the near face of a 200 mm wall: the width is the distance along the wall and the door sits on the centre line.
+        let mut s = wall_session();
+        let r = s.execute("wall.door", &json!({ "p1": [1000.0, 100.0], "p2": [1900.0, 100.0] })).unwrap();
+        let (at, rot, w) = insert_of(&s, r["handle"].as_str().unwrap());
+        assert!((w - 900.0).abs() < 1e-3, "{w}");
+        assert!((at.x - 1450.0).abs() < 1e-3 && at.y.abs() < 1e-3, "{at:?}");
+        assert!(rot.abs() < 1e-6, "{rot}");
+        // Picks made in the other order, one on each face: the width is still along the wall.
+        let r = s.execute("wall.window", &json!({ "p1": [3100.0, -100.0], "p2": [2300.0, 100.0] })).unwrap();
+        let (at, _, w) = insert_of(&s, r["handle"].as_str().unwrap());
+        assert!((w - 800.0).abs() < 1e-3, "{w}");
+        assert!((at.x - 2700.0).abs() < 1e-3 && at.y.abs() < 1e-3, "{at:?}");
+    }
+
+    #[test]
+    fn two_picks_on_the_same_spot_are_refused() {
+        let mut s = wall_session();
+        assert!(s.execute("wall.door", &json!({ "p1": [1000.0, 100.0], "p2": [1000.0, -100.0] })).is_err());
     }
 }

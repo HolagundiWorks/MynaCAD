@@ -264,6 +264,13 @@ pub(crate) fn gather(
             sink.dimension(d, dm, &mut budget);
         }
     }
+    // The origin mark (the + at the site origin) is a point of the drawing: it snaps as a Node (or as an Endpoint when only that is on).
+    if matches!(space, Space::Model) && osmode & (mode::NOD | mode::END) != 0 {
+        let origin = d.site_origin();
+        if origin.is_finite() && origin.dist(cursor) <= aperture {
+            cands.push((if osmode & mode::NOD != 0 { mode::NOD } else { mode::END }, origin));
+        }
+    }
     Some((cands, near_prims))
 }
 

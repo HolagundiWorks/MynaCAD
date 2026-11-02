@@ -57,7 +57,13 @@ fn run_import(s: &mut Session, p: &Value) -> Result<Value> {
     {
         let path = str_param(p, "path").ok_or_else(|| bad("import", "`path` is required"))?;
         let kind = kind_of(path).ok_or_else(|| {
-            bad("import", format!("{path}: this kind of file is not imported; the kinds are {}", EXTENSIONS.iter().map(|e| format!(".{e}")).collect::<Vec<_>>().join(" ")))
+            bad(
+                "import",
+                format!(
+                    "{path}: this kind of file is not imported; the kinds are {}",
+                    EXTENSIONS.iter().map(|e| format!(".{e}")).collect::<Vec<_>>().join(" ")
+                ),
+            )
         })?;
         let len = std::fs::metadata(path).map_err(|e| bad("import", format!("{path}: {e}")))?.len();
         if len > MAX_FILE {
@@ -124,7 +130,16 @@ fn layer_or(p: &Value, default: &str) -> String {
 
 /// Draw `polys` (millimetres on the paper, y up) at `at` and `scale` on `layer`, grey, and register the layer like an underlay.
 #[allow(clippy::too_many_arguments)]
-fn place(s: &mut Session, cmd: &str, polys: Vec<(Vec<(f64, f64)>, bool)>, at: Vec2, scale: f64, layer: &str, file: &str, calibrated: bool) -> Result<usize> {
+fn place(
+    s: &mut Session,
+    cmd: &str,
+    polys: Vec<(Vec<(f64, f64)>, bool)>,
+    at: Vec2,
+    scale: f64,
+    layer: &str,
+    file: &str,
+    calibrated: bool,
+) -> Result<usize> {
     let unit = unit_mm(s, cmd)?;
     let k = scale / unit;
     let n = polys.len();
@@ -179,7 +194,9 @@ fn import_svg(s: &mut Session, path: &str, p: &Value) -> Result<Value> {
         warnings.push("the SVG is very large and was cut: the drawing is incomplete".to_string());
     }
     s.echo(format!("SVG imported on layer {layer}: {n} polylines, {:.0} x {:.0} mm.", svg.width_mm * scale, svg.height_mm * scale));
-    Ok(json!({ "kind": "svg", "layer": layer, "objects": n, "widthMm": svg.width_mm * scale, "heightMm": svg.height_mm * scale, "skipped": svg.skipped, "warnings": warnings }))
+    Ok(
+        json!({ "kind": "svg", "layer": layer, "objects": n, "widthMm": svg.width_mm * scale, "heightMm": svg.height_mm * scale, "skipped": svg.skipped, "warnings": warnings }),
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -204,13 +221,21 @@ fn import_raster(s: &mut Session, path: &str, p: &Value) -> Result<Value> {
     if dark == 0 || dark == mask.len() {
         return Err(bad(
             "import",
-            format!("{path}: no lines found at threshold {threshold}: the picture is {}; change `threshold` (1-255) or `invert`", if dark == 0 { "all light" } else { "all dark" }),
+            format!(
+                "{path}: no lines found at threshold {threshold}: the picture is {}; change `threshold` (1-255) or `invert`",
+                if dark == 0 { "all light" } else { "all dark" }
+            ),
         ));
     }
     let tol = 0.75;
     let loops = trace(&mask, w, h, tol, MAX_POLYS + 1);
     if loops.len() > MAX_POLYS {
-        return Err(bad("import", format!("{path}: the picture is too detailed to trace ({MAX_POLYS}+ outlines): it is a photograph, not a line drawing; lower `threshold` or use a cleaner scan")));
+        return Err(bad(
+            "import",
+            format!(
+                "{path}: the picture is too detailed to trace ({MAX_POLYS}+ outlines): it is a photograph, not a line drawing; lower `threshold` or use a cleaner scan"
+            ),
+        ));
     }
     // pixels to paper mm: one source pixel is 25.4 / dpi mm; `factor` source pixels make one traced pixel; y runs up
     let mm = MM_PER_IN / dpi * factor;
@@ -231,7 +256,9 @@ fn import_raster(s: &mut Session, path: &str, p: &Value) -> Result<Value> {
         warnings.push(format!("the picture is {w0} x {h0} pixels and was reduced {factor:.1} times before tracing"));
     }
     s.echo(format!("Picture traced on layer {layer}: {n} outlines. Calibrate the scale before measuring."));
-    Ok(json!({ "kind": "raster", "layer": layer, "objects": n, "widthMm": width_mm, "heightMm": height_mm, "pixels": [w0, h0], "threshold": threshold, "warnings": warnings }))
+    Ok(
+        json!({ "kind": "raster", "layer": layer, "objects": n, "widthMm": width_mm, "heightMm": height_mm, "pixels": [w0, h0], "threshold": threshold, "warnings": warnings }),
+    )
 }
 
 /// The picture reduced (mean of blocks) until its longer side is at most [`MAX_SIDE`]. Returns the pixels, the new size and the reduction.

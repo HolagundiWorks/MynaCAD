@@ -227,6 +227,8 @@ public sealed partial class MainWindow : Window
         }
         if (any)
         {
+            // One drawing per window: a launch with several files keeps the last one.
+            await KeepOnlyActiveDrawingAsync();
             HideWelcome();
             AfterCommand();
         }
@@ -572,6 +574,11 @@ public sealed partial class MainWindow : Window
         if (id == "import")
         {
             _ = ImportFile();
+            return;
+        }
+        if (id == "new")
+        {
+            _ = NewDrawingReplacingAsync();
             return;
         }
         if (id == "close")
@@ -1751,10 +1758,18 @@ public sealed partial class MainWindow : Window
         RefreshChrome();
     }
 
-    private void OnNewDrawing(object sender, RoutedEventArgs e)
+    private void OnNewDrawing(object sender, RoutedEventArgs e) => _ = NewDrawingReplacingAsync();
+
+    /// <summary>A new drawing replaces the open one (after offering to save it): O-Draft holds one drawing.</summary>
+    private async Task NewDrawingReplacingAsync()
     {
+        if (_host == IntPtr.Zero || !await ConfirmReplaceDrawingAsync())
+        {
+            return;
+        }
         HideWelcome();
-        StartCommand("new");
+        Native.Execute(_host, "new", "{}");
+        await KeepOnlyActiveDrawingAsync();
         EnsureModelSpace();
         _docKey = "";
         AfterCommand();
@@ -1804,6 +1819,127 @@ public sealed partial class MainWindow : Window
         }
         _docKey = "";
         AfterCommand();
+    }
+
+    /// <summary>The toggle names the view you would switch to: "Page layout" while the model is shown, "Model" while a page layout is.</summary>
+    private void ShowSpaceToggle()
+    {
+        var model = string.Equals(_space, "Model", StringComparison.OrdinalIgnoreCase);
+        var label = model ? "Page layout" : "Model";
+        if (SpaceLabel.Text != label)
+        {
+            SpaceLabel.Text = label;
+            SpaceIcon.Kind = model ? "paper" : "model";
+            ToolTipService.SetToolTip(SpaceToggle, model ? "Showing the model: click for the page layout" : "Showing the page layout (" + _space + "): click for the model");
+        }
+    }
+
+    /// <summary>Switch between the model and the page layout; the first time a drawing has no page layout one is made.</summary>
+    private void OnSpaceToggle(object sender, RoutedEventArgs e)
+    {
+        if (_host == IntPtr.Zero)
+        {
+            return;
+        }
+        if (!string.Equals(_space, "Model", StringComparison.OrdinalIgnoreCase))
+        {
+            EnsureModelSpace();
+            _docKey = "";
+            AfterCommand();
+            return;
+        }
+        string? layout = null;
+        if (Native.Execute(_host, "layout.list", "{}") == 0)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(Native.ReadResult(_host));
+                var rows = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement : doc.RootElement.TryGetProperty("layouts", out var l) ? l : default;
+                if (rows.ValueKind == JsonValueKind.Array)
+                {
+                    layout = rows.EnumerateArray().Select(r => r.TryGetProperty("name", out var n) ? n.GetString() : null).FirstOrDefault(n => !string.IsNullOrEmpty(n));
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+        if (layout == null)
+        {
+            layout = "Layout1";
+            if (Native.Execute(_host, "layout.new", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = layout })) != 0)
+            {
+                History.Text = Native.LastError(_host);
+                return;
+            }
+        }
+        if (Native.Execute(_host, "layout.set", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = layout })) != 0)
+        {
+            History.Text = Native.LastError(_host);
+        }
+        _docKey = "";
+        AfterCommand();
+    }
+
+    private Flyout? _pageLayoutFlyout;
+
+    /// <summary>The drawing tab whose page the flyout is editing: "Design" or a sheet-set tab name. Each tab has its own paper size and orientation.</summary>
+    private string _pageTab = "Design";
+
+    /// <summary>The tab that is active now, for the "Page layout" rail entry.</summary>
+    private string _activeTabName = "Design";
+
+    /// <summary>The page layout controls (paper size, orientation, nameplate) of one drawing tab, opened from the left rail.</summary>
+    private void ShowPageLayout(FrameworkElement anchor, string? tab = null)
+    {
+        _pageTab = string.IsNullOrWhiteSpace(tab) ? _activeTabName : tab!;
+        PageLayoutTitle.Text = "Page layout: " + _pageTab;
+        FillPageFor(_pageTab);
+        if (_pageLayoutFlyout == null)
+        {
+            (PageLayoutPanel.Parent as Panel)?.Children.Remove(PageLayoutPanel);
+            PageLayoutPanel.Visibility = Visibility.Visible;
+            _pageLayoutFlyout = new Flyout { Content = PageLayoutPanel, Placement = FlyoutPlacementMode.RightEdgeAlignedTop };
+        }
+        EnsurePaperBox();
+        EnsureOrientBox();
+        _pageLayoutFlyout.ShowAt(anchor);
+    }
+
+    /// <summary>
+    /// O-Draft holds one drawing. Before a file is opened or a new drawing started, offer to save what is open; false when the
+    /// person cancels. <see cref="KeepOnlyActiveDrawingAsync"/> then closes the old drawing once the new one is there.
+    /// </summary>
+    private async Task<bool> ConfirmReplaceDrawingAsync()
+    {
+        _docKey = "";
+        RefreshChrome();
+        foreach (var doc in _documents.Where(d => d.Dirty).ToList())
+        {
+            if (!await DiscardOrSave(doc.Title))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private async Task KeepOnlyActiveDrawingAsync()
+    {
+        _docKey = "";
+        RefreshChrome();
+        var active = _documents.FirstOrDefault(d => d.Active);
+        if (active == null)
+        {
+            return;
+        }
+        foreach (var other in _documents.Where(d => d.Index != active.Index).OrderByDescending(d => d.Index).ToList())
+        {
+            Native.Execute(_host, "close", JsonSerializer.Serialize(new Dictionary<string, object> { ["index"] = other.Index }));
+        }
+        _docKey = "";
+        RefreshChrome();
+        await Task.CompletedTask;
     }
 
     private void EnsureModelSpace()
@@ -1918,6 +2054,10 @@ public sealed partial class MainWindow : Window
             {
                 return false;
             }
+            if (!await ConfirmReplaceDrawingAsync())
+            {
+                return false;
+            }
             // The file is read on a worker thread so the window keeps responding; the host fits the view.
             History.Text = "Opening " + file.Name + "...";
             var opened = await OpenFileAsync(file.Path);
@@ -1928,6 +2068,7 @@ public sealed partial class MainWindow : Window
                 return false;
             }
             ShellPrefs.RememberRecent(file.Path);
+            await KeepOnlyActiveDrawingAsync();
             HideWelcome();
             _docKey = "";
             AfterCommand();
@@ -2958,6 +3099,7 @@ public sealed partial class MainWindow : Window
             {
                 _space = state.Space;
             }
+            ShowSpaceToggle();
             RefreshAiChip(state);
             if (state.ControlPort > 0)
             {
@@ -3325,12 +3467,58 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>Show the saved paper size and orientation of a tab (A1 landscape until one is chosen).</summary>
+    private void FillPageFor(string tab)
+    {
+        if (_host == IntPtr.Zero || Native.Execute(_host, "sheet.page", JsonSerializer.Serialize(new Dictionary<string, object> { ["tab"] = tab })) != 0)
+        {
+            return;
+        }
+        try
+        {
+            using var doc = JsonDocument.Parse(Native.ReadResult(_host));
+            EnsurePaperBox();
+            EnsureOrientBox();
+            _filling = true;
+            try
+            {
+                var paper = doc.RootElement.TryGetProperty("paper", out var p) ? p.GetString() : "A1";
+                PaperBox.SelectedItem = PaperChoices.FirstOrDefault(c => string.Equals(c, paper, StringComparison.OrdinalIgnoreCase)) ?? "A1";
+                var landscape = !doc.RootElement.TryGetProperty("landscape", out var l) || l.ValueKind != JsonValueKind.False;
+                OrientBox.SelectedItem = landscape ? "Landscape" : "Portrait";
+            }
+            finally
+            {
+                _filling = false;
+            }
+        }
+        catch (JsonException)
+        {
+        }
+    }
+
+    /// <summary>Remember the paper size and orientation shown for the tab being edited.</summary>
+    private void SavePageFor(string tab)
+    {
+        if (_host == IntPtr.Zero || PaperBox.SelectedItem is not string paper || OrientBox.SelectedItem is not string orient)
+        {
+            return;
+        }
+        Native.Execute(_host, "sheet.page", JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["tab"] = tab,
+            ["paper"] = paper,
+            ["landscape"] = !string.Equals(orient, "Portrait", StringComparison.OrdinalIgnoreCase),
+        }));
+    }
+
     private void OnPaperPicked(object sender, SelectionChangedEventArgs e)
     {
         if (_filling || _host == IntPtr.Zero || PaperBox.SelectedItem is not string paper || paper.Length == 0)
         {
             return;
         }
+        SavePageFor(_pageTab);
         // Prefer keeping the drawing's scale; fall back to 1:100 when none is set yet.
         var body = new Dictionary<string, object> { ["paper"] = paper, ["apply"] = true };
         if (Native.Execute(_host, "plot.config", JsonSerializer.Serialize(body)) != 0)
@@ -3353,6 +3541,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        SavePageFor(_pageTab);
         ApplyNameplatePage();
         AfterCommand();
     }

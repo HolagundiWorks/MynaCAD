@@ -18,12 +18,14 @@ pub const SELECTED_PROJECT_FILE: &str = "selected-project.json";
 
 pub fn local_path(name: &str) -> std::path::PathBuf {
     let base = std::env::var_os("LOCALAPPDATA")
-        .or_else(|| std::env::var_os("USERPROFILE").map(|p| {
-            let mut b = std::path::PathBuf::from(p);
-            b.push("AppData");
-            b.push("Local");
-            b.into()
-        }))
+        .or_else(|| {
+            std::env::var_os("USERPROFILE").map(|p| {
+                let mut b = std::path::PathBuf::from(p);
+                b.push("AppData");
+                b.push("Local");
+                b.into()
+            })
+        })
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     base.join(LOCAL_APP_FOLDER).join(name)
@@ -34,8 +36,5 @@ pub fn is_project_format(format: Option<&str>) -> bool {
 }
 
 pub fn is_active_project_format(format: Option<&str>) -> bool {
-    matches!(
-        format,
-        Some(ACTIVE_PROJECT_FORMAT) | Some("osas-active-project")
-    )
+    matches!(format, Some(ACTIVE_PROJECT_FORMAT) | Some("osas-active-project"))
 }

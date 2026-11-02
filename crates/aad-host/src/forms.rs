@@ -27,7 +27,9 @@ pub fn form_json(session: &Session, id: &str) -> Option<String> {
                 _ => field.label.to_string(),
             };
             let help = if field.len.is_some() {
-                format!("{} A bare number is in {}; a unit can be typed: 12in, 300mm, 0.3m, 1'6\".", field.help, unit_name.unwrap_or("drawing units")).trim().to_string()
+                format!("{} A bare number is in {}; a unit can be typed: 12in, 300mm, 0.3m, 1'6\".", field.help, unit_name.unwrap_or("drawing units"))
+                    .trim()
+                    .to_string()
             } else {
                 field.help.to_string()
             };
