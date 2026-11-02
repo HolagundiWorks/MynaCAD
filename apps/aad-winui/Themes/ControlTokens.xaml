@@ -65,7 +65,7 @@
     <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
     <CornerRadius x:Key="OverlayCornerRadius">4</CornerRadius>
     <CornerRadius x:Key="CornerRadiusAskCard">12</CornerRadius>
-    <CornerRadius x:Key="CornerRadiusAskPill">28</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusAskPill">20</CornerRadius>
     <CornerRadius x:Key="CornerRadiusAskAvatar">14</CornerRadius>
     <CornerRadius x:Key="CornerRadiusAskSend">16</CornerRadius>
     <x:Double x:Key="AskPillHeight">40</x:Double>
