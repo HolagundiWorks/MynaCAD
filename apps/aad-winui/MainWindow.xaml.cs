@@ -3510,6 +3510,7 @@ public sealed partial class MainWindow : Window
             ["paper"] = paper,
             ["landscape"] = !string.Equals(orient, "Portrait", StringComparison.OrdinalIgnoreCase),
         }));
+        _sheetKey = "";
     }
 
     private void OnPaperPicked(object sender, SelectionChangedEventArgs e)
@@ -3519,18 +3520,8 @@ public sealed partial class MainWindow : Window
             return;
         }
         SavePageFor(_pageTab);
-        // Prefer keeping the drawing's scale; fall back to 1:100 when none is set yet.
-        var body = new Dictionary<string, object> { ["paper"] = paper, ["apply"] = true };
-        if (Native.Execute(_host, "plot.config", JsonSerializer.Serialize(body)) != 0)
-        {
-            body["scale"] = "1:100";
-            if (Native.Execute(_host, "plot.config", JsonSerializer.Serialize(body)) != 0)
-            {
-                Status.Text = Native.LastError(_host);
-                AfterCommand();
-                return;
-            }
-        }
+        // The paper size is kept for the tab and set on the layouts. It does not rescale the drawing: plot.config with apply resizes every
+        // dimension and text to the paper (and, with no scale set, forced 1:100), which made the arrows and text huge.
         ApplyNameplatePage();
         AfterCommand();
     }
@@ -3555,7 +3546,8 @@ public sealed partial class MainWindow : Window
         }
         var paper = PaperBox.SelectedItem as string ?? "A1";
         var landscape = !string.Equals(OrientBox.SelectedItem as string, "Portrait", StringComparison.OrdinalIgnoreCase);
-        Native.Execute(_host, "sheet.designer", JsonSerializer.Serialize(new Dictionary<string, object> { ["landscape"] = landscape }));
+        // Choosing a paper size or orientation only sets the pages of the layouts. (sheet.designer was called here too; it draws the
+        // nameplate into the drawing, which a paper choice must not do.)
         foreach (var (name, land) in new (string, bool)[] { ("Nameplate L", true), ("Nameplate P", false) })
         {
             var setup = new Dictionary<string, object>

@@ -309,43 +309,26 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// A horizontal drawing tab: a name and, beside it, the tab's paper size and orientation. The active tab has an accent underline.
-    /// Clicking the badge opens the page size controls of that tab; right-click opens its menu.
+    /// A horizontal drawing tab: the tab itself (its name, with an accent underline when active) and, beside it, a small button with the
+    /// tab's paper size and orientation that opens the page size controls of that tab. Right-click on the tab opens its menu.
     /// </summary>
-    private Button MakeTopTab(string name, string tip, bool active, Action activate, Func<MenuFlyout>? menu = null, bool badge = true)
+    private FrameworkElement MakeTopTab(string name, string tip, bool active, Action activate, Func<MenuFlyout>? menu = null, bool badge = true)
     {
         var accent = Density.ThemeBrush("AccentBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Density.SpaceSm, VerticalAlignment = VerticalAlignment.Center };
-        row.Children.Add(new TextBlock
-        {
-            Text = name,
-            FontSize = Density.FontBody,
-            FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal,
-            VerticalAlignment = VerticalAlignment.Center,
-        });
-        if (badge)
-        {
-            var text = PageBadge(name);
-            if (text.Length > 0)
-            {
-                var chip = new TextBlock { Text = text, FontSize = Density.FontCaption, Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center };
-                ToolTipService.SetToolTip(chip, "Paper size and orientation of " + name + ": click for page size");
-                chip.Tapped += (_, e) =>
-                {
-                    e.Handled = true;
-                    ShowPageLayout(TabRowHost, name);
-                };
-                row.Children.Add(chip);
-            }
-        }
-
+        var clear = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         var tab = new Button
         {
-            Content = row,
+            Content = new TextBlock
+            {
+                Text = name,
+                FontSize = Density.FontBody,
+                FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
             MinHeight = Density.ControlHeight,
-            Padding = new Thickness(Density.SpaceMd, 2, Density.SpaceMd, 2),
-            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
-            BorderBrush = active ? accent : new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            Padding = new Thickness(Density.SpaceMd, 2, badge ? Density.SpaceXs : Density.SpaceMd, 2),
+            Background = clear,
+            BorderBrush = active ? accent : clear,
             BorderThickness = new Thickness(0, 0, 0, 2),
             CornerRadius = new CornerRadius(0),
         };
@@ -361,7 +344,26 @@ public sealed partial class MainWindow
             };
         }
 
-        return tab;
+        var text = badge ? PageBadge(name) : "";
+        if (text.Length == 0)
+        {
+            return tab;
+        }
+
+        var chip = new Button
+        {
+            Content = new TextBlock { Text = text, FontSize = Density.FontCaption, Opacity = 0.8 },
+            MinHeight = Density.ControlHeight,
+            MinWidth = 0,
+            Padding = new Thickness(Density.SpaceXs, 2, Density.SpaceMd, 2),
+            Background = clear,
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(0),
+        };
+        AutomationProperties.SetName(chip, "Page size of " + name + ": " + text);
+        ToolTipService.SetToolTip(chip, "Paper size and orientation of " + name + ": click to change");
+        chip.Click += (_, _) => ShowPageLayout(TabRowHost, name);
+        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, Children = { tab, chip } };
     }
 
     private MenuFlyout BuildDesignSheetMenu()
