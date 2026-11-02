@@ -387,8 +387,8 @@ internal static class Density
             return brush.Color;
         }
         return Theme == ElementTheme.Light
-            ? Windows.UI.Color.FromArgb(255, 0x00, 0x78, 0xD4)
-            : Windows.UI.Color.FromArgb(255, 0x60, 0xCD, 0xFF);
+            ? Windows.UI.Color.FromArgb(255, 0x10, 0x2C, 0x80)
+            : Windows.UI.Color.FromArgb(255, 0x6F, 0x8F, 0xF0);
     }
 
     public static Brush SelectionFill(byte alpha = 64)

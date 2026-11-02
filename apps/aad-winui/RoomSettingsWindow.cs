@@ -59,7 +59,7 @@ internal static class RoomSettingsWindow
             TextWrapping.Wrap));
         root.Children.Add(Labeled("Drawing units (size text)", units));
         root.Children.Add(boxed);
-        root.Children.Add(Labeled("Text height (drawing units)", height));
+        root.Children.Add(Labeled("Text height (in the unit above; a unit can be typed: 10in, 0.25m)", height));
         root.Children.Add(Labeled("Font", font));
         root.Children.Add(Density.Secondary("Blank text height uses the drawing default from the page-size hierarchy (ISO Small/Medium/Large).", TextWrapping.Wrap));
         root.Children.Add(status);

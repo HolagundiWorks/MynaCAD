@@ -391,10 +391,10 @@ internal static class GraphWindow
                 Padding = new Thickness(Density.Space2),
                 CornerRadius = new CornerRadius(Density.CornerControl),
                 Background = new SolidColorBrush(selected
-                    ? Windows.UI.Color.FromArgb(255, 40, 70, 100)
+                    ? Windows.UI.Color.FromArgb(255, 28, 42, 80)
                     : Windows.UI.Color.FromArgb(255, 32, 36, 42)),
                 BorderBrush = new SolidColorBrush(selected
-                    ? Windows.UI.Color.FromArgb(255, 90, 180, 255)
+                    ? Windows.UI.Color.FromArgb(255, 111, 143, 240)
                     : Windows.UI.Color.FromArgb(255, 70, 78, 88)),
                 BorderThickness = new Thickness(selected ? Density.SpaceXs : Density.DividerThickness),
                 Child = body,

@@ -2,7 +2,7 @@
 
 Canonical token system for `apps/aad-winui`. Visual direction: **compact CAD density**
 (AutoCAD 2007–inspired chrome sizing) with **Fluent** restraint — graphite/charcoal dark
-workspace, neutral off-white light workspace, and a restrained Windows blue accent.
+workspace, neutral off-white light workspace, and the suite accent, Midnight (`docs/BRANDING.md`).
 
 Window templates, components, hierarchy rules and the screen audit: [UI_STANDARDS.md](UI_STANDARDS.md).
 Density background, acceptance checklist and exceptions: [COMPACT_CAD_UI.md](COMPACT_CAD_UI.md).
@@ -25,16 +25,18 @@ Code-built UI uses `Density`. At launch, `ShellFonts.Resolve()` upgrades to **Se
 
 ## Colour direction
 
+Ink is Midnight `#102C80` (secondary `#3E56A0`, muted `#546B88`: all at least 4.5 : 1 on the light surfaces); disabled is Midnight at about 40 %. The system accent in `App.xaml` (selection, toggles, focus rings) is Midnight too. Updated 2026-11-02; before that the accent was Windows blue and the ink a slate `#1A2332`.
+
 | Role | Dark | Light |
 |---|---|---|
-| App / title bar | `#1B1B1B` | `#F3F3F3` |
+| App / title bar | `#1B1B1B` | `#E4EAF2` |
 | Elevated surface | `#2C2C2C` | `#FFFFFF` |
-| Accent | `#60CDFF` | `#0078D4` |
+| Accent | `#6F8FF0` (Midnight tint) | `#102C80` (Midnight) |
 | Drawing canvas | `#000000` | `#FFFFFF` (CAD preference; not shell chrome) |
 | Splash text | `#FFFFFF` on splash background (`SplashForegroundBrush`) | same |
 | Selection zebra | Accent at 25% alpha (`Density.SelectionFill`) | Accent at 25% alpha |
 | Side panel | `SidePanelWidth` / `Density.SidePanelWidth` = **240** DIP; title rail `SideRailWidth` = **28** | same |
-| AI channel edge | Accent blue | Accent blue |
+| AI channel edge | Accent (Midnight) | Accent (Midnight) |
 | CAD channel edge | Success green | Success green |
 
 **No Mica/acrylic on floating command chrome or the drawing HWND.** Solid fills keep overlays

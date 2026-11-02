@@ -113,6 +113,6 @@ Rules: the name of an app is always written with a capital O and a hyphen (O-Cor
 | Launcher: marks in tiles, O-Form tile, Ember accent, animated AI orb, Names font for app names, Display font for titles | done |
 | O-Studio: marks and `app.ico` | done; its own pages take Ember from `SuiteAccent.Orange` automatically |
 | O-CoreOp: Dusk accent, tiles and `app.ico` | done |
-| O-Draft: app icon files (`assets/app-icon`) | done; window chrome not yet on Midnight accent |
+| O-Draft: app icon files (`assets/app-icon`) | done; window chrome on the Midnight accent (2026-11-02) |
 | O-Form | the mark and the colour exist; the app does not |
 | Windows installer and shortcut icons from the new `.ico` | follow the next installer build |

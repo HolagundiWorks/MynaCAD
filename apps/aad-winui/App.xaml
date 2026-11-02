@@ -12,25 +12,26 @@
                 <ResourceDictionary Source="Themes/ControlTokens.xaml" />
                 <ResourceDictionary Source="Themes/ControlStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <!-- Restrained Windows blue accent (Fluent). Drives selection, toggles, and focus rings. -->
+            <!-- O-Draft's accent is Midnight (brand guide): the system accent drives selection, toggles, checkboxes and focus rings.
+                 Light uses Midnight #102C80 and its shades; dark uses a lighter tint of it that shows on the dark surfaces. -->
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <Color x:Key="SystemAccentColor">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight1">#1890E0</Color>
-                    <Color x:Key="SystemAccentColorLight2">#2B9AE8</Color>
-                    <Color x:Key="SystemAccentColorLight3">#60B6F0</Color>
-                    <Color x:Key="SystemAccentColorDark1">#006CBE</Color>
-                    <Color x:Key="SystemAccentColorDark2">#005A9E</Color>
-                    <Color x:Key="SystemAccentColorDark3">#004578</Color>
+                    <Color x:Key="SystemAccentColor">#102C80</Color>
+                    <Color x:Key="SystemAccentColorLight1">#3E56A0</Color>
+                    <Color x:Key="SystemAccentColorLight2">#5A72BC</Color>
+                    <Color x:Key="SystemAccentColorLight3">#8FA3DC</Color>
+                    <Color x:Key="SystemAccentColorDark1">#0C2470</Color>
+                    <Color x:Key="SystemAccentColorDark2">#081C60</Color>
+                    <Color x:Key="SystemAccentColorDark3">#051448</Color>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="SystemAccentColor">#60CDFF</Color>
-                    <Color x:Key="SystemAccentColorLight1">#60CDFF</Color>
-                    <Color x:Key="SystemAccentColorLight2">#8AD4FF</Color>
-                    <Color x:Key="SystemAccentColorLight3">#B0E0FF</Color>
-                    <Color x:Key="SystemAccentColorDark1">#3BB0E8</Color>
-                    <Color x:Key="SystemAccentColorDark2">#1A8FCF</Color>
-                    <Color x:Key="SystemAccentColorDark3">#0078D4</Color>
+                    <Color x:Key="SystemAccentColor">#6F8FF0</Color>
+                    <Color x:Key="SystemAccentColorLight1">#86A2F5</Color>
+                    <Color x:Key="SystemAccentColorLight2">#A3B8F8</Color>
+                    <Color x:Key="SystemAccentColorLight3">#C2D0FA</Color>
+                    <Color x:Key="SystemAccentColorDark1">#5B7BE0</Color>
+                    <Color x:Key="SystemAccentColorDark2">#4A68C8</Color>
+                    <Color x:Key="SystemAccentColorDark3">#3A54A8</Color>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

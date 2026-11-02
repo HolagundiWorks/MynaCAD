@@ -2369,6 +2369,8 @@ public sealed partial class MainWindow : Window
         Density.Theme = theme;
         _levelKey = "";
         _sheetKey = "";
+        // The rail restyles only a button whose state changed; a new theme changes every colour, so forget what was shown.
+        _railShown.Clear();
         RefreshSideRail();
         ShellChrome.Apply(this, theme);
         _chrome?.ApplyTheme(theme);
@@ -4982,7 +4984,7 @@ public sealed partial class MainWindow : Window
             ?? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 232, 232, 232));
         var picked = Density.ThemeBrush("AccentFillColorSecondaryBrush")
             ?? Density.ThemeBrush("SubtleFillColorTertiaryBrush")
-            ?? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 204, 228, 247));
+            ?? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 228, 232, 248));
         var card = new Border
         {
             Padding = new Thickness(4, 6, 4, 4),
