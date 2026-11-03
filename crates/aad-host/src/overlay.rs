@@ -27,10 +27,6 @@ const HISTORY_REMOVED: Rgb = Rgb(0xe0, 0x55, 0x55);
 const HISTORY_CHANGED: Rgb = Rgb(0xe0, 0xa8, 0x30);
 /// Object-snap and tracking ink (matches egui `Tokens::snap`).
 const SNAP_INK: Rgb = Rgb(0x2f, 0xd0, 0x62);
-/// Site / world base mark: X axis (shared across levels).
-const SITE_X_INK: Rgb = Rgb(0xe0, 0x55, 0x55);
-/// Site / world base mark: Y axis.
-const SITE_Y_INK: Rgb = Rgb(0x2f, 0xd0, 0x62);
 /// Overlay hairline width in points: near one device pixel on typical DPI (AutoCAD-thin).
 const OVERLAY_HAIRLINE: f32 = 0.5;
 
@@ -87,7 +83,7 @@ pub fn mesh(
     height: u32,
     origin: Vec2,
     tip: Option<&str>,
-    width: u32,
+    _width: u32,
     show_ucs: bool,
     icon_px: f64,
 ) -> MeshData {
@@ -508,30 +504,6 @@ fn overlay_ink(paper: Rgb) -> Rgb {
     } else {
         Rgb(0x1a, 0x23, 0x32) // light canvas → navy crosshair
     }
-}
-
-fn add_ucs(list: &mut DisplayList, center: Vec2, width: u32, height: u32, scale: f64, icon_px: f64, paper: Rgb) {
-    if !center.is_finite() || !scale.is_finite() || scale <= 0.0 || !icon_px.is_finite() || icon_px <= 0.0 {
-        return;
-    }
-    let px = |n: f64| n * icon_px;
-    let to_world = |sx: f64, sy: f64| {
-        let cx = f64::from(width.max(1)) * 0.5;
-        let cy = f64::from(height.max(1)) * 0.5;
-        Vec2::new(center.x + (sx - cx) / scale, center.y - (sy - cy) / scale)
-    };
-    let origin = to_world(px(36.0), f64::from(height) - px(34.0));
-    let axis_x = to_world(px(36.0) + px(60.0), f64::from(height) - px(34.0));
-    let axis_y = to_world(px(36.0), f64::from(height) - px(34.0) - px(60.0));
-    if ![origin, axis_x, axis_y].into_iter().all(|point| point.is_finite()) {
-        return;
-    }
-    let ink = overlay_ink(paper);
-    add_poly(list, &[origin, axis_x], ink, true);
-    add_poly(list, &[origin, axis_y], ink, true);
-    add_poly(list, &square(origin, px(4.5) / scale), ink, true);
-    add_label(list, to_world(px(36.0) + px(70.0), f64::from(height) - px(34.0)), scale, icon_px, "X", paper);
-    add_label(list, to_world(px(36.0), f64::from(height) - px(34.0) - px(70.0)), scale, icon_px, "Y", paper);
 }
 
 /// The sheet of the active drawing tab, drawn in the drawing: its paper size at the tab's scale (so 1:50 on A3 is 21 m by 14.85 m
