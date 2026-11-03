@@ -95,6 +95,10 @@ public sealed partial class MainWindow : Window
     private Window? _mleaderStyleWindow;
     private Window? _roomSettingsWindow;
     private string _space = "Model";
+
+    /// <summary>The tool column's two panels; made in code and put into the slots of the XAML.</summary>
+    private readonly ToolColumnPanel ToolStrip = new();
+    private readonly ToolColumnPanel ArchBar = new();
     private bool _plotBusy;
     private DraftingWindow? _draftingWindow;
     private QuickWindow? _quickWindow;
@@ -139,6 +143,8 @@ public sealed partial class MainWindow : Window
     {
         _launch = launch ?? LaunchArgs.Parse(Environment.GetCommandLineArgs().Skip(1));
         InitializeComponent();
+        ToolStripSlot.Child = ToolStrip;
+        ArchBarSlot.Child = ArchBar;
         AppWindow.Closing += OnAppClosing;
         // Sample only when asked and no drawing path was given (paths replace the empty session).
         _host = Native.Create(sample: _launch.Sample && _launch.Files.Count == 0);
@@ -5777,7 +5783,7 @@ public sealed partial class MainWindow : Window
             }
             if (!first)
             {
-                ToolStrip.Children.Add(MakeToolDivider());
+                ToolStrip.Children.Add(MakeToolColumnDivider());
             }
             first = false;
             foreach (var id in visible)
@@ -5789,7 +5795,7 @@ public sealed partial class MainWindow : Window
                 ToolStrip.Children.Add(button);
             }
         }
-        ToolStrip.Children.Add(MakeToolDivider());
+        ToolStrip.Children.Add(MakeToolColumnDivider());
         var gear = MakeToolTile(ToolIcons.For("gear", _dark), "Customize tool bar");
         gear.Click += (_, _) => OpenTools();
         ToolStrip.Children.Add(gear);
@@ -5849,6 +5855,21 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    /// <summary>A thin line across the tool column (both of its columns), between the groups of tools.</summary>
+    private static Border MakeToolColumnDivider()
+    {
+        var line = new Border
+        {
+            Height = 1,
+            Margin = new Thickness(2, 4, 2, 4),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Background = Density.ThemeBrush("BorderSubtleBrush") ?? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 128, 128, 128)),
+            Opacity = 0.85,
+            Tag = "divider",
+        };
+        return line;
+    }
+
     /// <summary>Drawing tools on the Architecture bar. Layer set lives under Format (not here).</summary>
     private static readonly (string Id, string Label)[] ArchitectureTools =
     [
@@ -5877,7 +5898,7 @@ public sealed partial class MainWindow : Window
         {
             if (!first)
             {
-                ArchBar.Children.Add(MakeToolDivider(horizontalBar: true));
+                ArchBar.Children.Add(MakeToolColumnDivider());
             }
             first = false;
             foreach (var id in group)
@@ -6272,6 +6293,7 @@ public sealed partial class MainWindow : Window
         var takeoff = tools && _takeoffMode;
         TakeoffModeButton.IsChecked = _takeoffMode;
         ToolStripHost.Visibility = tools ? Visibility.Visible : Visibility.Collapsed;
+        SheetRailHost.Visibility = tools ? Visibility.Visible : Visibility.Collapsed;
         if (tools && ArchBar.Children.Count == 0)
         {
             RebuildArchitectureBar();

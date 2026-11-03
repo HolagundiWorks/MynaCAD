@@ -254,7 +254,6 @@ public sealed partial class MainWindow
             return;
         }
         _sheetKey = key;
-        SheetRailHost.Visibility = Visibility.Collapsed;
         TabRow.Children.Clear();
         _activeTabName = state.SheetSets.FirstOrDefault(x => x.Active)?.Name ?? "Design";
         TabRow.Children.Add(MakeTopTab(

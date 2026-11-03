@@ -43,10 +43,6 @@
                             AutomationProperties.Name="Current layer"
                             ToolTipService.ToolTip="Current layer (while a sheet-set tab is active, the layers of that tab)" />
                     </StackPanel>
-                    <Border Style="{StaticResource ArchBarDividerStyle}" Margin="{StaticResource PaddingSm}" />
-                    <StackPanel x:Name="ToolStrip" Orientation="Horizontal" Spacing="{StaticResource SpaceSm}" />
-                    <Border x:Name="ArchToolsDivider" Style="{StaticResource ArchBarDividerStyle}" Margin="{StaticResource PaddingSm}" Visibility="Collapsed" />
-                    <StackPanel x:Name="ArchBar" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Height="{StaticResource IconButtonSize}" />
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -65,10 +61,15 @@
                 <ColumnDefinition x:Name="LeftSplitterColumn" Width="Auto" />
                 <ColumnDefinition x:Name="PropertiesColumn" Width="{StaticResource SidePanelColumnWidth}" MinWidth="0" />
             </Grid.ColumnDefinitions>
-            <!-- Sheet sets: Design, then one entry per discipline. Shown only when the drawing has sheet sets. -->
-            <Border x:Name="SheetRailHost" Visibility="Collapsed" Background="{ThemeResource SurfaceBrush}" BorderThickness="0" AutomationProperties.Name="Sheet sets">
+            <!-- Tools down the left side, two to a row: draw, modify, annotate, then the architecture tools. The drawing tabs are across the top. -->
+            <Border x:Name="SheetRailHost" Background="{ThemeResource SurfaceBrush}" BorderBrush="{ThemeResource BorderSubtleBrush}" BorderThickness="0,0,1,0" AutomationProperties.Name="Tools">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel x:Name="SheetRail" Orientation="Vertical" Spacing="{StaticResource SpaceXs}" Margin="{StaticResource PaddingSm}" />
+                    <StackPanel Orientation="Vertical" Spacing="{StaticResource SpaceXs}" Margin="{StaticResource PaddingSm}">
+                        <Border x:Name="ToolStripSlot" />
+                        <Border x:Name="ArchToolsDivider" Height="1" Margin="2,4" Background="{ThemeResource BorderSubtleBrush}" Visibility="Collapsed" />
+                        <Border x:Name="ArchBarSlot" />
+                        <StackPanel x:Name="SheetRail" Visibility="Collapsed" />
+                    </StackPanel>
                 </ScrollViewer>
             </Border>
             <Border x:Name="CanvasHost" Grid.Column="1" Background="{ThemeResource CanvasBackgroundBrush}" SizeChanged="OnCanvasSize" AutomationProperties.Name="Drawing" />

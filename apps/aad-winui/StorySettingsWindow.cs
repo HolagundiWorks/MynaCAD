@@ -152,7 +152,7 @@ internal static class StorySettingsWindow
                 // visible is top first; the code counts from the datum: L0 at the datum, L1 above it, -L1 below it.
                 var datumAt = visible.FindIndex(r => r.Datum);
                 var storyNo = datumAt < 0 ? visible.Count - 1 - i : datumAt - i;
-                listHost.Items.Add(BuildRow(row, storyNo, () => PaintList(i), unit, () => { foreach (var r in model) { r.Datum = ReferenceEquals(r, row); } }));
+                listHost.Items.Add(BuildRow(row, storyNo, () => PaintList(i), unit, () => { foreach (var r in model) { r.Datum = ReferenceEquals(r, row); } row.Elevation = 0; }));
             }
             if (selectDisplayIndex is >= 0 and var si && si < listHost.Items.Count)
             {
@@ -296,6 +296,9 @@ internal static class StorySettingsWindow
     static List<StoryRow> VisibleByElevation(List<StoryRow> rows) =>
         rows.Where(r => !r.MarkDeleted).OrderByDescending(r => r.Elevation).ToList();
 
+    /// <summary>A length as shown in the grid: no trailing zeros, and never "-0".</summary>
+    static string Show(double v) => (Math.Abs(v) < 1e-9 ? 0 : v).ToString("0.###", CultureInfo.InvariantCulture);
+
     static Grid BuildRow(StoryRow row, int storyNo, Action refresh, Func<string> unit, Action pickDatum)
     {
         var grid = new Grid { ColumnSpacing = 8, MinHeight = 36, Tag = row };
@@ -335,19 +338,19 @@ internal static class StorySettingsWindow
         // Heights and elevations are typed in the drawing's unit; a unit can be typed too (3m, 10ft, 3000mm).
         TextBox LengthBox(double value, Action<double> set, bool allowNegative)
         {
-            var box = new TextBox { Text = value.ToString("0.###", CultureInfo.InvariantCulture), VerticalAlignment = VerticalAlignment.Center };
+            var box = new TextBox { Text = Show(value), VerticalAlignment = VerticalAlignment.Center };
             ToolTipService.SetToolTip(box, "In " + (unit().Length > 0 ? unit() : "drawing units") + ". A unit can be typed: 3m, 10ft, 3000mm.");
             void Commit()
             {
                 if (LengthText.TryParse(box.Text, unit(), out var v) && (allowNegative || v >= 0))
                 {
                     set(v);
-                    box.Text = v.ToString("0.###", CultureInfo.InvariantCulture);
+                    box.Text = Show(v);
                     refresh();
                 }
                 else
                 {
-                    box.Text = value.ToString("0.###", CultureInfo.InvariantCulture);
+                    box.Text = Show(value);
                 }
             }
 
@@ -371,7 +374,7 @@ internal static class StorySettingsWindow
         }
         else
         {
-            elev = new TextBlock { Text = row.Elevation.ToString("0.###", CultureInfo.InvariantCulture), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.85 };
+            elev = new TextBlock { Text = Show(row.Elevation), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.85 };
             ToolTipService.SetToolTip(elev, "Worked out from the heights, counting from the datum level.");
         }
 

@@ -858,6 +858,20 @@ mod tests {
     }
 
     #[test]
+    fn the_site_origin_is_a_snap_point() {
+        let mut d = Drawing::new_imperial();
+        d.set_site_origin(Vec2::new(100.0, 50.0)).unwrap();
+        // An empty drawing: the origin still answers as a Node, and as an Endpoint when only that is on.
+        let n = osnap(&d, &Space::Model, Vec2::new(100.2, 49.9), 0.5, mode::NOD, None, false).unwrap();
+        assert_eq!((n.point, n.mode), (Vec2::new(100.0, 50.0), mode::NOD));
+        let e = osnap(&d, &Space::Model, Vec2::new(99.9, 50.1), 0.5, mode::END, None, false).unwrap();
+        assert_eq!(e.point, Vec2::new(100.0, 50.0));
+        // Out of reach, or with neither snap on, it does not.
+        assert!(osnap(&d, &Space::Model, Vec2::new(103.0, 50.0), 0.5, mode::NOD, None, false).is_none());
+        assert!(osnap(&d, &Space::Model, Vec2::new(100.0, 50.0), 0.5, mode::MID, None, false).is_none());
+    }
+
+    #[test]
     fn endpoint_and_mid() {
         let d = drawing();
         let h = osnap(&d, &Space::Model, Vec2::new(9.8, 0.1), 0.5, mode::END | mode::MID, None, false).unwrap();
