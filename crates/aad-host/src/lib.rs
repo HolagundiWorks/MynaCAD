@@ -556,12 +556,16 @@ fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_
         .unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
     let bytes = aad_io::write(drawing, &name).map_err(|e| e.to_string())?;
     let same = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.is_some_and(|d| d.sha256 == aad_odp::sha256_hex(&bytes));
+    // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for O-CoreOp to draw read only.
+    let details = aad_engine::structural_details(drawing, &name);
+    let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
     if !same {
         let ext = std::path::Path::new(&name).extension().and_then(|e| e.to_str()).unwrap_or("dxf").to_string();
-        let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
         edit.put_drawing(&name, &ext, &bytes).map_err(|e| format!("{path}: {e}"))?;
-        edit.commit().map_err(|e| format!("{path}: {e}"))?;
     }
+    edit.replace_details(&name, &details).map_err(|e| format!("{path}: {e}"))?;
+    // Nothing changed: no revision, so a save that changed nothing does not make other programs reload.
+    edit.commit().map_err(|e| format!("{path}: {e}"))?;
     Ok(bytes.len())
 }
 
@@ -3140,6 +3144,52 @@ mod tests {
         assert_eq!(unsafe { ffi::stats(host, &mut stats) }, 0);
         assert!(stats.entities > 1);
         unsafe { ffi::destroy(host) };
+    }
+
+    /// The structural details go into the project file with the drawing, in the same revision, and again only when they change. O-CoreOp reads them
+    /// and draws them read only. `UPDATE_FIXTURES=1` also writes `tests/fixtures/details.osp` (for O-CoreOp's tests of the same file).
+    #[test]
+    fn saving_into_a_project_file_records_the_structural_details() {
+        let dir = std::env::temp_dir().join(format!("aad-details-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("house.osp");
+        let _ = std::fs::remove_file(&path);
+        let mut host = Host::create(false);
+        host.execute("rcc.beam", &json!({ "at": [0, 0], "params": "width=300, nbot=4, barbot=20, stsp=125" })).unwrap();
+        host.execute("rcc.column", &json!({ "at": [5000, 0], "params": "nx=3, ny=4" })).unwrap();
+        host.execute("rcc.slab", &json!({ "at": [0, 4000] })).unwrap();
+        host.execute("saveas", &json!({ "path": path.to_string_lossy() })).unwrap();
+
+        let odp = aad_odp::Odp::open(&path).unwrap();
+        let details = odp.details().unwrap();
+        let kinds: Vec<&str> = details.iter().map(|d| d.kind.as_str()).collect();
+        assert_eq!(details.len(), 3, "{kinds:?}");
+        let beam = details.iter().find(|d| d.kind == "beams").unwrap();
+        assert_eq!(beam.block, "rcc.beam.section");
+        assert_eq!(beam.params["width"], 300.0);
+        assert_eq!(beam.params["barbot"], 20.0);
+        assert_eq!(beam.params["stsp"], 125.0);
+        assert!(beam.id.starts_with(&format!("{}/", beam.drawing)), "{}", beam.id);
+        let revision = odp.revision().unwrap();
+        drop(odp);
+
+        // Saved again with nothing changed: no new revision, so a program watching the file is not told to reload.
+        host.execute("qsave", &json!({})).unwrap();
+        assert_eq!(aad_odp::Odp::open(&path).unwrap().revision().unwrap(), revision);
+        // Change a bar: the details change with the drawing, in one revision.
+        host.execute("smartblock.edit", &json!({ "handle": beam.handle, "params": "nbot=2" })).unwrap();
+        host.execute("qsave", &json!({})).unwrap();
+        let odp = aad_odp::Odp::open(&path).unwrap();
+        assert_eq!(odp.revision().unwrap(), revision + 1);
+        assert_eq!(odp.details().unwrap().iter().find(|d| d.kind == "beams").unwrap().params["nbot"], 2.0);
+        drop(odp);
+
+        if std::env::var_os("UPDATE_FIXTURES").is_some() {
+            let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/details.osp");
+            std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+            std::fs::copy(&path, out).unwrap();
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

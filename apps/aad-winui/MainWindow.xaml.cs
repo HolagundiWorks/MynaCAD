@@ -582,6 +582,12 @@ public sealed partial class MainWindow : Window
             _ = ImportFile();
             return;
         }
+        if (RccTools.TryGetValue(id, out var rccBlock))
+        {
+            // Built-in structural tools: the block goes in with its defaults; the reinforcement is then edited in Properties (IS 456).
+            InsertLibrarySmartBlock(rccBlock);
+            return;
+        }
         if (id == "new")
         {
             _ = NewDrawingReplacingAsync();
@@ -5880,7 +5886,24 @@ public sealed partial class MainWindow : Window
         ("column.place", "Column"),
         ("stair.plan", "Stair"),
         ("north.arrow", "North"),
+        ("rcc.column", "RCC column"),
+        ("rcc.column.round", "Round column"),
+        ("rcc.beam", "RCC beam"),
+        ("rcc.footing", "Footing"),
+        ("rcc.slab", "Slab"),
+        ("rcc.lintel", "Lintel"),
     ];
+
+    /// <summary>The structural tools and the parametric block each places (IS 456 checked in Properties).</summary>
+    private static readonly Dictionary<string, string> RccTools = new()
+    {
+        ["rcc.column"] = "rcc.column.rect",
+        ["rcc.column.round"] = "rcc.column.circular",
+        ["rcc.beam"] = "rcc.beam.section",
+        ["rcc.footing"] = "rcc.footing.section",
+        ["rcc.slab"] = "rcc.slab.section",
+        ["rcc.lintel"] = "rcc.lintel.section",
+    };
 
     private void RebuildArchitectureBar()
     {
@@ -5891,6 +5914,7 @@ public sealed partial class MainWindow : Window
             ["wall.door", "wall.window"],
             ["room", "rarea", "north.arrow"],
             ["grid.axis", "column.place", "stair.plan"],
+            ["rcc.column", "rcc.column.round", "rcc.beam", "rcc.footing", "rcc.slab", "rcc.lintel"],
         ];
         var first = true;
         foreach (var group in groups)

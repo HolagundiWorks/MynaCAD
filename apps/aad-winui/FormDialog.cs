@@ -160,7 +160,7 @@ internal static class FormDialog
         page.RequestedTheme = ShellChrome.ThemeOf(owner);
         var window = new Window { Title = title, Content = page };
         // PropertyDialog (user-resizable) avoids Adaptive SizeChanged↔Resize flicker.
-        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "form");
+        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "form", new WindowBounds(360, 150, 720, 800));
         ok.Click += (_, _) =>
         {
             var preset = Collect(scalars, checks, choices, tables);

@@ -359,3 +359,86 @@ fn every_smart_block_has_a_thumbnail_and_previewing_changes_nothing() {
     assert_eq!(s.doc().unwrap().blocks.len(), before);
     assert!(s.execute("blocks.preview", &json!({ "smartblock": "no.such" })).is_err());
 }
+
+#[test]
+fn the_rcc_tools_place_their_blocks_and_the_defaults_comply_with_is_456() {
+    let mut s = metric();
+    for (cmd, id) in [
+        ("rcc.column", "rcc.column.rect"),
+        ("rcc.column.round", "rcc.column.circular"),
+        ("rcc.beam", "rcc.beam.section"),
+        ("rcc.footing", "rcc.footing.section"),
+        ("rcc.slab", "rcc.slab.section"),
+        ("rcc.lintel", "rcc.lintel.section"),
+    ] {
+        let r = s.execute(cmd, &json!({ "at": [0, 0] })).unwrap();
+        let got = s.execute("smartblock.get", &json!({ "handle": r["handle"] })).unwrap();
+        assert_eq!(got["id"], id, "{cmd}");
+        let check = s.execute("smartblock.check", &json!({ "handle": r["handle"] })).unwrap();
+        assert_eq!(check["ok"], true, "{id}: {}", check["issues"]);
+        assert!(!check["lines"].as_array().unwrap().is_empty(), "{id} reports no quantities");
+    }
+}
+
+#[test]
+fn properties_list_the_is_456_result_and_follow_an_edit() {
+    let mut s = metric();
+    let r = s.execute("rcc.column", &json!({ "at": [0, 0] })).unwrap();
+    let h = aad_engine::doc::Handle::parse_hex(r["handle"].as_str().unwrap()).unwrap();
+    let rows = |s: &Session| -> Vec<(String, String)> {
+        let doc = s.doc().unwrap();
+        let EntityKind::Insert(i) = &doc.entity(h).unwrap().kind else { panic!("not a block reference") };
+        aad_engine::smart_block_fields(doc, i)
+            .iter()
+            .map(|r| (r["label"].as_str().unwrap_or("").to_string(), r["value"].as_str().unwrap_or("").to_string()))
+            .collect()
+    };
+    let before = rows(&s);
+    assert!(before.contains(&("IS 456:2000".to_string(), "Complies".to_string())), "{before:?}");
+    assert!(before.iter().any(|(l, _)| l == "Longitudinal bars"), "{before:?}");
+    assert!(before.iter().any(|(l, _)| l == "Concrete grade"), "the grade is a parameter: {before:?}");
+    // Reinforcement is edited in Properties (`sb:` keys): a 10 mm bar breaks the 12 mm minimum.
+    s.execute("properties.set", &json!({ "handles": [r["handle"]], "sb:bar": "10", "sb:tiesp": "300" })).unwrap();
+    let after = rows(&s);
+    assert!(after.iter().any(|(l, v)| l == "Check, cl. 26.5.3.1(c)" && v.contains("12 mm")), "{after:?}");
+    assert!(after.iter().any(|(l, _)| l == "Check, cl. 26.5.3.2(c)(1)"), "tie spacing 300 exceeds the 230 mm least side: {after:?}");
+    assert!(!after.contains(&("IS 456:2000".to_string(), "Complies".to_string())));
+}
+
+#[test]
+fn a_definition_can_be_checked_with_parameters_before_it_is_placed() {
+    let mut s = metric();
+    let ok = s.execute("smartblock.check", &json!({ "id": "rcc.slab.section" })).unwrap();
+    assert_eq!(ok["ok"], true);
+    let bad = s.execute("smartblock.check", &json!({ "id": "rcc.slab.section", "params": "spacing=450, exposure=3, cover=20" })).unwrap();
+    assert_eq!(bad["ok"], false);
+    let clauses: Vec<&str> = bad["issues"].as_array().unwrap().iter().map(|i| i["clause"].as_str().unwrap()).collect();
+    assert!(clauses.contains(&"26.3.3(b)") && clauses.contains(&"26.4.2, Table 16"), "{clauses:?}");
+    assert!(s.execute("smartblock.check", &json!({ "id": "rcc.footing.plan" })).is_err(), "a plan has no reinforcement to check");
+    assert!(s.execute("smartblock.check", &json!({ "id": "int.bed" })).is_err());
+}
+
+#[test]
+fn the_structural_details_list_each_placed_rcc_block_with_its_parameters() {
+    let mut s = metric();
+    let beam = s.execute("rcc.beam", &json!({ "at": [0, 0], "params": "width=300, nbot=4, barbot=20" })).unwrap();
+    s.execute("rcc.column", &json!({ "at": [5000, 0] })).unwrap();
+    s.execute("smartblock.insert", &json!({ "id": "int.bed", "at": [9000, 0] })).unwrap(); // not structural
+    s.execute("rcc.footing", &json!({ "at": [0, 5000] })).unwrap();
+    let details = aad_engine::structural_details(s.doc().unwrap(), "plan.dxf");
+    let kinds: Vec<(&str, &str)> = details.iter().map(|d| (d.kind.as_str(), d.block.as_str())).collect();
+    assert_eq!(details.len(), 3, "{kinds:?}");
+    for want in [("beams", "rcc.beam.section"), ("columns", "rcc.column.rect"), ("footings", "rcc.footing.section")] {
+        assert!(kinds.contains(&want), "{want:?} in {kinds:?}");
+    }
+    let b = details.iter().find(|d| d.kind == "beams").unwrap();
+    assert_eq!(b.handle, beam["handle"].as_str().unwrap());
+    assert_eq!(b.id, format!("plan.dxf/{}", b.handle));
+    assert_eq!(b.layer, "S-RCC");
+    assert_eq!(b.params["width"], 300.0);
+    assert_eq!(b.params["nbot"], 4.0);
+    assert_eq!(b.params["barbot"], 20.0);
+    assert_eq!(b.params["cover"], 25.0, "unset values are the defaults, so a reader needs no definition");
+    assert_eq!(b.params["fck"], 25.0);
+    assert!(b.label.starts_with("RCC beam cross-section") && b.label.ends_with("(300 x 450)"), "{}", b.label);
+}

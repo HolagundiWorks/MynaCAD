@@ -51,6 +51,45 @@ the control channel, MCP and the agent reach the same code. Programmatic calls n
   built-in blocks have grips (for example width and depth of a column, the length of a duct, the
   sink and hob positions of a kitchen counter).
 
+### Structural tools and IS 456:2000 checks
+
+The reinforced concrete blocks are built-in tools: the Architecture bar has **RCC column**, **Round
+column**, **RCC beam**, **Footing**, **Slab** and **Lintel** (also Architecture > RCC Structure, and
+the engine commands `rcc.column`, `rcc.column.round`, `rcc.beam`, `rcc.footing`, `rcc.slab`,
+`rcc.lintel`, which are `smartblock.insert` for that block with `at`). In the Windows app a tool
+picks the insertion point on the drawing and places the block with its defaults; the reinforcement
+is then edited in the Properties panel, as for any parametric block.
+
+The parameters follow the code: concrete grade (M20 to M40), steel grade (Fe250 to Fe550), exposure
+(IS 456 Table 3: mild to extreme), clear cover, bar and tie or stirrup diameters, numbers of bars,
+and tie, stirrup and distribution bar spacing (c/c). Below the parameters, Properties lists the
+**IS 456:2000** result: "Complies" or "N to review", the quantities the code limits, and one row
+per broken limit with its clause. `smartblock.check` (`is456`, Architecture > RCC Structure >
+Check to IS 456) returns the same as data for a placed block (`handle`, else the selection) or for
+a definition with `params` before it is placed. A check never refuses a value; the blocks stay
+drafting aids and the structural design is the engineer's.
+
+| Block | Checked (clause) |
+|---|---|
+| Rectangular and circular column | steel 0.8 % to 6 % of the section, at least 4 bars (6 round), bars of 12 mm or more (26.5.3.1); cover 40 mm or the bar diameter, and Table 16 for the exposure (26.4.2); ties at least a quarter of the largest bar and 6 mm, at most the least side, 16 bar diameters and 300 mm apart (26.5.3.2); clear spacing of bars at least the bar diameter and 25 mm (26.3.2), at most 300 mm c/c (26.5.3.1(h)) |
+| Beam section | tension steel at least 0.85 b d / fy and at most 4 % of the section, same for the top bars (26.5.1.1); clear spacing and fit of bars (26.3.2); cover (Table 16, bar diameter); stirrups at most 0.75 d and 300 mm (26.5.1.5), and the minimum shear steel 0.4 / (0.87 fy) (26.5.1.6); side-face steel for depths over 750 mm (26.5.1.3) |
+| Slab section | minimum steel 0.12 % (Fe415 and above) or 0.15 % (Fe250) of the section, main and distribution (26.5.2.1); main bars at most 3 d and 300 mm, distribution at most 5 d and 450 mm (26.3.3); bar at most an eighth of the thickness (26.5.2.2); cover |
+| Footing section | cover 50 mm and Table 16 (26.4.2.2); thickness at the edge at least 150 mm on soil (34.1.2); minimum mesh steel and spacing as for a slab |
+| Lintel | cover (Table 16, bar diameter) |
+
+Cover by exposure (Table 16): mild 20 mm, moderate 30, severe 45, very severe 50, extreme 75. The
+defaults of every block comply at the default exposure (mild). The plan of a footing carries no
+reinforcement and is not checked. The rules are in `crates/engine/src/is456.rs`, each with a test.
+
+### In O-CoreOp
+
+O-CoreOp draws the RCC blocks too, read only. When O-Draft saves a drawing into a project file (`.osp`) it records every RCC block in the model, with the
+parameters it was placed with, in the file's `detail` table (same revision as the drawing; see [PROJECT-FILE.md](PROJECT-FILE.md)). The Beams, Columns, Slabs,
+Footings and Lintels pages of O-CoreOp list those details, draw the chosen one, and say so when there is none. O-CoreOp's own reader of the format
+(`Office.Shared.SmartBlocks`, a copy of `rcc.json`) is checked against this engine: `crates/engine/tests/rcc_parity.rs` pins the parts each block makes
+(`tests/fixtures/rcc_counts.json`), and O-CoreOp's tests hold a copy of that file. After a block definition changes, run that test with
+`UPDATE_FIXTURES=1` and copy the file (and the new `rcc.json`) to O-CoreOp.
+
 ### Windows app
 
 - Blocks panel: one **Block library** with a **Blocks...** button and a collapsed group per discipline

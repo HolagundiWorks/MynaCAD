@@ -124,6 +124,29 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("smartblock.get", "Parametric Block Parameters", run_get)
             .params("{handle?} (else the first selected smart block) → {handle, id, title, block, params: {name: value}, spec: [...]}")
             .noundo(),
+        CommandSpec::new("rcc.column", "Column (rectangular)", run_rcc_column)
+            .menu(&["Architecture", "RCC Structure", "Column (rectangular)"])
+            .params("{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert, for `rcc.column.rect`; in the Windows app the point is picked on the drawing and the reinforcement is edited in the Properties panel (checked to IS 456:2000)"),
+        CommandSpec::new("rcc.column.round", "Column (circular)", run_rcc_column_round)
+            .menu(&["Architecture", "RCC Structure", "Column (circular)"])
+            .params("{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert, for `rcc.column.circular`; in the Windows app the point is picked on the drawing and the reinforcement is edited in the Properties panel (checked to IS 456:2000)"),
+        CommandSpec::new("rcc.beam", "Beam section", run_rcc_beam)
+            .menu(&["Architecture", "RCC Structure", "Beam section"])
+            .params("{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert, for `rcc.beam.section`; in the Windows app the point is picked on the drawing and the reinforcement is edited in the Properties panel (checked to IS 456:2000)"),
+        CommandSpec::new("rcc.footing", "Footing (section)", run_rcc_footing)
+            .menu(&["Architecture", "RCC Structure", "Footing (section)"])
+            .params("{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert, for `rcc.footing.section`; in the Windows app the point is picked on the drawing and the reinforcement is edited in the Properties panel (checked to IS 456:2000)"),
+        CommandSpec::new("rcc.slab", "Slab section", run_rcc_slab)
+            .menu(&["Architecture", "RCC Structure", "Slab section"])
+            .params("{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert, for `rcc.slab.section`; in the Windows app the point is picked on the drawing and the reinforcement is edited in the Properties panel (checked to IS 456:2000)"),
+        CommandSpec::new("rcc.lintel", "Lintel", run_rcc_lintel)
+            .menu(&["Architecture", "RCC Structure", "Lintel"])
+            .params("{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert, for `rcc.lintel.section`; in the Windows app the point is picked on the drawing and the reinforcement is edited in the Properties panel (checked to IS 456:2000)"),
+        CommandSpec::new("smartblock.check", "Check Block to IS 456", run_check)
+            .menu(&["Architecture", "RCC Structure", "Check to IS 456"])
+            .alias(&["sbcheck", "is456"])
+            .params("{handle?} (else the first selected RCC block) or {id, params?: {name: value} | \"name=value, …\"} → {id, ok, lines: [{label, value}], issues: [{clause, message}]} (IS 456:2000 clauses for cover, steel percentage, bar and tie spacing)")
+            .noundo(),
         CommandSpec::new("smartblock.edit", "Edit Block Parameters", run_edit)
             .menu(&["Modify", "Object", "Block Parameters..."])
             .alias(&["sbedit"])
@@ -896,6 +919,56 @@ fn smart_ref(s: &Session, h: aad_doc::Handle) -> Result<Option<(String, String, 
     Ok(smart_of(b).map(|(id, p)| (i.block.clone(), id, p)))
 }
 
+/// The O-CoreOp element page a reinforced concrete block is the detail of, if it is one.
+fn detail_kind(id: &str) -> Option<&'static str> {
+    Some(match id {
+        "rcc.beam.section" => "beams",
+        "rcc.column.rect" | "rcc.column.circular" => "columns",
+        "rcc.slab.section" => "slabs",
+        "rcc.footing.section" => "footings",
+        "rcc.lintel.section" => "lintels",
+        _ => return None,
+    })
+}
+
+/// The structural details of a drawing: every reference to a reinforced concrete block in the model, with the parameters it was placed with.
+/// The Windows app records them in the project file when the drawing is saved into it, for O-CoreOp to draw (read only).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn structural_details(doc: &aad_doc::Drawing, drawing: &str) -> Vec<aad_odp::Detail> {
+    let mut out = Vec::new();
+    for store in doc.model_stores() {
+        for e in store.iter() {
+            let EntityKind::Insert(i) = &e.kind else { continue };
+            let Some(b) = doc.block(&i.block) else { continue };
+            let Some((id, params)) = smart_of(b) else { continue };
+            let Some(kind) = detail_kind(&id) else { continue };
+            let Ok(found) = find_def(doc, &id) else { continue };
+            let Ok(vals) = resolve("", &found.def, &params, &Map::new()) else { continue };
+            let size = |k: &str| vals.get(k).map_or_else(String::new, |v| fmt_num(*v));
+            let dims = match kind {
+                "beams" | "columns" if id == "rcc.column.circular" => format!("{} dia", size("dia")),
+                "beams" | "columns" => format!("{} x {}", size("width"), size("depth")),
+                "slabs" => format!("{} thick", size("thick")),
+                "footings" => format!("{} x {} deep", size("length"), size("depth")),
+                _ => format!("{} span, {} deep", size("span"), size("depth")),
+            };
+            let handle = e.handle.hex();
+            out.push(aad_odp::Detail {
+                id: format!("{drawing}/{handle}"),
+                drawing: drawing.to_string(),
+                handle,
+                kind: kind.to_string(),
+                block: id,
+                params: params_json(&vals),
+                layer: e.common.layer.clone(),
+                label: format!("{} ({dims})", found.def.title.split(" (").next().unwrap_or(&found.def.title)),
+            });
+        }
+    }
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out
+}
+
 /// The smart blocks a drawing can insert (the definitions kept in it, then the built-in library), as
 /// `smartblock.list` reports them. With a sheet set, only those whose layer the set maps: Electrical
 /// gets the electrical blocks (`E-*` layers), Plumbing the plumbing ones, and so on.
@@ -961,6 +1034,37 @@ fn run_list(s: &mut Session, p: &Value) -> Result<Value> {
         blocks.retain(|b| b["discipline"].as_str().is_some_and(|x| x.eq_ignore_ascii_case(w)));
     }
     Ok(json!({ "blocks": blocks }))
+}
+
+fn run_rcc_column(s: &mut Session, p: &Value) -> Result<Value> {
+    insert_preset(s, p, "rcc.column.rect")
+}
+
+fn run_rcc_column_round(s: &mut Session, p: &Value) -> Result<Value> {
+    insert_preset(s, p, "rcc.column.circular")
+}
+
+fn run_rcc_beam(s: &mut Session, p: &Value) -> Result<Value> {
+    insert_preset(s, p, "rcc.beam.section")
+}
+
+fn run_rcc_footing(s: &mut Session, p: &Value) -> Result<Value> {
+    insert_preset(s, p, "rcc.footing.section")
+}
+
+fn run_rcc_slab(s: &mut Session, p: &Value) -> Result<Value> {
+    insert_preset(s, p, "rcc.slab.section")
+}
+
+fn run_rcc_lintel(s: &mut Session, p: &Value) -> Result<Value> {
+    insert_preset(s, p, "rcc.lintel.section")
+}
+
+/// `smartblock.insert` for the block `id` unless the parameters name another.
+fn insert_preset(s: &mut Session, p: &Value, id: &str) -> Result<Value> {
+    let mut q = p.as_object().cloned().unwrap_or_default();
+    q.entry("id".to_string()).or_insert_with(|| Value::String(id.to_string()));
+    run_insert(s, &Value::Object(q))
 }
 
 fn run_insert(s: &mut Session, p: &Value) -> Result<Value> {
@@ -1054,6 +1158,37 @@ fn run_get(s: &mut Session, p: &Value) -> Result<Value> {
     Err(bad("smartblock.get", "no smart block reference given or selected"))
 }
 
+/// `smartblock.check`: the IS 456 report for a placed RCC block (`handle`, else the selection) or for
+/// a definition with the given parameters.
+fn run_check(s: &mut Session, p: &Value) -> Result<Value> {
+    const CMD: &str = "smartblock.check";
+    let (id, vals) = if let Some(id) = str_param(p, "id") {
+        let found = find_def(s.doc()?, id)?;
+        (id.to_string(), resolve(CMD, &found.def, &Map::new(), &given_params(CMD, p)?)?)
+    } else {
+        let mut hit = None;
+        for h in targets(s, p)? {
+            if let Some((_, id, params)) = smart_ref(s, h)? {
+                let found = find_def(s.doc()?, &id)?;
+                hit = Some((id, resolve(CMD, &found.def, &params, &Map::new())?));
+                break;
+            }
+        }
+        hit.ok_or_else(|| bad(CMD, "no smart block reference given or selected"))?
+    };
+    let report = crate::is456::check(&id, &vals).ok_or_else(|| bad(CMD, format!("`{id}` has no IS 456 check (reinforced concrete blocks only)")))?;
+    Ok(report_json(&id, &report))
+}
+
+fn report_json(id: &str, r: &crate::is456::Report) -> Value {
+    json!({
+        "id": id,
+        "ok": r.ok(),
+        "lines": r.lines.iter().map(|l| json!({ "label": l.label, "value": l.value })).collect::<Vec<_>>(),
+        "issues": r.issues.iter().map(|i| json!({ "clause": i.clause, "message": i.message })).collect::<Vec<_>>(),
+    })
+}
+
 /// Point reference `h` at the block of `found` with `vals` (made when missing); returns its name.
 fn repoint(s: &mut Session, h: aad_doc::Handle, found: &Found, vals: &BTreeMap<String, f64>) -> Result<String> {
     let name = build(s, &found.def, vals, found.stored.as_ref())?;
@@ -1113,6 +1248,12 @@ pub fn property_fields(doc: &aad_doc::Drawing, ins: &aad_doc::Insert) -> Vec<Val
     let Ok(found) = find_def(doc, &id) else { return Vec::new() };
     let Ok(vals) = resolve("", &found.def, &params, &Map::new()) else { return Vec::new() };
     let mut out = vec![json!({ "label": "Parametric block", "value": found.def.title, "text": true })];
+    let report = crate::is456::check(&id, &vals);
+    // The IS 456 verdict comes first, so a broken limit shows without scrolling past the parameters.
+    if let Some(r) = &report {
+        let summary = if r.ok() { "Complies".to_string() } else { format!("{} to review (see below)", r.issues.len()) };
+        out.push(json!({ "label": "IS 456:2000", "value": summary, "text": true }));
+    }
     for p in &found.def.params {
         let v = vals.get(&p.name).copied().unwrap_or(p.default);
         let label = match (p.label.is_empty(), p.unit.is_empty()) {
@@ -1128,6 +1269,16 @@ pub fn property_fields(doc: &aad_doc::Drawing, ins: &aad_doc::Insert) -> Vec<Val
             let value = p.choices.iter().find(|c| c.value == v).map_or_else(|| fmt_num(v), |c| c.label.clone());
             let choices: Vec<&str> = p.choices.iter().map(|c| c.label.as_str()).collect();
             out.push(json!({ "key": key, "label": label, "value": value, "text": false, "choices": choices }));
+        }
+    }
+    // The IS 456 result of a reinforced concrete block: a summary, the quantities the code limits, and
+    // each limit the parameters break with its clause. Read only: the parameters above are the inputs.
+    if let Some(r) = &report {
+        for l in &r.lines {
+            out.push(json!({ "label": l.label, "value": l.value, "text": true }));
+        }
+        for i in &r.issues {
+            out.push(json!({ "label": format!("Check, cl. {}", i.clause), "value": i.message, "text": true }));
         }
     }
     out

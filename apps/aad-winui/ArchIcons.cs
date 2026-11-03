@@ -62,6 +62,48 @@ internal static partial class ToolIcons
                 pen.Base(20, 4, 4, 20);
                 pen.FillRect(9, 9, 6, 6, pen.AccentBrush);
                 break;
+            case "rcc.column":
+                pen.Box(7, 4, 10, 16, pen.BaseBrush);
+                pen.Dot(9.5, 7);
+                pen.Dot(14.5, 7);
+                pen.Dot(9.5, 17);
+                pen.Dot(14.5, 17);
+                break;
+            case "rcc.column.round":
+                pen.Circle(12, 12, 8, pen.BaseBrush);
+                pen.Dot(12, 6);
+                pen.Dot(17.2, 9);
+                pen.Dot(17.2, 15);
+                pen.Dot(12, 18);
+                pen.Dot(6.8, 15);
+                pen.Dot(6.8, 9);
+                break;
+            case "rcc.beam":
+                pen.Box(4, 5, 16, 14, pen.BaseBrush);
+                pen.Dot(8, 8);
+                pen.Dot(16, 8);
+                pen.Dot(8, 16);
+                pen.Dot(12, 16);
+                pen.Dot(16, 16);
+                break;
+            case "rcc.footing":
+                pen.Stroke(true, pen.BaseBrush, (3, 19), (21, 19), (17, 12), (7, 12));
+                pen.FillRect(10, 4, 4, 8, pen.BaseBrush);
+                pen.Accent(5, 17, 19, 17);
+                break;
+            case "rcc.slab":
+                pen.Box(2, 9, 20, 6, pen.BaseBrush);
+                pen.Accent(4, 13, 20, 13);
+                pen.Dot(6, 11);
+                pen.Dot(12, 11);
+                pen.Dot(18, 11);
+                break;
+            case "rcc.lintel":
+                pen.Box(3, 8, 18, 6, pen.BaseBrush);
+                pen.Accent(5, 12, 19, 12);
+                pen.Base(3, 14, 3, 20);
+                pen.Base(21, 14, 21, 20);
+                break;
             case "stair.plan":
                 pen.Stroke(false, pen.AccentBrush, (3, 20), (3, 16), (8, 16), (8, 12), (13, 12), (13, 8), (18, 8), (18, 4), (22, 4));
                 break;

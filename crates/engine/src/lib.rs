@@ -19,6 +19,7 @@ pub mod flatten;
 pub mod forms;
 pub mod grips;
 mod guard;
+pub mod is456;
 pub mod pointmod;
 pub mod pomodoro;
 pub mod projectplan;
@@ -45,6 +46,8 @@ pub use aad_doc as doc;
 pub use aad_geom as geom;
 pub use aad_render as render;
 pub use cmd::smartblock::property_fields as smart_block_fields;
+#[cfg(not(target_arch = "wasm32"))]
+pub use cmd::smartblock::structural_details;
 pub use cmd::{CommandInfo, CommandSpec, command_specs, find_command};
 
 /// Lintel height, in metres, of the active floor. Drawings with no floors use 2.1 m.

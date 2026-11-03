@@ -1,0 +1,137 @@
+[
+  {
+    "counts": {
+      "dot": 6,
+      "hatch": 1,
+      "poly": 2,
+      "text": 2
+    },
+    "id": "rcc.column.rect",
+    "params": ""
+  },
+  {
+    "counts": {
+      "dot": 10,
+      "poly": 2,
+      "text": 2
+    },
+    "id": "rcc.column.rect",
+    "params": "nx=3, ny=4, bar=20, hatch=0"
+  },
+  {
+    "counts": {
+      "circle": 2,
+      "dot": 8,
+      "text": 1
+    },
+    "id": "rcc.column.circular",
+    "params": ""
+  },
+  {
+    "counts": {
+      "circle": 2,
+      "dot": 12
+    },
+    "id": "rcc.column.circular",
+    "params": "dia=600, bars=12, label=0"
+  },
+  {
+    "counts": {
+      "dot": 5,
+      "hatch": 1,
+      "poly": 2,
+      "text": 2
+    },
+    "id": "rcc.beam.section",
+    "params": ""
+  },
+  {
+    "counts": {
+      "dot": 8,
+      "poly": 4,
+      "text": 2
+    },
+    "id": "rcc.beam.section",
+    "params": "ntop=3, nbot=5, slab=150, hatch=0"
+  },
+  {
+    "counts": {
+      "hatch": 1,
+      "line": 4,
+      "poly": 4,
+      "text": 1
+    },
+    "id": "rcc.footing.plan",
+    "params": ""
+  },
+  {
+    "counts": {
+      "hatch": 1,
+      "poly": 2,
+      "text": 1
+    },
+    "id": "rcc.footing.plan",
+    "params": "sloped=0, pcc=0"
+  },
+  {
+    "counts": {
+      "dot": 10,
+      "hatch": 1,
+      "line": 2,
+      "poly": 6,
+      "text": 1
+    },
+    "id": "rcc.footing.section",
+    "params": ""
+  },
+  {
+    "counts": {
+      "dot": 23,
+      "hatch": 1,
+      "line": 2,
+      "poly": 6,
+      "text": 1
+    },
+    "id": "rcc.footing.section",
+    "params": "sloped=0, length=2400, spacing=100"
+  },
+  {
+    "counts": {
+      "line": 4,
+      "poly": 1,
+      "text": 1
+    },
+    "id": "rcc.lintel.section",
+    "params": ""
+  },
+  {
+    "counts": {
+      "line": 2,
+      "poly": 1,
+      "text": 1
+    },
+    "id": "rcc.lintel.section",
+    "params": "jamb=0, span=2000"
+  },
+  {
+    "counts": {
+      "dot": 15,
+      "hatch": 1,
+      "line": 1,
+      "poly": 1,
+      "text": 1
+    },
+    "id": "rcc.slab.section",
+    "params": ""
+  },
+  {
+    "counts": {
+      "dot": 12,
+      "line": 1,
+      "poly": 1,
+      "text": 1
+    },
+    "id": "rcc.slab.section",
+    "params": "span=1200, spacing=100, hatch=0"
+  }
+]

@@ -88,6 +88,25 @@ pub struct Markup {
     pub resolved: bool,
 }
 
+/// A structural detail drawn in O-Draft: one parametric RCC block placed in a drawing, with the parameters it was drawn with. O-Draft records
+/// these when it saves the drawing into the file; O-CoreOp reads them and draws each one read only as the detail of its beam, column, slab or footing.
+/// The drawing is never changed from O-CoreOp. `kind` is `beams`, `columns`, `slabs`, `footings` or `lintels` (the O-CoreOp element pages).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Detail {
+    /// `<drawing>/<handle>`: unique in the file.
+    pub id: String,
+    pub drawing: String,
+    pub handle: String,
+    pub kind: String,
+    /// The block definition (`rcc.beam.section`, ...).
+    pub block: String,
+    /// Parameter values by name (millimetres, grades as numbers), as the block was placed.
+    pub params: serde_json::Value,
+    pub layer: String,
+    /// The block's title with its main size, for a list.
+    pub label: String,
+}
+
 /// A stored attachment (an annotated PDF, a photo).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Asset {
@@ -123,11 +142,37 @@ CREATE TABLE IF NOT EXISTS markup (
     id TEXT PRIMARY KEY, drawing TEXT NOT NULL, author TEXT NOT NULL, created TEXT NOT NULL, kind TEXT NOT NULL,
     json TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', resolved INTEGER NOT NULL DEFAULT 0
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS detail (
+    id TEXT PRIMARY KEY, drawing TEXT NOT NULL, handle TEXT NOT NULL, kind TEXT NOT NULL, block TEXT NOT NULL, params TEXT NOT NULL,
+    layer TEXT NOT NULL, label TEXT NOT NULL
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, created TEXT NOT NULL, label TEXT NOT NULL, bytes BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS change (revision INTEGER NOT NULL, tbl TEXT NOT NULL, key TEXT NOT NULL, op TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS change_revision ON change (revision);
 CREATE TABLE IF NOT EXISTS history_record (id INTEGER PRIMARY KEY, payload BLOB NOT NULL);
 ";
+
+fn read_details(conn: &Connection) -> Result<Vec<Detail>> {
+    let mut st = conn.prepare("SELECT id, drawing, handle, kind, block, params, layer, label FROM detail ORDER BY id")?;
+    let rows = st.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, String>(3)?,
+            r.get::<_, String>(4)?,
+            r.get::<_, String>(5)?,
+            r.get::<_, String>(6)?,
+            r.get::<_, String>(7)?,
+        ))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (id, drawing, handle, kind, block, params, layer, label) = row?;
+        out.push(Detail { id, drawing, handle, kind, block, params: parse_json(&params)?, layer, label });
+    }
+    Ok(out)
+}
 
 /// An open project file.
 pub struct Odp {
@@ -294,6 +339,11 @@ impl Odp {
         Ok(out)
     }
 
+    /// The structural details recorded for the file, in drawing and handle order.
+    pub fn details(&self) -> Result<Vec<Detail>> {
+        read_details(&self.conn)
+    }
+
     /// What changed in revisions after `since`: `(revision, table, key, op)`, oldest first. Sync sends these.
     pub fn changes_since(&self, since: i64) -> Result<Vec<(i64, String, String, String)>> {
         let mut st = self.conn.prepare("SELECT revision, tbl, key, op FROM change WHERE revision > ?1 ORDER BY revision, rowid")?;
@@ -414,6 +464,35 @@ impl Edit<'_> {
             params![m.id, m.drawing, m.author, m.created, m.kind, m.json.to_string(), m.text, i64::from(m.resolved)],
         )?;
         self.log("markup", &m.id, "put")
+    }
+
+    /// Make the details of `drawing` exactly `list` (a drawing's details are replaced as a set). Nothing is written, and no revision is made for it,
+    /// when they are already the same.
+    pub fn replace_details(&mut self, drawing: &str, list: &[Detail]) -> Result<()> {
+        let have: Vec<Detail> = read_details(&self.tx)?.into_iter().filter(|d| d.drawing == drawing).collect();
+        let mut want: Vec<Detail> = list.to_vec();
+        want.sort_by(|a, b| a.id.cmp(&b.id));
+        if have == want {
+            return Ok(());
+        }
+        for d in &have {
+            if !want.iter().any(|w| w.id == d.id) {
+                self.tx.execute("DELETE FROM detail WHERE id = ?1", params![d.id])?;
+                self.log("detail", &d.id, "delete")?;
+            }
+        }
+        for d in &want {
+            if have.iter().any(|h| h == d) {
+                continue;
+            }
+            self.tx.execute(
+                "INSERT INTO detail (id, drawing, handle, kind, block, params, layer, label) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT(id) DO UPDATE SET kind = ?4, block = ?5, params = ?6, layer = ?7, label = ?8",
+                params![d.id, d.drawing, d.handle, d.kind, d.block, d.params.to_string(), d.layer, d.label],
+            )?;
+            self.log("detail", &d.id, "put")?;
+        }
+        Ok(())
     }
 
     /// Make the changes one revision. A group with no change leaves the revision as it was.

@@ -27,10 +27,12 @@ internal sealed class DraftingWindow : Window
     private readonly ToggleButton _dyn = new() { Content = "Dynamic input (F12)", MinHeight = Density.ControlHeight };
     private readonly ToggleButton _ortho = new() { Content = "Ortho (F8)", MinHeight = Density.ControlHeight };
     private readonly ComboBox _angle = new() { MinWidth = 80, MinHeight = Density.ControlHeight };
-    private readonly RadioButton _polarFormat = new() { Content = "Polar (distance < angle)", GroupName = "dynpi" };
-    private readonly RadioButton _cartesian = new() { Content = "Cartesian (x, y)", GroupName = "dynpi" };
-    private readonly RadioButton _relative = new() { Content = "Relative", GroupName = "dyncoord" };
-    private readonly RadioButton _absolute = new() { Content = "Absolute", GroupName = "dyncoord" };
+    private readonly CommunityToolkit.WinUI.Controls.SegmentedItem _polarFormat = new() { Content = "Polar" };
+    private readonly CommunityToolkit.WinUI.Controls.SegmentedItem _cartesian = new() { Content = "Cartesian" };
+    private readonly CommunityToolkit.WinUI.Controls.SegmentedItem _relative = new() { Content = "Relative" };
+    private readonly CommunityToolkit.WinUI.Controls.SegmentedItem _absolute = new() { Content = "Absolute" };
+    private readonly CommunityToolkit.WinUI.Controls.Segmented _format = new() { SelectionMode = ListViewSelectionMode.Single, HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly CommunityToolkit.WinUI.Controls.Segmented _coords = new() { SelectionMode = ListViewSelectionMode.Single, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly Dictionary<uint, CheckBox> _modes = new();
     private bool _filling;
     private uint _osmode;
@@ -76,10 +78,14 @@ internal sealed class DraftingWindow : Window
         stack.Children.Add(grid);
         stack.Children.Add(Heading("Dynamic input"));
         stack.Children.Add(_dyn);
-        stack.Children.Add(_polarFormat);
-        stack.Children.Add(_cartesian);
-        stack.Children.Add(_relative);
-        stack.Children.Add(_absolute);
+        _format.Items.Add(_polarFormat);
+        _format.Items.Add(_cartesian);
+        _coords.Items.Add(_relative);
+        _coords.Items.Add(_absolute);
+        Density.Name(_format, "Dynamic input format");
+        Density.Name(_coords, "Dynamic input coordinates");
+        stack.Children.Add(Density.FieldRow("Format", _format, "Polar: distance < angle. Cartesian: x, y."));
+        stack.Children.Add(Density.FieldRow("Coordinates", _coords, "Relative to the last point, or absolute in the drawing."));
         stack.Children.Add(_ortho);
         Density.Apply(stack);
         var theme = ShellChrome.Resolve(themeSource?.RequestedTheme ?? Density.Theme);
@@ -98,10 +104,20 @@ internal sealed class DraftingWindow : Window
             }
             Run("dsettings", new { polarang = degrees });
         };
-        _polarFormat.Click += (_, _) => RunVar("DYNPIFORMAT", false);
-        _cartesian.Click += (_, _) => RunVar("DYNPIFORMAT", true);
-        _relative.Click += (_, _) => RunVar("DYNPICOORDS", false);
-        _absolute.Click += (_, _) => RunVar("DYNPICOORDS", true);
+        _format.SelectionChanged += (_, _) =>
+        {
+            if (!_filling && _format.SelectedItem != null)
+            {
+                RunVar("DYNPIFORMAT", ReferenceEquals(_format.SelectedItem, _cartesian));
+            }
+        };
+        _coords.SelectionChanged += (_, _) =>
+        {
+            if (!_filling && _coords.SelectedItem != null)
+            {
+                RunVar("DYNPICOORDS", ReferenceEquals(_coords.SelectedItem, _absolute));
+            }
+        };
     }
 
     public void Reload(bool polar, bool snap, bool dyn, bool ortho, uint osmode, double polarang, bool cartesian, bool absolute)
@@ -112,14 +128,10 @@ internal sealed class DraftingWindow : Window
         _snap.IsChecked = snap;
         _dyn.IsChecked = dyn;
         _ortho.IsChecked = ortho;
-        _polarFormat.IsChecked = !cartesian;
-        _cartesian.IsChecked = cartesian;
-        _relative.IsChecked = !absolute;
-        _absolute.IsChecked = absolute;
-        _polarFormat.IsEnabled = dyn;
-        _cartesian.IsEnabled = dyn;
-        _relative.IsEnabled = dyn;
-        _absolute.IsEnabled = dyn;
+        _format.SelectedItem = cartesian ? _cartesian : _polarFormat;
+        _coords.SelectedItem = absolute ? _absolute : _relative;
+        _format.IsEnabled = dyn;
+        _coords.IsEnabled = dyn;
         foreach (var (bit, box) in _modes)
         {
             box.IsChecked = (osmode & bit) != 0;

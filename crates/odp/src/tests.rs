@@ -202,3 +202,49 @@ fn take_off_records_round_trip_and_only_what_changed_is_written() {
     assert_eq!(odp.replace_takeoff(&[]).unwrap(), 3);
     assert!(odp.takeoff_headers().unwrap().is_empty() && odp.takeoff_rows(5).unwrap().is_empty());
 }
+
+fn detail(drawing: &str, handle: &str, kind: &str, width: f64) -> Detail {
+    Detail {
+        id: format!("{drawing}/{handle}"),
+        drawing: drawing.into(),
+        handle: handle.into(),
+        kind: kind.into(),
+        block: "rcc.beam.section".into(),
+        params: json!({ "width": width, "depth": 450.0, "fck": 25.0 }),
+        layer: "S-RCC".into(),
+        label: format!("RCC beam section ({width} x 450)"),
+    }
+}
+
+#[test]
+fn details_are_replaced_as_a_set_and_an_unchanged_set_is_no_revision() {
+    let (_d, path) = temp();
+    let mut odp = Odp::create(&path, "House").unwrap();
+    let a = detail("plan.dxf", "1A", "beams", 230.0);
+    let b = detail("plan.dxf", "1B", "beams", 300.0);
+    let other = detail("other.dxf", "2A", "columns", 300.0);
+
+    let mut e = odp.edit().unwrap();
+    e.replace_details("plan.dxf", &[b.clone(), a.clone()]).unwrap();
+    e.replace_details("other.dxf", &[other.clone()]).unwrap();
+    assert_eq!(e.commit().unwrap(), 1);
+    assert_eq!(odp.details().unwrap(), vec![other.clone(), a.clone(), b.clone()], "listed by id");
+
+    // The same set again: nothing is written and no revision is made.
+    let mut e = odp.edit().unwrap();
+    e.replace_details("plan.dxf", &[a.clone(), b.clone()]).unwrap();
+    assert_eq!(e.commit().unwrap(), 1);
+
+    // One changed, one gone: only that drawing's rows change, the other drawing keeps its own.
+    let a2 = detail("plan.dxf", "1A", "beams", 250.0);
+    let mut e = odp.edit().unwrap();
+    e.replace_details("plan.dxf", &[a2.clone()]).unwrap();
+    assert_eq!(e.commit().unwrap(), 2);
+    assert_eq!(odp.details().unwrap(), vec![other, a2]);
+    let log: Vec<(String, String)> = odp.changes_since(1).unwrap().into_iter().map(|(_, t, k, op)| (format!("{t}:{k}"), op)).collect();
+    assert_eq!(log, vec![("detail:plan.dxf/1B".into(), "delete".into()), ("detail:plan.dxf/1A".into(), "put".into())]);
+
+    // An older file without the table gets it when opened.
+    drop(odp);
+    assert_eq!(Odp::open(&path).unwrap().details().unwrap().len(), 2);
+}

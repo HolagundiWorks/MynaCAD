@@ -20,6 +20,10 @@
           { "label": "20", "value": 20 }, { "label": "25", "value": 25 }, { "label": "32", "value": 32 } ] },
         { "name": "tie", "label": "Tie diameter", "unit": "mm", "default": 8, "choices": [
           { "label": "6", "value": 6 }, { "label": "8", "value": 8 }, { "label": "10", "value": 10 }, { "label": "12", "value": 12 } ] },
+        { "name": "tiesp", "label": "Tie spacing (c/c)", "unit": "mm", "default": 150, "min": 50, "max": 300 },
+        { "name": "fck", "label": "Concrete grade", "default": 25, "choices": [ { "label": "M20", "value": 20 }, { "label": "M25", "value": 25 }, { "label": "M30", "value": 30 }, { "label": "M35", "value": 35 }, { "label": "M40", "value": 40 } ] },
+        { "name": "fy", "label": "Steel grade", "default": 500, "choices": [ { "label": "Fe250", "value": 250 }, { "label": "Fe415", "value": 415 }, { "label": "Fe500", "value": 500 }, { "label": "Fe550", "value": 550 } ] },
+        { "name": "exposure", "label": "Exposure (IS 456 Table 3)", "default": 1, "choices": [ { "label": "Mild", "value": 1 }, { "label": "Moderate", "value": 2 }, { "label": "Severe", "value": 3 }, { "label": "Very severe", "value": 4 }, { "label": "Extreme", "value": 5 } ] },
         { "name": "hatch", "label": "Concrete hatch", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "label", "label": "Label", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500 }
@@ -43,7 +47,7 @@
           { "dot": ["x0 + ci", "y0 + ci + (j + 1)*sy", "bar/2"] },
           { "dot": ["-x0 - ci", "y0 + ci + (j + 1)*sy", "bar/2"] } ] } },
         { "when": "label", "text": { "at": [0, "y0 - 1.8*txt"], "height": "txt", "value": "{width} x {depth}", "align": "c" } },
-        { "when": "label", "text": { "at": [0, "y0 - 3.4*txt"], "height": "txt", "value": "{nbars} bars {bar} dia, {tie} dia ties", "align": "c" } }
+        { "when": "label", "text": { "at": [0, "y0 - 3.4*txt"], "height": "txt", "value": "{nbars}-{bar} dia, {tie} dia ties @ {tiesp} c/c; {fck}, {fy}", "align": "c" } }
       ]
     },
     {
@@ -54,12 +58,16 @@
       "params": [
         { "name": "dia", "label": "Diameter", "unit": "mm", "default": 450, "min": 200, "max": 2500 },
         { "name": "cover", "label": "Clear cover", "unit": "mm", "default": 40, "min": 20, "max": 75 },
-        { "name": "bars", "label": "Number of bars", "default": 6, "min": 4, "max": 40, "integer": true },
+        { "name": "bars", "label": "Number of bars", "default": 8, "min": 6, "max": 40, "integer": true },
         { "name": "bar", "label": "Bar diameter", "unit": "mm", "default": 16, "choices": [
           { "label": "12", "value": 12 }, { "label": "16", "value": 16 }, { "label": "20", "value": 20 },
           { "label": "25", "value": 25 }, { "label": "32", "value": 32 } ] },
         { "name": "tie", "label": "Tie / spiral diameter", "unit": "mm", "default": 8, "choices": [
           { "label": "6", "value": 6 }, { "label": "8", "value": 8 }, { "label": "10", "value": 10 } ] },
+        { "name": "tiesp", "label": "Tie spacing (c/c)", "unit": "mm", "default": 150, "min": 50, "max": 300 },
+        { "name": "fck", "label": "Concrete grade", "default": 25, "choices": [ { "label": "M20", "value": 20 }, { "label": "M25", "value": 25 }, { "label": "M30", "value": 30 }, { "label": "M35", "value": 35 }, { "label": "M40", "value": 40 } ] },
+        { "name": "fy", "label": "Steel grade", "default": 500, "choices": [ { "label": "Fe250", "value": 250 }, { "label": "Fe415", "value": 415 }, { "label": "Fe500", "value": 500 }, { "label": "Fe550", "value": 550 } ] },
+        { "name": "exposure", "label": "Exposure (IS 456 Table 3)", "default": 1, "choices": [ { "label": "Mild", "value": 1 }, { "label": "Moderate", "value": 2 }, { "label": "Severe", "value": 3 }, { "label": "Very severe", "value": 4 }, { "label": "Extreme", "value": 5 } ] },
         { "name": "label", "label": "Label", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500 }
       ],
@@ -67,7 +75,7 @@
         { "circle": [0, 0, "dia/2"] },
         { "circle": [0, 0, "dia/2 - cover - tie/2"] },
         { "ring": { "c": [0, 0], "r": "dia/2 - cover - tie - bar/2", "count": "bars", "dot": "bar/2" } },
-        { "when": "label", "text": { "at": [0, "-dia/2 - 1.8*txt"], "height": "txt", "value": "{dia} dia, {bars} bars {bar} dia", "align": "c" } }
+        { "when": "label", "text": { "at": [0, "-dia/2 - 1.8*txt"], "height": "txt", "value": "{dia} dia, {bars}-{bar} dia, {tie} dia ties @ {tiesp} c/c; {fck}, {fy}", "align": "c" } }
       ]
     },
     {
@@ -88,6 +96,10 @@
         { "name": "stir", "label": "Stirrup diameter", "unit": "mm", "default": 8, "choices": [
           { "label": "6", "value": 6 }, { "label": "8", "value": 8 }, { "label": "10", "value": 10 }, { "label": "12", "value": 12 } ] },
         { "name": "slab", "label": "Slab thickness (0: none)", "unit": "mm", "default": 0, "min": 0, "max": 300 },
+        { "name": "stsp", "label": "Stirrup spacing (c/c)", "unit": "mm", "default": 150, "min": 50, "max": 450 },
+        { "name": "fck", "label": "Concrete grade", "default": 25, "choices": [ { "label": "M20", "value": 20 }, { "label": "M25", "value": 25 }, { "label": "M30", "value": 30 }, { "label": "M35", "value": 35 }, { "label": "M40", "value": 40 } ] },
+        { "name": "fy", "label": "Steel grade", "default": 500, "choices": [ { "label": "Fe250", "value": 250 }, { "label": "Fe415", "value": 415 }, { "label": "Fe500", "value": 500 }, { "label": "Fe550", "value": 550 } ] },
+        { "name": "exposure", "label": "Exposure (IS 456 Table 3)", "default": 1, "choices": [ { "label": "Mild", "value": 1 }, { "label": "Moderate", "value": 2 }, { "label": "Severe", "value": 3 }, { "label": "Very severe", "value": 4 }, { "label": "Extreme", "value": 5 } ] },
         { "name": "hatch", "label": "Concrete hatch", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "label", "label": "Label", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500 }
@@ -110,7 +122,7 @@
         { "when": "slab", "poly": { "pts": [["x0", "-y0 - slab"], ["x0 - wing", "-y0 - slab"], ["x0 - wing", "-y0"], ["x0", "-y0"]] } },
         { "when": "slab", "poly": { "pts": [["-x0", "-y0 - slab"], ["-x0 + wing", "-y0 - slab"], ["-x0 + wing", "-y0"], ["-x0", "-y0"]] } },
         { "when": "label", "text": { "at": [0, "y0 - 1.8*txt"], "height": "txt", "value": "{width} x {depth}", "align": "c" } },
-        { "when": "label", "text": { "at": [0, "y0 - 3.4*txt"], "height": "txt", "value": "{ntop}-{bartop} top, {nbot}-{barbot} bottom, {stir} dia stirrups", "align": "c" } }
+        { "when": "label", "text": { "at": [0, "y0 - 3.4*txt"], "height": "txt", "value": "{ntop}-{bartop} top, {nbot}-{barbot} bottom, {stir} dia stirrups @ {stsp} c/c; {fck}, {fy}", "align": "c" } }
       ]
     },
     {
@@ -166,6 +178,9 @@
         { "name": "spacing", "label": "Mesh spacing", "unit": "mm", "default": 150, "min": 75, "max": 300 },
         { "name": "colbar", "label": "Column bar diameter", "unit": "mm", "default": 16, "choices": [
           { "label": "12", "value": 12 }, { "label": "16", "value": 16 }, { "label": "20", "value": 20 }, { "label": "25", "value": 25 } ] },
+        { "name": "fck", "label": "Concrete grade", "default": 25, "choices": [ { "label": "M20", "value": 20 }, { "label": "M25", "value": 25 }, { "label": "M30", "value": 30 }, { "label": "M35", "value": 35 }, { "label": "M40", "value": 40 } ] },
+        { "name": "fy", "label": "Steel grade", "default": 500, "choices": [ { "label": "Fe250", "value": 250 }, { "label": "Fe415", "value": 415 }, { "label": "Fe500", "value": 500 }, { "label": "Fe550", "value": 550 } ] },
+        { "name": "exposure", "label": "Exposure (IS 456 Table 3)", "default": 1, "choices": [ { "label": "Mild", "value": 1 }, { "label": "Moderate", "value": 2 }, { "label": "Severe", "value": 3 }, { "label": "Very severe", "value": 4 }, { "label": "Extreme", "value": 5 } ] },
         { "name": "label", "label": "Label", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "txt", "label": "Text height", "unit": "mm", "default": 50, "min": 10, "max": 500 }
       ],
@@ -188,7 +203,7 @@
         { "poly": { "pts": [["-length/2 + cover", "edgeh - cover"], ["-length/2 + cover", "cover + 1.5*bar"], ["length/2 - cover", "cover + 1.5*bar"], ["length/2 - cover", "edgeh - cover"]] } },
         { "poly": { "pts": [["-cx - foot", "cover + 2.5*bar"], ["-cx", "cover + 2.5*bar"], ["-cx", "depth + stub - 60"]] } },
         { "poly": { "pts": [["cx + foot", "cover + 2.5*bar"], ["cx", "cover + 2.5*bar"], ["cx", "depth + stub - 60"]] } },
-        { "when": "label", "text": { "at": [0, "-pcc - 1.8*txt"], "height": "txt", "value": "Footing {length} wide, {depth} deep; {bar} dia @ {spacing} c/c both ways", "align": "c" } }
+        { "when": "label", "text": { "at": [0, "-pcc - 1.8*txt"], "height": "txt", "value": "Footing {length} wide, {depth} deep; {bar} dia @ {spacing} c/c both ways; {fck}, {fy}", "align": "c" } }
       ]
     },
     {
@@ -204,6 +219,9 @@
         { "name": "jamb", "label": "Opening height shown", "unit": "mm", "default": 400, "min": 0, "max": 2400 },
         { "name": "bar", "label": "Main bar diameter", "unit": "mm", "default": 10, "choices": [
           { "label": "8", "value": 8 }, { "label": "10", "value": 10 }, { "label": "12", "value": 12 }, { "label": "16", "value": 16 } ] },
+        { "name": "fck", "label": "Concrete grade", "default": 25, "choices": [ { "label": "M20", "value": 20 }, { "label": "M25", "value": 25 }, { "label": "M30", "value": 30 }, { "label": "M35", "value": 35 }, { "label": "M40", "value": 40 } ] },
+        { "name": "fy", "label": "Steel grade", "default": 500, "choices": [ { "label": "Fe250", "value": 250 }, { "label": "Fe415", "value": 415 }, { "label": "Fe500", "value": 500 }, { "label": "Fe550", "value": 550 } ] },
+        { "name": "exposure", "label": "Exposure (IS 456 Table 3)", "default": 1, "choices": [ { "label": "Mild", "value": 1 }, { "label": "Moderate", "value": 2 }, { "label": "Severe", "value": 3 }, { "label": "Very severe", "value": 4 }, { "label": "Extreme", "value": 5 } ] },
         { "name": "label", "label": "Label", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500 }
       ],
@@ -214,7 +232,7 @@
         { "when": "jamb", "line": ["span/2", 0, "span/2", "-jamb"] },
         { "linetype": "HIDDEN", "line": ["-full/2 + cover", "cover + bar/2", "full/2 - cover", "cover + bar/2"] },
         { "linetype": "HIDDEN", "line": ["-full/2 + cover", "depth - cover - bar/2", "full/2 - cover", "depth - cover - bar/2"] },
-        { "when": "label", "text": { "at": [0, "depth + txt"], "height": "txt", "value": "Lintel {full} x {depth}, {bar} dia bars", "align": "c" } }
+        { "when": "label", "text": { "at": [0, "depth + txt"], "height": "txt", "value": "Lintel {full} x {depth}, {bar} dia bars; {fck}, {fy}", "align": "c" } }
       ]
     },
     {
@@ -231,6 +249,10 @@
         { "name": "dist", "label": "Distribution bar diameter", "unit": "mm", "default": 8, "choices": [
           { "label": "6", "value": 6 }, { "label": "8", "value": 8 }, { "label": "10", "value": 10 } ] },
         { "name": "spacing", "label": "Distribution spacing", "unit": "mm", "default": 200, "min": 75, "max": 450 },
+        { "name": "distsp", "label": "Distribution bar spacing (c/c)", "unit": "mm", "default": 250, "min": 75, "max": 450 },
+        { "name": "fck", "label": "Concrete grade", "default": 25, "choices": [ { "label": "M20", "value": 20 }, { "label": "M25", "value": 25 }, { "label": "M30", "value": 30 }, { "label": "M35", "value": 35 }, { "label": "M40", "value": 40 } ] },
+        { "name": "fy", "label": "Steel grade", "default": 500, "choices": [ { "label": "Fe250", "value": 250 }, { "label": "Fe415", "value": 415 }, { "label": "Fe500", "value": 500 }, { "label": "Fe550", "value": 550 } ] },
+        { "name": "exposure", "label": "Exposure (IS 456 Table 3)", "default": 1, "choices": [ { "label": "Mild", "value": 1 }, { "label": "Moderate", "value": 2 }, { "label": "Severe", "value": 3 }, { "label": "Very severe", "value": 4 }, { "label": "Extreme", "value": 5 } ] },
         { "name": "hatch", "label": "Concrete hatch", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "label", "label": "Label", "default": 1, "choices": [ { "label": "Yes", "value": 1 }, { "label": "No", "value": 0 } ] },
         { "name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500 }
@@ -241,7 +263,7 @@
         { "when": "hatch", "hatch": { "pts": [[0, 0], ["span", 0], ["span", "thick"], [0, "thick"]], "pattern": "AR-CONC", "scale": 80 } },
         { "line": ["cover", "cover + bar/2", "span - cover", "cover + bar/2"] },
         { "repeat": { "var": "i", "count": "ndots", "items": [ { "dot": ["cover + dist/2 + i*spacing", "cover + bar + dist/2", "dist/2"] } ] } },
-        { "when": "label", "text": { "at": [0, "-1.8*txt"], "height": "txt", "value": "Slab {thick} thick: {bar} dia main, {dist} dia @ {spacing} distribution", "align": "l" } }
+        { "when": "label", "text": { "at": [0, "-1.8*txt"], "height": "txt", "value": "Slab {thick} thick: {bar} dia @ {spacing} main, {dist} dia @ {distsp} distribution; {fck}, {fy}", "align": "l" } }
       ]
     }
   ]

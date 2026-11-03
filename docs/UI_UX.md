@@ -89,3 +89,10 @@ readouts). The field is 70×18 DIP (half the previous bar), with the same 2 DIP 
 in the engine (`40`, `40<90`, `5'6"`). Slash assistant drafts stay on the fixed AI bar (`dyn.on`
 false for `/…` drafts). While a CAD command runs, the Ask bar hides so it does not cover the lower
 drawing (Allow/Decline stays visible). Full dual-channel contract: [COMMAND_BAR.md](COMMAND_BAR.md).
+
+## Text size (annotative)
+
+Text is annotative, as in AutoCAD: its height is the height it prints on the sheet times the plot scale, held in drawing units, so it zooms with the
+drawing like any other geometry. Set the plot scale and paper once (Units > Plot scale and paper, `plot.config`): text, dimension text, arrows and the
+default `TEXTSIZE` are then sized to print 2.5 mm (or the paper's small, medium or large rank) at that scale, and `plot.validate` lists text that would
+print too small or too large. Changing the scale and applying it again resizes the annotations to the new scale. There is no screen-pixel size for text.
