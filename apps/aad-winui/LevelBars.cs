@@ -256,6 +256,8 @@ public sealed partial class MainWindow
         _sheetKey = key;
         TabRow.Children.Clear();
         _activeTabName = state.SheetSets.FirstOrDefault(x => x.Active)?.Name ?? "Design";
+        _tabNames = new List<string> { "Design" };
+        _tabNames.AddRange(state.SheetSets.Select(x => x.Name));
         TabRow.Children.Add(MakeTopTab(
             "Design",
             "Design: draw the building. Sheet-set annotation is not shown.",
@@ -281,37 +283,12 @@ public sealed partial class MainWindow
                 "+ Drawing tabs",
                 "Add the standard tabs: Working drawing, Electrical, Plumbing, Interior and False ceiling, each with its layers and symbols.",
                 false,
-                () => RunShellCommand("sheetset.standard", new Dictionary<string, object>()),
-                badge: false));
+                () => RunShellCommand("sheetset.standard", new Dictionary<string, object>())));
         }
     }
 
-    /// <summary>The page badge of a tab ("A1 L"): its paper size and orientation, as saved by <c>sheet.page</c>.</summary>
-    private string PageBadge(string tab)
-    {
-        if (_host == IntPtr.Zero || Native.Execute(_host, "sheet.page", JsonSerializer.Serialize(new Dictionary<string, object> { ["tab"] = tab })) != 0)
-        {
-            return "";
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(Native.ReadResult(_host));
-            var paper = doc.RootElement.TryGetProperty("paper", out var p) ? p.GetString() : "A1";
-            var landscape = !doc.RootElement.TryGetProperty("landscape", out var l) || l.ValueKind != JsonValueKind.False;
-            return paper + " " + (landscape ? "L" : "P");
-        }
-        catch (JsonException)
-        {
-            return "";
-        }
-    }
-
-    /// <summary>
-    /// A horizontal drawing tab: the tab itself (its name, with an accent underline when active) and, beside it, a small button with the
-    /// tab's paper size and orientation that opens the page size controls of that tab. Right-click on the tab opens its menu.
-    /// </summary>
-    private FrameworkElement MakeTopTab(string name, string tip, bool active, Action activate, Func<MenuFlyout>? menu = null, bool badge = true)
+    /// <summary>A horizontal drawing tab: its name, with an accent underline when active. Right-click opens the tab's menu.</summary>
+    private FrameworkElement MakeTopTab(string name, string tip, bool active, Action activate, Func<MenuFlyout>? menu = null)
     {
         var accent = Density.ThemeBrush("AccentBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
         var clear = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
@@ -325,7 +302,7 @@ public sealed partial class MainWindow
                 VerticalAlignment = VerticalAlignment.Center,
             },
             MinHeight = Density.ControlHeight,
-            Padding = new Thickness(Density.SpaceMd, 2, badge ? Density.SpaceXs : Density.SpaceMd, 2),
+            Padding = new Thickness(Density.SpaceMd, 2, Density.SpaceMd, 2),
             Background = clear,
             BorderBrush = active ? accent : clear,
             BorderThickness = new Thickness(0, 0, 0, 2),
@@ -343,33 +320,14 @@ public sealed partial class MainWindow
             };
         }
 
-        var text = badge ? PageBadge(name) : "";
-        if (text.Length == 0)
-        {
-            return tab;
-        }
-
-        var chip = new Button
-        {
-            Content = new TextBlock { Text = text, FontSize = Density.FontCaption, Opacity = 0.8 },
-            MinHeight = Density.ControlHeight,
-            MinWidth = 0,
-            Padding = new Thickness(Density.SpaceXs, 2, Density.SpaceMd, 2),
-            Background = clear,
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(0),
-        };
-        AutomationProperties.SetName(chip, "Page size of " + name + ": " + text);
-        ToolTipService.SetToolTip(chip, "Paper size and orientation of " + name + ": click to change");
-        chip.Click += (_, _) => ShowPageLayout(TabRowHost, name);
-        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, Children = { tab, chip } };
+        return tab;
     }
 
     private MenuFlyout BuildDesignSheetMenu()
     {
         var menu = new MenuFlyout { Placement = FlyoutPlacementMode.RightEdgeAlignedTop };
-        var page = new MenuFlyoutItem { Text = "Page size..." };
-        page.Click += (_, _) => ShowPageLayout(TabRowHost, "Design");
+        var page = new MenuFlyoutItem { Text = "Page layout..." };
+        page.Click += (_, _) => OpenPageLayoutManager("Design");
         menu.Items.Add(page);
         var history = new MenuFlyoutItem { Text = "History" };
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
@@ -383,8 +341,8 @@ public sealed partial class MainWindow
         var saveMilestone = new MenuFlyoutItem { Text = "Save milestone..." };
         saveMilestone.Click += (_, _) => _ = SaveMilestoneAsync("sheet", set.Id, set.Name);
         menu.Items.Add(saveMilestone);
-        var page = new MenuFlyoutItem { Text = "Page size..." };
-        page.Click += (_, _) => ShowPageLayout(TabRowHost, set.Name);
+        var page = new MenuFlyoutItem { Text = "Page layout..." };
+        page.Click += (_, _) => OpenPageLayoutManager(set.Name);
         menu.Items.Add(page);
         var history = new MenuFlyoutItem { Text = "History" };
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
@@ -564,7 +522,7 @@ public sealed partial class MainWindow
         var copy = new MenuFlyoutItem { Text = "Copy selection to level…" };
         copy.Click += (_, _) => ShowCopyToLevelMenu(targets);
         menu.Items.Add(copy);
-        menu.ShowAt(MoveToLevelButton, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
+        menu.ShowAt(LevelBarHost, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
     }
 
     private void ShowCopyToLevelMenu(List<LevelTab> targets)
@@ -577,6 +535,6 @@ public sealed partial class MainWindow
             item.Click += (_, _) => StartLevelSend("level.copyto", id);
             menu.Items.Add(item);
         }
-        menu.ShowAt(MoveToLevelButton, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
+        menu.ShowAt(LevelBarHost, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
     }
 }

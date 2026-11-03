@@ -233,8 +233,11 @@ pub fn mesh(
     }
     if show_ucs {
         // Screen-corner orientation chrome, plus the shared world site base (same for every level).
-        add_ucs(&mut list, view.center, width, height, scale, icon_px, paper);
         add_site_origin(&mut list, site, scale, icon_px, paper);
+        // A drawing tab shows its sheet: paper frame, margin and a title strip, at the tab's scale.
+        if let Some(set) = state.doc.active_sheet_ref() {
+            add_sheet_frame(&mut list, &state.doc, &set.name, site, scale, icon_px, paper);
+        }
     }
     let mut built = mesh::build_mesh(&list, origin, paper, false);
     if let Some((corners, rgba)) = window_fill {
@@ -531,29 +534,51 @@ fn add_ucs(list: &mut DisplayList, center: Vec2, width: u32, height: u32, scale:
     add_label(list, to_world(px(36.0), f64::from(height) - px(34.0) - px(70.0)), scale, icon_px, "Y", paper);
 }
 
+/// The sheet of the active drawing tab, drawn in the drawing: its paper size at the tab's scale (so 1:50 on A3 is 21 m by 14.85 m
+/// of drawing), a 10 mm margin, and a title strip with the tab's name, paper, orientation and scale. The lower-left corner sits at
+/// the site origin; nothing here is stored in the drawing.
+fn add_sheet_frame(list: &mut DisplayList, doc: &aad_engine::doc::Drawing, tab: &str, at: Vec2, scale: f64, icon_px: f64, paper: Rgb) {
+    let page = aad_engine::cmd::pagesetup::tab_page(doc, tab);
+    // Drawing units in one millimetre of paper at 1:1 (a drawing without units is read as millimetres).
+    let per_mm = aad_engine::annot::drawing_unit(doc).map_or(1.0, |u| 0.001 / u.metres());
+    let k = per_mm * page.denominator;
+    let (w, h) = (page.width_mm * k, page.height_mm * k);
+    if !at.is_finite() || !(w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0) || !scale.is_finite() || scale <= 0.0 {
+        return;
+    }
+    let ink = overlay_ink(paper);
+    let rect = |x0: f64, y0: f64, x1: f64, y1: f64| {
+        [
+            Vec2::new(at.x + x0, at.y + y0),
+            Vec2::new(at.x + x1, at.y + y0),
+            Vec2::new(at.x + x1, at.y + y1),
+            Vec2::new(at.x + x0, at.y + y1),
+            Vec2::new(at.x + x0, at.y + y0),
+        ]
+    };
+    add_poly(list, &rect(0.0, 0.0, w, h), ink, true);
+    let m = 10.0 * k;
+    if w > 3.0 * m && h > 3.0 * m {
+        add_dashed(list, &rect(m, m, w - m, h - m), ink, 6.0 / scale, 4.0 / scale);
+        // The title strip: 180 x 40 mm of paper in the lower-right corner of the margin.
+        let (tw, th) = ((180.0 * k).min(w - 2.0 * m), (40.0 * k).min(h - 2.0 * m));
+        add_poly(list, &rect(w - m - tw, m, w - m, m + th), ink, true);
+        let label = format!("{}  {} {}  1:{}", tab, page.paper, if page.landscape { "landscape" } else { "portrait" }, page.denominator.round());
+        let text_h = (12.0 * icon_px / scale).min(th * 0.3).max(1e-9);
+        add_ui_text(list, Vec2::new(at.x + w - m - tw + 0.04 * tw, at.y + m + th * 0.4), text_h, &label, ink);
+    }
+}
+
 /// World-space site base shared by every level (not screen chrome). Arms stay ~48 DIP long.
 fn add_site_origin(list: &mut DisplayList, at: Vec2, scale: f64, icon_px: f64, paper: Rgb) {
     if !at.is_finite() || !scale.is_finite() || scale <= 0.0 || !icon_px.is_finite() || icon_px <= 0.0 {
         return;
     }
-    let arm = 48.0 * icon_px / scale;
-    let half = 4.5 * icon_px / scale;
-    if !arm.is_finite() || arm <= 0.0 || !half.is_finite() {
-        return;
-    }
-    let x_end = Vec2::new(at.x + arm, at.y);
-    let y_end = Vec2::new(at.x, at.y + arm);
-    if !x_end.is_finite() || !y_end.is_finite() {
-        return;
-    }
-    add_poly(list, &[at, x_end], SITE_X_INK, true);
-    add_poly(list, &[at, y_end], SITE_Y_INK, true);
     // A plain + at the origin (the point the cursor snaps to), and the letter O beside it.
     let plus = 8.0 * icon_px / scale;
     let ink = overlay_ink(paper);
     add_poly(list, &[Vec2::new(at.x - plus, at.y), Vec2::new(at.x + plus, at.y)], ink, true);
     add_poly(list, &[Vec2::new(at.x, at.y - plus), Vec2::new(at.x, at.y + plus)], ink, true);
-    let _ = half;
     let label_at = Vec2::new(at.x + 10.0 * icon_px / scale, at.y - 14.0 * icon_px / scale);
     if label_at.is_finite() {
         add_label(list, label_at, scale, icon_px, "O", paper);

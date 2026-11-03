@@ -21,7 +21,12 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("notes", "Notes", run_edit)
             .menu(&["Format", "Notes", "Edit Notes…"])
             .alias(&["stdnotes", "drawingnotes"])
-            .params("{name?: set name, items?: [string], current?: name} → {sets, current} (set replaces / selects a named notes set)"),
+            .params("{name?: set name, items?: [string], current?: name, delete?: name} → {sets, current} (set replaces / selects a named notes set; delete removes one)"),
+        CommandSpec::new("notes.manager", "General Notes", run_manager)
+            .menu(&["Format", "Notes", "General Notes..."])
+            .alias(&["generalnotes"])
+            .params("{} (opens the General Notes window in the shell: create, edit and place note sets)")
+            .noundo(),
         CommandSpec::new("notes.std", "Standard Notes", run_std)
             .menu(&["Format", "Notes", "Standard Notes"])
             .alias(&["notesstd"])
@@ -88,9 +93,25 @@ fn run_list(s: &mut Session, _p: &Value) -> Result<Value> {
     }))
 }
 
+/// The General Notes window is a window of the shell, which opens it when this command is chosen.
+fn run_manager(_s: &mut Session, _p: &Value) -> Result<Value> {
+    Ok(json!({}))
+}
+
 fn run_edit(s: &mut Session, p: &Value) -> Result<Value> {
     let mut o = store(s.doc()?);
     let mut all = sets(&o);
+    if let Some(gone) = p.get("delete").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty()) {
+        if all.remove(gone).is_none() {
+            return Err(bad("notes", format!("unknown notes set `{gone}`")));
+        }
+        if o.get("current").and_then(Value::as_str) == Some(gone) {
+            match all.keys().next().cloned() {
+                Some(first) => o.insert("current".into(), json!(first)),
+                None => o.remove("current"),
+            };
+        }
+    }
     if let Some(items) = p.get("items").and_then(Value::as_array) {
         let name = p.get("name").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty()).unwrap_or("General").to_string();
         if name.len() > 64 {
@@ -125,6 +146,25 @@ fn run_edit(s: &mut Session, p: &Value) -> Result<Value> {
         "sets": all,
         "current": o.get("current").and_then(Value::as_str).unwrap_or("General"),
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_set_is_created_placed_and_deleted() {
+        let mut s = Session::new();
+        s.execute("notes", &json!({"name": "Electrical", "items": ["Wire in copper.", "Earth every circuit."]})).unwrap();
+        s.execute("notes", &json!({"name": "Plumbing", "items": ["Test at 1.5 times the working pressure."]})).unwrap();
+        let r = s.execute("notes.apply", &json!({"name": "Electrical", "at": [0.0, 0.0]})).unwrap();
+        assert_eq!(r["count"], json!(2));
+        let after = s.execute("notes", &json!({"delete": "Electrical"})).unwrap();
+        assert!(after["sets"].get("Electrical").is_none());
+        assert_eq!(after["current"], json!("Plumbing"), "the current set moves to one that is left");
+        assert!(s.execute("notes", &json!({"delete": "Electrical"})).is_err());
+        assert!(s.execute("notes.apply", &json!({"name": "Electrical"})).is_err());
+    }
 }
 
 fn numbered_mtext(items: &[String], title: &str) -> String {

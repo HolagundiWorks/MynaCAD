@@ -71,7 +71,7 @@ mod takeoff;
 mod takeoffann;
 mod takeoffphase;
 pub use takeoffphase::phases_json as takeoff_phases_json;
-mod pagesetup;
+pub mod pagesetup;
 mod takeoffrec;
 mod texttools;
 mod trimextend;

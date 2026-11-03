@@ -587,6 +587,16 @@ public sealed partial class MainWindow : Window
             _ = NewDrawingReplacingAsync();
             return;
         }
+        if (id == "page.manager")
+        {
+            OpenPageLayoutManager();
+            return;
+        }
+        if (id == "notes.manager")
+        {
+            OpenNotesManager();
+            return;
+        }
         if (id == "close")
         {
             _ = CloseActive();
@@ -1827,90 +1837,11 @@ public sealed partial class MainWindow : Window
         AfterCommand();
     }
 
-    /// <summary>The toggle names the view you would switch to: "Page layout" while the model is shown, "Model" while a page layout is.</summary>
-    private void ShowSpaceToggle()
-    {
-        var model = string.Equals(_space, "Model", StringComparison.OrdinalIgnoreCase);
-        var label = model ? "Page layout" : "Model";
-        if (SpaceLabel.Text != label)
-        {
-            SpaceLabel.Text = label;
-            SpaceIcon.Kind = model ? "paper" : "model";
-            ToolTipService.SetToolTip(SpaceToggle, model ? "Showing the model: click for the page layout" : "Showing the page layout (" + _space + "): click for the model");
-        }
-    }
-
-    /// <summary>Switch between the model and the page layout; the first time a drawing has no page layout one is made.</summary>
-    private void OnSpaceToggle(object sender, RoutedEventArgs e)
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        if (!string.Equals(_space, "Model", StringComparison.OrdinalIgnoreCase))
-        {
-            EnsureModelSpace();
-            _docKey = "";
-            AfterCommand();
-            return;
-        }
-        string? layout = null;
-        if (Native.Execute(_host, "layout.list", "{}") == 0)
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(Native.ReadResult(_host));
-                var rows = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement : doc.RootElement.TryGetProperty("layouts", out var l) ? l : default;
-                if (rows.ValueKind == JsonValueKind.Array)
-                {
-                    layout = rows.EnumerateArray().Select(r => r.TryGetProperty("name", out var n) ? n.GetString() : null).FirstOrDefault(n => !string.IsNullOrEmpty(n));
-                }
-            }
-            catch (JsonException)
-            {
-            }
-        }
-        if (layout == null)
-        {
-            layout = "Layout1";
-            if (Native.Execute(_host, "layout.new", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = layout })) != 0)
-            {
-                History.Text = Native.LastError(_host);
-                return;
-            }
-        }
-        if (Native.Execute(_host, "layout.set", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = layout })) != 0)
-        {
-            History.Text = Native.LastError(_host);
-        }
-        _docKey = "";
-        AfterCommand();
-    }
-
-    private Flyout? _pageLayoutFlyout;
-
-    /// <summary>The drawing tab whose page the flyout is editing: "Design" or a sheet-set tab name. Each tab has its own paper size and orientation.</summary>
+    /// <summary>The drawing tab whose page the hidden paper, orientation and scale boxes show.</summary>
     private string _pageTab = "Design";
 
-    /// <summary>The tab that is active now, for the "Page layout" rail entry.</summary>
+    /// <summary>The tab that is active now.</summary>
     private string _activeTabName = "Design";
-
-    /// <summary>The page layout controls (paper size, orientation, nameplate) of one drawing tab, opened from the left rail.</summary>
-    private void ShowPageLayout(FrameworkElement anchor, string? tab = null)
-    {
-        _pageTab = string.IsNullOrWhiteSpace(tab) ? _activeTabName : tab!;
-        PageLayoutTitle.Text = "Page layout: " + _pageTab;
-        FillPageFor(_pageTab);
-        if (_pageLayoutFlyout == null)
-        {
-            (PageLayoutPanel.Parent as Panel)?.Children.Remove(PageLayoutPanel);
-            PageLayoutPanel.Visibility = Visibility.Visible;
-            _pageLayoutFlyout = new Flyout { Content = PageLayoutPanel, Placement = FlyoutPlacementMode.RightEdgeAlignedTop };
-        }
-        EnsurePaperBox();
-        EnsureOrientBox();
-        _pageLayoutFlyout.ShowAt(anchor);
-    }
 
     /// <summary>
     /// O-Draft holds one drawing. Before a file is opened or a new drawing started, offer to save what is open; false when the
@@ -3105,7 +3036,6 @@ public sealed partial class MainWindow : Window
             {
                 _space = state.Space;
             }
-            ShowSpaceToggle();
             RefreshAiChip(state);
             if (state.ControlPort > 0)
             {
@@ -3485,6 +3415,7 @@ public sealed partial class MainWindow : Window
             using var doc = JsonDocument.Parse(Native.ReadResult(_host));
             EnsurePaperBox();
             EnsureOrientBox();
+            EnsureScaleBox();
             _filling = true;
             try
             {
@@ -3492,6 +3423,13 @@ public sealed partial class MainWindow : Window
                 PaperBox.SelectedItem = PaperChoices.FirstOrDefault(c => string.Equals(c, paper, StringComparison.OrdinalIgnoreCase)) ?? "A1";
                 var landscape = !doc.RootElement.TryGetProperty("landscape", out var l) || l.ValueKind != JsonValueKind.False;
                 OrientBox.SelectedItem = landscape ? "Landscape" : "Portrait";
+                var scale = doc.RootElement.TryGetProperty("scale", out var sc) ? sc.GetString() ?? "1:100" : "1:100";
+                if (!ScaleBox.Items.Contains(scale))
+                {
+                    ScaleBox.Items.Add(scale);
+                }
+
+                ScaleBox.SelectedItem = scale;
             }
             finally
             {
@@ -3501,6 +3439,32 @@ public sealed partial class MainWindow : Window
         catch (JsonException)
         {
         }
+    }
+
+    private static readonly string[] ScaleChoices = ["1:10", "1:20", "1:50", "1:100", "1:200", "1:500"];
+
+    private void EnsureScaleBox()
+    {
+        if (ScaleBox.Items.Count > 0)
+        {
+            return;
+        }
+
+        foreach (var scale in ScaleChoices)
+        {
+            ScaleBox.Items.Add(scale);
+        }
+    }
+
+    private void OnScalePicked(object sender, SelectionChangedEventArgs e)
+    {
+        if (_filling || _host == IntPtr.Zero || ScaleBox.SelectedItem is not string)
+        {
+            return;
+        }
+
+        SavePageFor(_pageTab);
+        AfterCommand();
     }
 
     /// <summary>Remember the paper size and orientation shown for the tab being edited.</summary>
@@ -3515,6 +3479,7 @@ public sealed partial class MainWindow : Window
             ["tab"] = tab,
             ["paper"] = paper,
             ["landscape"] = !string.Equals(orient, "Portrait", StringComparison.OrdinalIgnoreCase),
+            ["scale"] = ScaleBox.SelectedItem as string ?? "1:100",
         }));
         _sheetKey = "";
     }

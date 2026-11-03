@@ -285,7 +285,6 @@
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
                     <StackPanel x:Name="LevelTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Level tabs" />
-                    <Button x:Name="MoveToLevelButton" Click="OnMoveToLevel" Content="Move to level…" MinHeight="{StaticResource ControlHeight}" FontSize="{StaticResource FontSizeCaption}" Padding="{StaticResource PaddingControl}" AutomationProperties.Name="Move selection to level" ToolTipService.ToolTip="Move the selection to another level: pick a base point on the drawing, then the matching point (Enter for site origin)" />
                     <Button x:Name="AddLevelButton" Click="OnAddLevel" AutomationProperties.Name="Add level" ToolTipService.ToolTip="Add a level" Style="{StaticResource IconButtonStyle}">
                         <local:DrawnIcon Kind="plus" />
                     </Button>
@@ -304,13 +303,6 @@
             </Grid.ColumnDefinitions>
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceSm}">
-                    <!-- One drawing per window. The toggle switches the view between the model and the page layout. -->
-                    <Button x:Name="SpaceToggle" Click="OnSpaceToggle" MinHeight="{StaticResource ControlHeight}" Padding="{StaticResource PaddingControl}" AutomationProperties.Name="Model or page layout" ToolTipService.ToolTip="Switch between the model and the page layout">
-                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
-                            <local:DrawnIcon x:Name="SpaceIcon" Kind="model" />
-                            <TextBlock x:Name="SpaceLabel" Text="Model" FontSize="{StaticResource FontSizeCaption}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
                     <StackPanel x:Name="DrawingTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Open drawings" />
 <ToggleButton
                         x:Name="TakeoffModeButton"
@@ -408,6 +400,15 @@
                 SelectionChanged="OnOrientPicked"
                 AutomationProperties.Name="Page orientation"
                 ToolTipService.ToolTip="Landscape or portrait for the nameplate" />
+            <TextBlock Text="Scale" FontSize="{StaticResource FontSizeCaption}" Foreground="{ThemeResource TextSecondaryBrush}" />
+            <ComboBox
+                x:Name="ScaleBox"
+                MinWidth="{StaticResource OrientComboMinWidth}"
+                MinHeight="{StaticResource ControlHeight}"
+                FontSize="{StaticResource FontSizeBody}"
+                SelectionChanged="OnScalePicked"
+                AutomationProperties.Name="Sheet scale"
+                ToolTipService.ToolTip="The scale of this tab's sheet: 1 mm on paper is this many millimetres of the building" />
             <Button
                 x:Name="NameplateButton"
                 Content="Nameplate"
