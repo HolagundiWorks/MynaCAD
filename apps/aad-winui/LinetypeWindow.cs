@@ -23,7 +23,7 @@ internal static class LinetypeWindow
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
         Density.Name(status, "Linetype status");
 
-        var list = new ListBox { MinHeight = 220, MinWidth = 280 };
+        var list = new ListBox { MinHeight = 120, MaxHeight = 360, MinWidth = 280 };
         Density.Name(list, "Linetypes");
         var currentLabel = Density.Secondary("Current linetype: —", TextWrapping.Wrap);
         Density.Name(currentLabel, "Current linetype");

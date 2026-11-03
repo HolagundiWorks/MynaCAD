@@ -2,32 +2,29 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!--
-      Premium CAD + Fluent surfaces.
+      Premium CAD + Fluent surfaces. The neutrals, the accent and the Fluent system-control overrides come from the shared O.Ui theme
+      (SuiteLight.Mirage / SuiteDark.Mirage), so stock WinUI controls (Expander, ListView, TextBox, NavigationView, ...) take the suite colours;
+      what is left here are O-Draft's own keys, with the suite palette values written out (a Color alias would resolve in the wrong theme when read from code), and the CAD chrome that stays independent.
       Dark: graphite/charcoal. Light: neutral off-white.
       Accent: Midnight #102C80 (brand guide, docs/BRANDING.md): ink and accent in light, a lighter Midnight tint in dark. Canvas stays independently black/white.
       Command chrome stays opaque (no acrylic) so the HWND drawing child stays readable.
     -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///O.Ui/Themes/SuiteLight.Mirage.xaml" />
+            </ResourceDictionary.MergedDictionaries>
             <!-- Suite glass soft-UI (aligned with O.Ui SuiteColors). Canvas stays white. -->
-            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#E4EAF2" />
             <SolidColorBrush x:Key="SurfaceBrush" Color="#EEF2F8" />
-            <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="#F1F5FA" />
-            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#FFFFFF" />
-            <SolidColorBrush x:Key="SurfaceStatusBrush" Color="#EEF2F8" />
             <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#FFFFFF" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="#102C80" />
-            <SolidColorBrush x:Key="TextSecondaryBrush" Color="#3E56A0" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="#546B88" />
-            <SolidColorBrush x:Key="BorderDefaultBrush" Color="#D8DEE8" />
-            <SolidColorBrush x:Key="BorderSubtleBrush" Color="#E4EAF2" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="#3E56A0" />
             <SolidColorBrush x:Key="AccentBrush" Color="#102C80" />
             <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="ControlHoverBrush" Color="#F1F5FA" />
             <SolidColorBrush x:Key="ControlPressedBrush" Color="#D8DEE8" />
-            <SolidColorBrush x:Key="ControlSelectedBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="ControlSelectedBrush" Color="#E4E8F8" />
             <SolidColorBrush x:Key="FocusBorderBrush" Color="#102C80" />
-            <SolidColorBrush x:Key="ControlDisabledBrush" Color="#8F9EC4" />
+            <SolidColorBrush x:Key="ControlDisabledBrush" Color="#788090" />
             <SolidColorBrush x:Key="InputBackgroundBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="CommandChromeBrush" Color="#FAFFFFFF" />
             <SolidColorBrush x:Key="CommandChromeCadBrush" Color="#FAEEF2F8" />
@@ -47,77 +44,67 @@
         </ResourceDictionary>
 
         <ResourceDictionary x:Key="Default">
-            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1B1B1B" />
-            <SolidColorBrush x:Key="SurfaceBrush" Color="#202020" />
-            <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="#2A2A2A" />
-            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#2C2C2C" />
-            <SolidColorBrush x:Key="SurfaceStatusBrush" Color="#242424" />
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///O.Ui/Themes/SuiteDark.Mirage.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#151922" />
             <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#000000" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F3F3F3" />
-            <SolidColorBrush x:Key="TextSecondaryBrush" Color="#C8C8C8" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="#9A9A9A" />
-            <SolidColorBrush x:Key="BorderDefaultBrush" Color="#3D3D3D" />
-            <SolidColorBrush x:Key="BorderSubtleBrush" Color="#333333" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="#A8B0BD" />
             <SolidColorBrush x:Key="AccentBrush" Color="#6F8FF0" />
             <SolidColorBrush x:Key="AccentForegroundBrush" Color="#0B1020" />
-            <SolidColorBrush x:Key="ControlHoverBrush" Color="#2F2F2F" />
-            <SolidColorBrush x:Key="ControlPressedBrush" Color="#383838" />
+            <SolidColorBrush x:Key="ControlHoverBrush" Color="#2A3140" />
+            <SolidColorBrush x:Key="ControlPressedBrush" Color="#3A4250" />
             <SolidColorBrush x:Key="ControlSelectedBrush" Color="#1C2A50" />
-            <SolidColorBrush x:Key="FocusBorderBrush" Color="#7C9BFF" />
-            <SolidColorBrush x:Key="ControlDisabledBrush" Color="#6B6B6B" />
-            <SolidColorBrush x:Key="InputBackgroundBrush" Color="#2C2C2C" />
-            <SolidColorBrush x:Key="CommandChromeBrush" Color="#F21F1F1F" />
-            <SolidColorBrush x:Key="CommandChromeCadBrush" Color="#F2282828" />
+            <SolidColorBrush x:Key="FocusBorderBrush" Color="#6F8FF0" />
+            <SolidColorBrush x:Key="ControlDisabledBrush" Color="#708090" />
+            <SolidColorBrush x:Key="InputBackgroundBrush" Color="#242A36" />
+            <SolidColorBrush x:Key="CommandChromeBrush" Color="#F2151922" />
+            <SolidColorBrush x:Key="CommandChromeCadBrush" Color="#F21B1F28" />
             <SolidColorBrush x:Key="CommandChromeAccentBrush" Color="#6F8FF0" />
             <SolidColorBrush x:Key="CadChannelBrush" Color="#6CCB8A" />
             <SolidColorBrush x:Key="SplashBackgroundBrush" Color="#141414" />
             <SolidColorBrush x:Key="SplashForegroundBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="SuccessBrush" Color="#6CCB8A" />
             <SolidColorBrush x:Key="WarningBrush" Color="#F0C36A" />
-            <SolidColorBrush x:Key="ErrorBrush" Color="#FF99A4" />
-            <SolidColorBrush x:Key="DestructiveBrush" Color="#FF99A4" />
-            <Color x:Key="TitleBarBackgroundColor">#1B1B1B</Color>
-            <Color x:Key="TitleBarForegroundColor">#F3F3F3</Color>
-            <Color x:Key="TitleBarInactiveForegroundColor">#9A9A9A</Color>
-            <Color x:Key="TitleBarHoverColor">#2F2F2F</Color>
-            <Color x:Key="TitleBarPressedColor">#383838</Color>
+            <SolidColorBrush x:Key="ErrorBrush" Color="#F87171" />
+            <SolidColorBrush x:Key="DestructiveBrush" Color="#F87171" />
+            <Color x:Key="TitleBarBackgroundColor">#1B1F28</Color>
+            <Color x:Key="TitleBarForegroundColor">#EEF2F8</Color>
+            <Color x:Key="TitleBarInactiveForegroundColor">#A8B0BD</Color>
+            <Color x:Key="TitleBarHoverColor">#2A3140</Color>
+            <Color x:Key="TitleBarPressedColor">#3A4250</Color>
         </ResourceDictionary>
 
         <ResourceDictionary x:Key="Dark">
-            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1B1B1B" />
-            <SolidColorBrush x:Key="SurfaceBrush" Color="#202020" />
-            <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="#2A2A2A" />
-            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#2C2C2C" />
-            <SolidColorBrush x:Key="SurfaceStatusBrush" Color="#242424" />
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///O.Ui/Themes/SuiteDark.Mirage.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#151922" />
             <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#000000" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F3F3F3" />
-            <SolidColorBrush x:Key="TextSecondaryBrush" Color="#C8C8C8" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="#9A9A9A" />
-            <SolidColorBrush x:Key="BorderDefaultBrush" Color="#3D3D3D" />
-            <SolidColorBrush x:Key="BorderSubtleBrush" Color="#333333" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="#A8B0BD" />
             <SolidColorBrush x:Key="AccentBrush" Color="#6F8FF0" />
             <SolidColorBrush x:Key="AccentForegroundBrush" Color="#0B1020" />
-            <SolidColorBrush x:Key="ControlHoverBrush" Color="#2F2F2F" />
-            <SolidColorBrush x:Key="ControlPressedBrush" Color="#383838" />
+            <SolidColorBrush x:Key="ControlHoverBrush" Color="#2A3140" />
+            <SolidColorBrush x:Key="ControlPressedBrush" Color="#3A4250" />
             <SolidColorBrush x:Key="ControlSelectedBrush" Color="#1C2A50" />
-            <SolidColorBrush x:Key="FocusBorderBrush" Color="#7C9BFF" />
-            <SolidColorBrush x:Key="ControlDisabledBrush" Color="#6B6B6B" />
-            <SolidColorBrush x:Key="InputBackgroundBrush" Color="#2C2C2C" />
-            <SolidColorBrush x:Key="CommandChromeBrush" Color="#F21F1F1F" />
-            <SolidColorBrush x:Key="CommandChromeCadBrush" Color="#F2282828" />
+            <SolidColorBrush x:Key="FocusBorderBrush" Color="#6F8FF0" />
+            <SolidColorBrush x:Key="ControlDisabledBrush" Color="#708090" />
+            <SolidColorBrush x:Key="InputBackgroundBrush" Color="#242A36" />
+            <SolidColorBrush x:Key="CommandChromeBrush" Color="#F2151922" />
+            <SolidColorBrush x:Key="CommandChromeCadBrush" Color="#F21B1F28" />
             <SolidColorBrush x:Key="CommandChromeAccentBrush" Color="#6F8FF0" />
             <SolidColorBrush x:Key="CadChannelBrush" Color="#6CCB8A" />
             <SolidColorBrush x:Key="SplashBackgroundBrush" Color="#141414" />
             <SolidColorBrush x:Key="SplashForegroundBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="SuccessBrush" Color="#6CCB8A" />
             <SolidColorBrush x:Key="WarningBrush" Color="#F0C36A" />
-            <SolidColorBrush x:Key="ErrorBrush" Color="#FF99A4" />
-            <SolidColorBrush x:Key="DestructiveBrush" Color="#FF99A4" />
-            <Color x:Key="TitleBarBackgroundColor">#1B1B1B</Color>
-            <Color x:Key="TitleBarForegroundColor">#F3F3F3</Color>
-            <Color x:Key="TitleBarInactiveForegroundColor">#9A9A9A</Color>
-            <Color x:Key="TitleBarHoverColor">#2F2F2F</Color>
-            <Color x:Key="TitleBarPressedColor">#383838</Color>
+            <SolidColorBrush x:Key="ErrorBrush" Color="#F87171" />
+            <SolidColorBrush x:Key="DestructiveBrush" Color="#F87171" />
+            <Color x:Key="TitleBarBackgroundColor">#1B1F28</Color>
+            <Color x:Key="TitleBarForegroundColor">#EEF2F8</Color>
+            <Color x:Key="TitleBarInactiveForegroundColor">#A8B0BD</Color>
+            <Color x:Key="TitleBarHoverColor">#2A3140</Color>
+            <Color x:Key="TitleBarPressedColor">#3A4250</Color>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>

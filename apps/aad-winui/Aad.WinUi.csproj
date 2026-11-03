@@ -29,6 +29,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.250402" />
   </ItemGroup>
   <ItemGroup Condition="Exists('$(_ODraftGraphProj)')">
     <ProjectReference Include="$(_ODraftGraphProj)" />
@@ -40,6 +41,7 @@
     <Manifest Include="$(ApplicationManifest)" />
     <Content Include="..\..\assets\app-icon\aad.ico" Link="aad.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\app-icon\aad-256.png" Link="aad-256.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\app-icon\lockup.png" Link="lockup.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\furniture\standard\**\*" Link="furniture\standard\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\blocks\**\*" Link="blocks\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="ColorBooks\*.acb" CopyToOutputDirectory="PreserveNewest" />

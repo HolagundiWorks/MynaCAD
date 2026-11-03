@@ -45,7 +45,7 @@ internal static class NotesWindow
         var loading = false;
         Action closeWindow = () => { };
 
-        var listBox = new ListView { SelectionMode = ListViewSelectionMode.Single, MinHeight = 260, MinWidth = 170 };
+        var listBox = new ListBox { Height = 150, MinWidth = 170 };
         Density.Name(listBox, "Note sets");
         var nameBox = new TextBox { PlaceholderText = "Name of the set", MinHeight = Density.ControlHeight };
         Density.Name(nameBox, "Name of the note set");
@@ -53,7 +53,7 @@ internal static class NotesWindow
         {
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            MinHeight = 260,
+            MinHeight = 150,
             PlaceholderText = "One note to a line. They are numbered when placed.",
             VerticalAlignment = VerticalAlignment.Stretch,
         };
@@ -254,8 +254,8 @@ internal static class NotesWindow
 
         Density.Apply(root);
         // Density.Apply gives text boxes and lists the standard control height; these two need room for the notes.
-        notesBox.MinHeight = 260;
-        listBox.MinHeight = 260;
+        notesBox.MinHeight = 150;
+        listBox.Height = 150;
         var window = new Window
         {
             Title = "General notes",
@@ -263,7 +263,7 @@ internal static class NotesWindow
         };
         closeWindow = window.Close;
         close.Click += (_, _) => window.Close();
-        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "generalnotes", new WindowBounds(640, 520, 900, 820));
+        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "generalnotes", new WindowBounds(560, 330, 900, 700));
         return window;
     }
 }

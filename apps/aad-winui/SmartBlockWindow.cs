@@ -7,50 +7,45 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace Aad.WinUi;
 
-/// <summary>Insert &gt; Smart Block — pick a smart block, fill in its parameters, then pick the
-/// insertion point on the drawing (<c>smartblock.list</c> and the <c>smartblock.insert</c> form).
-/// Parameters of a placed smart block are edited in the Properties panel or by its grips.</summary>
+/// <summary>Insert &gt; Block: the blocks of this drawing and the parametric library as thumbnails in one window. Click one and pick its
+/// insertion point on the drawing. A parametric block goes in with its default parameters; they are entered in the Properties panel
+/// afterwards, with the new block selected (<c>smartblock.list</c>, <c>blocks.list</c>, <c>smartblock.insert</c>, <c>insert.place</c>).</summary>
 internal static class SmartBlockWindow
 {
-    private static readonly string[] Disciplines = { "All", "rcc", "structural", "plumbing", "hvac", "electrical", "interior" };
+    private static readonly string[] Disciplines = { "All", "drawing", "rcc", "structural", "plumbing", "hvac", "electrical", "interior" };
+    private const int Columns = 3;
 
-    public static Window Open(Window owner, IntPtr host, Action changed)
+    private sealed record Spec(string Id, string Title, string Discipline, string Description, bool Drawing);
+
+    public static Window Open(
+        Window owner,
+        IntPtr host,
+        Action changed,
+        Action<string> insertDrawingBlock,
+        Action<string> insertParametric,
+        Func<string, bool, UIElement> preview)
     {
         var theme = owner.Content is FrameworkElement shell ? shell.RequestedTheme : ElementTheme.Default;
         var status = Density.Secondary("", TextWrapping.Wrap);
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
-        Density.Name(status, "Smart block status");
+        Density.Name(status, "Blocks status");
 
-        var discipline = Density.DialogCombo("Discipline");
+        var show = Density.DialogCombo("Show");
         foreach (var name in Disciplines)
         {
-            discipline.Items.Add(new ComboBoxItem { Content = Title(name), Tag = name });
+            show.Items.Add(new ComboBoxItem { Content = Title(name), Tag = name });
         }
-        discipline.SelectedIndex = 0;
-        var blocks = new ListView { MinHeight = 160, MaxHeight = 260, MinWidth = 360, SelectionMode = ListViewSelectionMode.Single };
-        Density.Name(blocks, "Smart blocks");
-        var description = Density.Secondary("", TextWrapping.Wrap);
-        var fields = new StackPanel { Spacing = Density.SpaceSm };
-        var rotation = Density.DialogField("0", "Rotation (degrees)");
-        var insert = DialogLayout.Action("Insert", primary: true);
-        var defaults = DialogLayout.Action("Defaults");
-        insert.IsEnabled = false;
-        defaults.IsEnabled = false;
+        show.SelectedIndex = 0;
+        var tiles = new StackPanel { Spacing = Density.SpaceMd };
 
-        var root = new StackPanel { Spacing = Density.SpaceMd, Margin = Density.DialogMargin, MaxWidth = 480 };
-        root.Children.Add(DialogLayout.Heading("Smart Blocks"));
-        root.Children.Add(Density.FieldRow("Discipline", discipline));
-        root.Children.Add(blocks);
-        root.Children.Add(description);
-        root.Children.Add(Density.SectionHeading("Parameters"));
-        root.Children.Add(fields);
-        root.Children.Add(Density.FieldRow("Rotation (degrees)", rotation));
-        root.Children.Add(Density.Secondary("The insertion point is picked on the drawing after Insert. Edit a placed smart block in Properties or drag its grips.", TextWrapping.Wrap));
-        root.Children.Add(DialogLayout.ActionRow(insert, defaults));
+        var root = new StackPanel { Spacing = Density.SpaceMd, Margin = Density.DialogMargin };
+        root.Children.Add(DialogLayout.Heading("Blocks"));
+        root.Children.Add(Density.FieldRow("Show", show,
+            "Click a block, then pick its insertion point on the drawing. A parametric block is placed with its default sizes; set them in the Properties panel, where its parameters are listed while it is selected."));
+        root.Children.Add(tiles);
         root.Children.Add(status);
 
         var all = new List<Spec>();
-        var inputs = new List<(Param Param, FrameworkElement Input)>();
 
         void Load()
         {
@@ -58,19 +53,43 @@ internal static class SmartBlockWindow
             if (Native.Execute(host, "smartblock.list", "{}") != 0)
             {
                 status.Text = Native.LastError(host);
-                return;
             }
+            else
+            {
+                Read("blocks", block =>
+                {
+                    var id = Str(block, "id");
+                    if (id.Length > 0)
+                    {
+                        all.Add(new Spec(id, Str(block, "title"), Str(block, "discipline"), Str(block, "description"), false));
+                    }
+                });
+            }
+            if (Native.Execute(host, "blocks.list", "{}") == 0)
+            {
+                Read("blocks", block =>
+                {
+                    var name = Str(block, "name");
+                    if (name.Length > 0 && !name.StartsWith("SB_", StringComparison.Ordinal) && !name.StartsWith('*'))
+                    {
+                        var count = block.TryGetProperty("entities", out var e) && e.TryGetInt32(out var c) ? c : 0;
+                        all.Add(new Spec(name, name, "drawing", "Defined in this drawing, " + count + " objects.", true));
+                    }
+                });
+            }
+            Fill();
+        }
+
+        void Read(string key, Action<JsonElement> each)
+        {
             try
             {
                 using var doc = JsonDocument.Parse(Native.ReadResult(host));
-                if (doc.RootElement.TryGetProperty("blocks", out var list) && list.ValueKind == JsonValueKind.Array)
+                if (doc.RootElement.TryGetProperty(key, out var list) && list.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var block in list.EnumerateArray().Take(500))
+                    foreach (var item in list.EnumerateArray().Take(500))
                     {
-                        if (Spec.Read(block) is Spec spec)
-                        {
-                            all.Add(spec);
-                        }
+                        each(item);
                     }
                 }
             }
@@ -78,133 +97,92 @@ internal static class SmartBlockWindow
             {
                 status.Text = ex.Message;
             }
-            Filter();
         }
 
-        void Filter()
+        void Fill()
         {
-            var want = discipline.SelectedItem is ComboBoxItem { Tag: string tag } ? tag : "All";
-            blocks.Items.Clear();
-            foreach (var spec in all)
+            tiles.Children.Clear();
+            var want = show.SelectedItem is ComboBoxItem { Tag: string tag } ? tag : "All";
+            var shown = all.Where(s => want == "All" || string.Equals(s.Discipline, want, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (shown.Count == 0)
             {
-                if (want == "All" || string.Equals(spec.Discipline, want, StringComparison.OrdinalIgnoreCase))
-                {
-                    blocks.Items.Add(spec);
-                }
-            }
-            if (blocks.Items.Count > 0)
-            {
-                blocks.SelectedIndex = 0;
-            }
-            else
-            {
-                Show(null);
-            }
-        }
-
-        void Show(Spec? spec)
-        {
-            fields.Children.Clear();
-            inputs.Clear();
-            insert.IsEnabled = spec != null;
-            defaults.IsEnabled = spec != null;
-            description.Text = spec?.Description ?? "";
-            if (spec == null)
-            {
+                tiles.Children.Add(Density.Secondary("No blocks here.", TextWrapping.Wrap));
                 return;
             }
-            foreach (var param in spec.Params)
+            // One group per kind, so this drawing's blocks and each discipline read as sections of the same library.
+            foreach (var group in shown.GroupBy(s => s.Discipline, StringComparer.OrdinalIgnoreCase))
             {
-                FrameworkElement input;
-                if (param.Choices.Count > 0)
+                tiles.Children.Add(Density.SectionHeading(Title(group.Key)));
+                var grid = new Grid { ColumnSpacing = Density.SpaceMd, RowSpacing = Density.SpaceMd };
+                for (var c = 0; c < Columns; c++)
                 {
-                    var combo = Density.DialogCombo(param.Label);
-                    foreach (var (label, value) in param.Choices)
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                }
+                var i = 0;
+                foreach (var spec in group)
+                {
+                    var row = i / Columns;
+                    while (grid.RowDefinitions.Count <= row)
                     {
-                        combo.Items.Add(new ComboBoxItem { Content = label, Tag = label });
-                        if (value == param.Default)
-                        {
-                            combo.SelectedIndex = combo.Items.Count - 1;
-                        }
+                        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                     }
-                    input = combo;
+                    var card = Card(spec);
+                    Grid.SetRow(card, row);
+                    Grid.SetColumn(card, i % Columns);
+                    grid.Children.Add(card);
+                    i++;
+                }
+                tiles.Children.Add(grid);
+            }
+        }
+
+        Button Card(Spec spec)
+        {
+            var stack = new StackPanel { Spacing = Density.SpaceXs };
+            stack.Children.Add(preview(spec.Id, spec.Drawing));
+            stack.Children.Add(new TextBlock
+            {
+                Text = spec.Title,
+                FontSize = Density.FontCaption,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                MaxLines = 2,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            var button = new Button
+            {
+                Content = stack,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                Padding = new Thickness(Density.SpaceSm),
+            };
+            Density.Name(button, "Insert " + spec.Title);
+            ToolTipService.SetToolTip(button, spec.Title + (spec.Description.Length > 0 ? ": " + spec.Description : ""));
+            button.Click += (_, _) =>
+            {
+                if (spec.Drawing)
+                {
+                    insertDrawingBlock(spec.Id);
+                    status.Text = "Pick the insertion point of " + spec.Title + " on the drawing.";
                 }
                 else
                 {
-                    input = Density.DialogField(Number(param.Default), param.Label);
-                    ToolTipService.SetToolTip(input, param.Range() + (LengthText.MetresPer(param.Unit) != null ? ". Any unit can be typed: 12in, 0.3m." : ""));
+                    insertParametric(spec.Id);
+                    status.Text = "Pick the insertion point of " + spec.Title + " on the drawing, then set its parameters in Properties.";
                 }
-                inputs.Add((param, input));
-                fields.Children.Add(Density.FieldRow(param.Caption(), input));
-            }
-            Density.Apply(fields);
+                changed();
+            };
+            return button;
         }
 
-        string? ParamsText()
-        {
-            var parts = new List<string>();
-            foreach (var (param, input) in inputs)
-            {
-                switch (input)
-                {
-                    case ComboBox { SelectedItem: ComboBoxItem { Tag: string label } }:
-                        parts.Add(param.Name + "=" + label);
-                        break;
-                    case TextBox box:
-                        var text = box.Text.Trim();
-                        if (text.Length == 0)
-                        {
-                            break;
-                        }
-                        // A length may carry any unit (12in, 0.3m); it is converted into the parameter's own unit.
-                        if (!LengthText.TryParse(text, param.Unit, out var number))
-                        {
-                            status.Text = param.Label + ": enter a number (" + param.Range() + ").";
-                            return null;
-                        }
-                        parts.Add(param.Name + "=" + Number(number));
-                        break;
-                }
-            }
-            return string.Join(", ", parts);
-        }
+        show.SelectionChanged += (_, _) => Fill();
 
-        discipline.SelectionChanged += (_, _) => Filter();
-        blocks.SelectionChanged += (_, _) => Show(blocks.SelectedItem as Spec);
-        defaults.Click += (_, _) => Show(blocks.SelectedItem as Spec);
-        insert.Click += (_, _) =>
-        {
-            if (blocks.SelectedItem is not Spec spec || ParamsText() is not string text)
-            {
-                return;
-            }
-            var turn = rotation.Text.Trim();
-            if (turn.Length > 0 && !double.TryParse(turn, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
-            {
-                status.Text = "Rotation: enter a number of degrees.";
-                return;
-            }
-            var preset = JsonSerializer.Serialize(new Dictionary<string, string>
-            {
-                ["id"] = spec.Id,
-                ["params"] = text,
-                ["rotation"] = turn.Length == 0 ? "0" : turn,
-            });
-            if (Native.StartForm(host, "smartblock.insert", preset) != 0)
-            {
-                status.Text = Native.LastError(host);
-                return;
-            }
-            status.Text = "Pick the insertion point of " + spec.Title + " on the drawing.";
-            changed();
-        };
-
-        var window = new Window { Title = "Smart Blocks" };
+        var window = new Window { Title = "Blocks" };
         window.Content = new ScrollViewer { Content = root };
         root.RequestedTheme = theme;
         Density.Apply(root);
         ShellIcon.Apply(window, theme);
-        ShellFit.UserResizable(window, minWidthDip: 380, minHeightDip: 480, maxWidthDip: 560, maxHeightDip: 860, persistKey: "smartblocks");
+        ShellFit.UserResizable(window, minWidthDip: 400, minHeightDip: 300, maxWidthDip: 600, maxHeightDip: 620, persistKey: "blocks");
         Load();
         window.Activate();
         Native.ShowWindow(WinRT.Interop.WindowNative.GetWindowHandle(window), 8);
@@ -215,93 +193,11 @@ internal static class SmartBlockWindow
     {
         "rcc" => "RCC",
         "hvac" => "HVAC",
-        "All" => "All disciplines",
+        "All" => "All blocks",
+        "drawing" => "This drawing",
         _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(discipline),
     };
 
-    private static string Number(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
-
-    private sealed class Param
-    {
-        public string Name { get; init; } = "";
-        public string Label { get; init; } = "";
-        public string Unit { get; init; } = "";
-        public double Default { get; init; }
-        public double? Min { get; init; }
-        public double? Max { get; init; }
-        public bool Integer { get; init; }
-        public List<(string Label, double Value)> Choices { get; } = new();
-
-        public string Caption() => Unit.Length == 0 ? Label : Label + " (" + Unit + ")";
-
-        public string Range()
-        {
-            var kind = Integer ? "whole number" : "number";
-            return (Min, Max) switch
-            {
-                (double lo, double hi) => kind + " from " + Number(lo) + " to " + Number(hi),
-                (double lo, null) => kind + ", at least " + Number(lo),
-                (null, double hi) => kind + ", at most " + Number(hi),
-                _ => kind,
-            };
-        }
-    }
-
-    private sealed class Spec
-    {
-        public string Id { get; init; } = "";
-        public string Title { get; init; } = "";
-        public string Discipline { get; init; } = "";
-        public string Description { get; init; } = "";
-        public List<Param> Params { get; } = new();
-
-        public override string ToString() => Title;
-
-        public static Spec? Read(JsonElement block)
-        {
-            var id = Str(block, "id");
-            if (id.Length == 0)
-            {
-                return null;
-            }
-            var spec = new Spec { Id = id, Title = Str(block, "title"), Discipline = Str(block, "discipline"), Description = Str(block, "description") };
-            if (block.TryGetProperty("params", out var list) && list.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var p in list.EnumerateArray().Take(48))
-                {
-                    var param = new Param
-                    {
-                        Name = Str(p, "name"),
-                        Label = Str(p, "label"),
-                        Unit = Str(p, "unit"),
-                        Default = Num(p, "default") ?? 0,
-                        Min = Num(p, "min"),
-                        Max = Num(p, "max"),
-                        Integer = p.TryGetProperty("integer", out var whole) && whole.ValueKind == JsonValueKind.True,
-                    };
-                    if (p.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var c in choices.EnumerateArray().Take(64))
-                        {
-                            if (Num(c, "value") is double value)
-                            {
-                                param.Choices.Add((Str(c, "label"), value));
-                            }
-                        }
-                    }
-                    if (param.Name.Length > 0)
-                    {
-                        spec.Params.Add(param);
-                    }
-                }
-            }
-            return spec;
-        }
-
-        private static string Str(JsonElement e, string key) =>
-            e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
-
-        private static double? Num(JsonElement e, string key) =>
-            e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d) ? d : null;
-    }
+    private static string Str(JsonElement e, string key) =>
+        e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
 }

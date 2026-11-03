@@ -113,21 +113,19 @@ pub(crate) const IDS: &[&str] = &[
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        CommandSpec::new("smartblock.list", "List Smart Blocks", run_list)
-            .menu(&["Insert", "Smart Block", "List"])
+        CommandSpec::new("smartblock.list", "List Parametric Blocks", run_list)
             .alias(&["sblist"])
             .params("{discipline?: rcc|structural|plumbing|hvac|electrical|interior, sheetSet? (true: the active tab; or a sheet set name): only the smart blocks on layers that tab maps} → {blocks: [{id, title, discipline, layer, params: [{name, label, unit, default, min, max, integer, choices}]}]}")
             .enabled(always)
             .noundo(),
-        CommandSpec::new("smartblock.insert", "Smart Block...", run_insert)
-            .menu(&["Insert", "Smart Block", "Insert..."])
+        CommandSpec::new("smartblock.insert", "Parametric Block...", run_insert)
             .alias(&["sbinsert", "smartblock"])
             .params("{id | definition: {…osas-smartblocks block…}, at: [x,y], params?: {name: value} | \"name=value, …\", rotation? (degrees), scale? (default 1; geometry is millimetres, scaled to the drawing units), layer?} → {handle, block, params}"),
-        CommandSpec::new("smartblock.get", "Smart Block Parameters", run_get)
+        CommandSpec::new("smartblock.get", "Parametric Block Parameters", run_get)
             .params("{handle?} (else the first selected smart block) → {handle, id, title, block, params: {name: value}, spec: [...]}")
             .noundo(),
-        CommandSpec::new("smartblock.edit", "Edit Smart Block", run_edit)
-            .menu(&["Modify", "Object", "Smart Block..."])
+        CommandSpec::new("smartblock.edit", "Edit Block Parameters", run_edit)
+            .menu(&["Modify", "Object", "Block Parameters..."])
             .alias(&["sbedit"])
             .params("{handle? | handles? (else the selection), params: {name: value} | \"name=value, …\"} → {edited, blocks}"),
     ]
@@ -1040,6 +1038,8 @@ fn place(
     if let Some(l) = layer {
         s.doc_mut()?.modify_entity(h, |e| e.common.layer = l)?;
     }
+    // Selected, so the Properties panel lists its parameters.
+    s.set_selection(vec![h]);
     Ok(json!({ "handle": h.hex(), "block": name, "id": def.id, "params": params_json(vals) }))
 }
 
@@ -1112,7 +1112,7 @@ pub fn property_fields(doc: &aad_doc::Drawing, ins: &aad_doc::Insert) -> Vec<Val
     let Some((id, params)) = smart_of(b) else { return Vec::new() };
     let Ok(found) = find_def(doc, &id) else { return Vec::new() };
     let Ok(vals) = resolve("", &found.def, &params, &Map::new()) else { return Vec::new() };
-    let mut out = vec![json!({ "label": "Smart block", "value": found.def.title, "text": true })];
+    let mut out = vec![json!({ "label": "Parametric block", "value": found.def.title, "text": true })];
     for p in &found.def.params {
         let v = vals.get(&p.name).copied().unwrap_or(p.default);
         let label = match (p.label.is_empty(), p.unit.is_empty()) {

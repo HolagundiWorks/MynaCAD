@@ -23,14 +23,14 @@ internal static class Density
     // Older names, snapped to the scale. SpaceXs (2) is only for icon strips.
     public const double SpaceXs = 2;
     public const double SpaceSm = Space1;
-    public const double SpaceMd = Space2;
-    public const double SpaceLg = Space3;
-    public const double SpaceXl = Space3;
-    public const double SpaceSection = Space4;
-    public const double SpaceXxl = Space4;
+    public const double SpaceMd = 6;
+    public const double SpaceLg = Space2;
+    public const double SpaceXl = Space2;
+    public const double SpaceSection = 10;
+    public const double SpaceXxl = 10;
 
-    public static Thickness DialogMargin { get; } = new Thickness(Space3);
-    public static Thickness FooterPadding { get; } = new Thickness(Space3, Space2, Space3, Space2);
+    public static Thickness DialogMargin { get; } = new Thickness(Space2);
+    public static Thickness FooterPadding { get; } = new Thickness(Space2, Space1, Space2, Space1);
     public static Thickness ToolbarPadding { get; } = new Thickness(Space1, SpaceXs, Space1, SpaceXs);
     public static Thickness ButtonPadding { get; } = new Thickness(Space3, SpaceXs, Space3, SpaceXs);
     public static Thickness PanelPadding { get; } = new Thickness(Space2, Space1, Space2, Space1);
@@ -45,7 +45,7 @@ internal static class Density
 
     // --- Control sizing (menu 24 · toolbar btn 26 · icon 16 · input/button 26 · pane 240) ---
     public const double MinTarget = 24;
-    public const double ControlHeight = 26;
+    public const double ControlHeight = 24;
     public const double ControlHeightCompact = 22;
     public const double IconButton = 26;
     public const double IconSize = 16;
@@ -59,8 +59,8 @@ internal static class Density
     public const double ArchBarHeight = 28;
     public const double StatusBarHeight = 22;
     public const double CommandLineHeight = 22;
-    public const double PropertyRowHeight = 26;
-    public const double DialogButtonHeight = 26;
+    public const double PropertyRowHeight = 24;
+    public const double DialogButtonHeight = 24;
     public const double SplitterWidth = 4;
     public const double DividerThickness = 1;
     /// <summary>Default docked side-panel width (matches <c>SidePanelWidth</c>).</summary>
@@ -68,14 +68,14 @@ internal static class Density
     /// <summary>Collapsed side-panel title rail width (matches <c>SideRailWidth</c>).</summary>
     public const double SideRailWidth = 28;
     /// <summary>Left list column in style / manager dialogs.</summary>
-    public const double ManagerListWidth = 180;
+    public const double ManagerListWidth = 160;
     /// <summary>Smallest useful height of a list in a dialog.</summary>
     public const double ListMinHeight = 160;
     /// <summary>Numeric and short text fields in dialogs.</summary>
-    public const double FieldWidth = 120;
+    public const double FieldWidth = 104;
     /// <summary>Cell editor in an inline table row.</summary>
     public const double TableCellWidth = 88;
-    public const double DialogActionMinWidth = 72;
+    public const double DialogActionMinWidth = 64;
     /// <summary>Layer-state / status combo in managers (matches Themes LayerStateComboWidth).</summary>
     public const double LayerStateComboWidth = 140;
     /// <summary>Search / name fields (matches Themes SearchFieldWidth).</summary>
@@ -425,7 +425,7 @@ internal static class Density
 
     public static StackPanel DialogStack(params UIElement[] children) => Ui.Stack(children);
 
-    public static StackPanel FieldRow(string label, FrameworkElement field) => Ui.Labeled(label, field);
+    public static Grid FieldRow(string label, FrameworkElement field, string? info = null) => Ui.Labeled(label, field, info);
 
     public static void Name(DependencyObject target, string name)
     {

@@ -268,7 +268,7 @@ internal static class HatchWindow
             Title = "Hatch Editor",
             Content = root,
         };
-        StandardWindow.Present(window, owner, WindowTemplate.Manager, "hatch", new WindowBounds(480, 420, 1200, 1000));
+        StandardWindow.Present(window, owner, WindowTemplate.Manager, "hatch", new WindowBounds(420, 300, 780, 900));
         Reload();
         ShellFit.Invalidate(window);
         return window;

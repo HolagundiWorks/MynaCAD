@@ -20,7 +20,7 @@ internal static class DialogLayout
         return block;
     }
 
-    public static FrameworkElement Labeled(string label, FrameworkElement field) => Ui.Labeled(label, field);
+    public static FrameworkElement Labeled(string label, FrameworkElement field, string? info = null) => Ui.Labeled(label, field, info);
 
     public static TextBox Field(string name, double? width = null)
     {

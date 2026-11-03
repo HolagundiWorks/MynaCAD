@@ -532,7 +532,7 @@ internal static class ProjectWizardWindow
             Title = edit ? "Edit Project" : "New Project Wizard",
             Content = new ScrollViewer { Content = new Grid { RequestedTheme = theme, Children = { root } } },
         };
-        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "projectwizard", new WindowBounds(460, 420, 640, 860));
+        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "projectwizard", new WindowBounds(440, 300, 640, 860));
         create.Click += (_, _) =>
         {
             var json = JsonSerializer.Serialize(Collect());

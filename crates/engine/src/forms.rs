@@ -598,10 +598,10 @@ pub static FORMS: &[Form] = &[
     },
     Form {
         id: "smartblock.insert",
-        title: "Insert Smart Block",
+        title: "Insert Parametric Block",
         wrap: None,
         fields: &[
-            field("id", "Smart block", Kind::Choice(crate::cmd::smartblock::IDS)).req(),
+            field("id", "Parametric block", Kind::Choice(crate::cmd::smartblock::IDS)).req(),
             field("params", "Parameters (name=value, ...; blank: defaults; see smartblock.list)", Kind::Text),
             field("rotation", "Rotation (degrees)", Kind::Number),
             field("at", "Insertion point", Kind::Point).req(),
@@ -609,9 +609,9 @@ pub static FORMS: &[Form] = &[
     },
     Form {
         id: "smartblock.edit",
-        title: "Edit Smart Block",
+        title: "Edit Block Parameters",
         wrap: None,
-        fields: &[field("params", "New parameters for the selected smart blocks (name=value, ...)", Kind::Text).req()],
+        fields: &[field("params", "New parameters for the selected parametric blocks (name=value, ...)", Kind::Text).req()],
     },
 ];
 

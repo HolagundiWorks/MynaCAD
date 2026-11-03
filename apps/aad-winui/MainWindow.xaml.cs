@@ -657,7 +657,7 @@ public sealed partial class MainWindow : Window
             OpenHistory();
             return;
         }
-        if (id is "smartblock.insert" or "sbinsert" or "smartblock" or "ui.dialog.smartblocks")
+        if (id is "insert" or "smartblock.insert" or "sbinsert" or "smartblock" or "ui.dialog.smartblocks" or "ui.dialog.blocks")
         {
             OpenSmartBlocks();
             return;
@@ -2447,6 +2447,7 @@ public sealed partial class MainWindow : Window
         Density.Theme = theme;
         _levelKey = "";
         _sheetKey = "";
+        _docKey = "";
         // The rail restyles only a button whose state changed; a new theme changes every colour, so forget what was shown.
         _railShown.Clear();
         RefreshSideRail();
@@ -3780,7 +3781,7 @@ public sealed partial class MainWindow : Window
         }
         if (_smartBlockWindow == null)
         {
-            _smartBlockWindow = SmartBlockWindow.Open(this, _host, AfterCommand);
+            _smartBlockWindow = SmartBlockWindow.Open(this, _host, AfterCommand, InsertBlock, InsertLibrarySmartBlock, WindowPreview);
             _smartBlockWindow.Closed += (_, _) => _smartBlockWindow = null;
         }
         PresentToolWindow(_smartBlockWindow);
@@ -4924,58 +4925,118 @@ public sealed partial class MainWindow : Window
         }
         BlocksPanel.Children.Add(FieldLabel("Double-click a thumbnail to insert. External references are not supported."));
         BlocksPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 8, 0, 8), Background = StripBrush() });
-        AddSmartBlocksEntry(snapshot);
+        AddBlockLibrary(snapshot);
         AddFurnitureCatalog();
-        AddDisciplineCatalogs();
     }
 
-    /// <summary>Smart blocks (parametric RCC, steel, services and interior blocks): opens the Smart Blocks window.</summary>
-    private void AddSmartBlocksEntry(PanelSnapshot snapshot)
+    /// <summary>The one block library: per discipline, the parametric blocks (sizes and options are parameters) and the ready-made symbols,
+    /// as thumbnails. The Blocks window lists the same blocks with this drawing's own.</summary>
+    private void AddBlockLibrary(PanelSnapshot snapshot)
     {
-        BlocksPanel.Children.Add(Heading("Smart blocks"));
-        BlocksPanel.Children.Add(FieldLabel("Parametric RCC, steel, plumbing, HVAC, electrical and interior blocks. Edit a placed one in Properties or by its grips."));
-        var open = new Button { Content = "Smart blocks...", MinHeight = Density.ControlHeight };
-        Density.Name(open, "Open smart blocks");
-        ToolTipService.SetToolTip(open, "Pick a smart block, set its parameters and insert it");
+        BlocksPanel.Children.Add(Heading("Block library"));
+        BlocksPanel.Children.Add(FieldLabel("RCC, steel, plumbing, HVAC, electrical and interior blocks: parametric ones (edit a placed one in Properties or by its grips) and ready-made symbols (CC0, millimetres). Click a thumbnail to insert."));
+        var open = new Button { Content = "Blocks...", MinHeight = Density.ControlHeight };
+        Density.Name(open, "Open blocks");
+        ToolTipService.SetToolTip(open, "Pick a block from this drawing or the library, set its parameters and insert it");
         open.Click += (_, _) => OpenSmartBlocks();
         BlocksPanel.Children.Add(open);
-        // The library for the tab on screen (all of it in the design view): one click opens the insert form.
-        if (snapshot.Library.Count > 0)
+
+        var symbols = FurnitureCatalog.LoadDisciplines();
+        var order = new List<string> { "rcc", "structural", "plumbing", "hvac", "electrical", "interior" };
+        order.AddRange(snapshot.Library.Select(l => l.Discipline.ToLowerInvariant()).Where(d => d.Length > 0 && !order.Contains(d)).Distinct());
+        foreach (var id in order)
         {
-            BlocksPanel.Children.Add(FieldLabel(snapshot.Library.Count + " in the library for this tab. Click a thumbnail to insert."));
-            var tiles = new Grid { ColumnSpacing = Density.SpaceMd, RowSpacing = Density.SpaceMd };
-            tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            for (var i = 0; i < snapshot.Library.Count; i++)
+            var parametric = snapshot.Library.Where(l => string.Equals(l.Discipline, id, StringComparison.OrdinalIgnoreCase)).ToList();
+            var set = symbols.FirstOrDefault(s => s.Id == id);
+            var count = parametric.Count + (set?.Entries.Count ?? 0);
+            if (count == 0)
             {
-                var entry = snapshot.Library[i];
-                var row = i / 2;
-                while (tiles.RowDefinitions.Count <= row)
-                {
-                    tiles.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                }
-                var card = DesignCenterCard(false, "Insert smart block " + entry.Title, entry.Title + (entry.Description.Length > 0 ? ": " + entry.Description : ""));
-                var stack = new StackPanel { Spacing = Density.SpaceXs };
-                stack.Children.Add(PreviewCanvas("Smart block preview " + entry.Title, CachedSmartBlockPreviewJson(entry.Id), 72));
-                stack.Children.Add(new TextBlock
-                {
-                    Text = entry.Title,
-                    FontSize = Density.FontCaption,
-                    TextAlignment = TextAlignment.Center,
-                    TextWrapping = TextWrapping.Wrap,
-                    MaxLines = 2,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                });
-                card.Child = stack;
-                var id = entry.Id;
-                card.Tapped += (_, _) => InsertLibrarySmartBlock(id);
-                Grid.SetRow(card, row);
-                Grid.SetColumn(card, i % 2);
-                tiles.Children.Add(card);
+                continue;
             }
-            BlocksPanel.Children.Add(tiles);
+            var body = new StackPanel { Spacing = Density.SpaceSm };
+            var expander = new Expander
+            {
+                Header = DisciplineTitle(id) + " (" + count + ")",
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Content = body,
+            };
+            Density.Name(expander, DisciplineTitle(id));
+            var built = false;
+            void Build()
+            {
+                if (built)
+                {
+                    return;
+                }
+                built = true;
+                if (parametric.Count > 0)
+                {
+                    body.Children.Add(FieldLabel("PARAMETRIC"));
+                    AddSmartTiles(body, parametric);
+                }
+                if (set != null)
+                {
+                    body.Children.Add(FieldLabel("SYMBOLS"));
+                    AddCatalogGrid(body, set.Entries);
+                }
+            }
+            expander.Expanding += (_, _) =>
+            {
+                _openCatalogs.Add(id);
+                Build();
+            };
+            expander.Collapsed += (_, _) => _openCatalogs.Remove(id);
+            if (_openCatalogs.Contains(id))
+            {
+                Build();
+                expander.IsExpanded = true;
+            }
+            BlocksPanel.Children.Add(expander);
         }
         BlocksPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 8, 0, 8), Background = StripBrush() });
+    }
+
+    private static string DisciplineTitle(string id) => id switch
+    {
+        "rcc" => "RCC",
+        "hvac" => "HVAC",
+        _ => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(id),
+    };
+
+    private void AddSmartTiles(Panel target, IReadOnlyList<LibraryRow> entries)
+    {
+        var tiles = new Grid { ColumnSpacing = Density.SpaceMd, RowSpacing = Density.SpaceMd };
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var entry = entries[i];
+            var row = i / 2;
+            while (tiles.RowDefinitions.Count <= row)
+            {
+                tiles.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            }
+            var card = DesignCenterCard(false, "Insert block " + entry.Title, entry.Title + (entry.Description.Length > 0 ? ": " + entry.Description : ""));
+            var stack = new StackPanel { Spacing = Density.SpaceXs };
+            stack.Children.Add(PreviewCanvas("Block preview " + entry.Title, CachedSmartBlockPreviewJson(entry.Id), 72));
+            stack.Children.Add(new TextBlock
+            {
+                Text = entry.Title,
+                FontSize = Density.FontCaption,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                MaxLines = 2,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            card.Child = stack;
+            var id = entry.Id;
+            card.Tapped += (_, _) => InsertLibrarySmartBlock(id);
+            Grid.SetRow(card, row);
+            Grid.SetColumn(card, i % 2);
+            tiles.Children.Add(card);
+        }
+        target.Children.Add(tiles);
     }
 
     private readonly Dictionary<string, string> _smartPreviewJson = new();
@@ -4999,64 +5060,36 @@ public sealed partial class MainWindow : Window
         return json;
     }
 
+    /// <summary>A parametric block goes in with its default parameters; they are entered in Properties once it is placed and selected.</summary>
     private void InsertLibrarySmartBlock(string id)
     {
         if (_host == IntPtr.Zero)
         {
             return;
         }
-        var form = Native.ReadForm(_host, "smartblock.insert");
-        if (string.IsNullOrEmpty(form))
+        var preset = JsonSerializer.Serialize(new Dictionary<string, string> { ["id"] = id, ["params"] = "", ["rotation"] = "0" });
+        if (Native.StartForm(_host, "smartblock.insert", preset) != 0)
         {
             History.Text = Native.LastError(_host);
             return;
         }
-        form = InjectFormField(form, "id", id);
-        FormDialog.Show(this, _host, form, AfterCommand);
+        AfterCommand();
     }
 
-    /// <summary>Discipline DXF sets from <c>blocks/&lt;discipline&gt;</c> (CC0), one collapsed section each.
-    /// Thumbnails are made only when a section is opened, so the panel stays quick to rebuild.</summary>
-    private void AddDisciplineCatalogs()
+    /// <summary>The thumbnail the Blocks window shows for a parametric block (default parameters) or a block of this drawing.</summary>
+    private UIElement WindowPreview(string id, bool drawing)
     {
-        var sections = FurnitureCatalog.LoadDisciplines();
-        if (sections.Count == 0)
-            return;
-        BlocksPanel.Children.Add(Heading("Discipline blocks"));
-        BlocksPanel.Children.Add(FieldLabel("Plumbing, HVAC, electrical, structural and interior symbols; millimetres; CC0 (Innerscene). Click a thumbnail to insert."));
-        foreach (var section in sections)
+        string? json = null;
+        if (drawing && _host != IntPtr.Zero
+            && Native.Execute(_host, "blocks.preview", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = id })) == 0)
         {
-            var body = new StackPanel { Spacing = Density.SpaceSm };
-            var expander = new Expander
-            {
-                Header = section.Name + " (" + section.Entries.Count + ")",
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Content = body,
-            };
-            Density.Name(expander, section.Name);
-            var built = false;
-            void Build()
-            {
-                if (built)
-                    return;
-                built = true;
-                AddCatalogGrid(body, section.Entries);
-            }
-            expander.Expanding += (_, _) =>
-            {
-                _openCatalogs.Add(section.Id);
-                Build();
-            };
-            expander.Collapsed += (_, _) => _openCatalogs.Remove(section.Id);
-            if (_openCatalogs.Contains(section.Id))
-            {
-                Build();
-                expander.IsExpanded = true;
-            }
-            BlocksPanel.Children.Add(expander);
+            json = Native.ReadResult(_host);
         }
-        BlocksPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 8, 0, 8), Background = StripBrush() });
+        else if (!drawing)
+        {
+            json = CachedSmartBlockPreviewJson(id);
+        }
+        return PreviewCanvas("Block preview " + id, json, 84);
     }
 
     /// <summary>Two-column thumbnail grids of <paramref name="entries"/>, one per category.</summary>
@@ -5532,7 +5565,8 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        Native.SetCanvas(_host, true);
+        // The canvas is a native child window drawn over the XAML, so the welcome screen needs it hidden.
+        Native.SetCanvas(_host, WelcomeOverlay.Visibility != Visibility.Visible);
         var scale = CanvasHost.XamlRoot.RasterizationScale;
         if (scale <= 0 || CanvasHost.ActualWidth < 1 || CanvasHost.ActualHeight < 1)
         {
@@ -6060,7 +6094,10 @@ public sealed partial class MainWindow : Window
                     },
                 },
                 MinHeight = Density.ControlHeight,
-                Padding = new Thickness(6, 2, 6, 2),
+                Padding = new Thickness(6, 2, 2, 2),
+                Background = current ? (Density.ThemeBrush("SurfaceBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent)) : new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(Density.Space1, 0, 0, 0),
             };
             AutomationProperties.SetName(tab, current ? "Current drawing " + drawing.Title : "Switch to " + drawing.Title);
             tab.Click += (_, _) => SwitchDrawing(drawing.Index);
@@ -6073,7 +6110,8 @@ public sealed partial class MainWindow : Window
                 MinHeight = Density.ControlHeight,
                 Padding = new Thickness(0),
                 FontSize = Density.FontBody,
-                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                Background = current ? (Density.ThemeBrush("SurfaceBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent)) : new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                CornerRadius = new CornerRadius(0, Density.Space1, 0, 0),
                 BorderThickness = new Thickness(0),
                 Visibility = current ? Visibility.Visible : Visibility.Collapsed,
             };
@@ -7083,6 +7121,7 @@ public sealed partial class MainWindow : Window
         public string Id { get; set; } = "";
         public string Title { get; set; } = "";
         public string Description { get; set; } = "";
+        public string Discipline { get; set; } = "";
     }
 
     private sealed class PropertyRow

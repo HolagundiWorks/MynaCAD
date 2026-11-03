@@ -195,13 +195,57 @@ internal static class Ui
         return stack;
     }
 
-    /// <summary>A label above its field (narrow forms, long labels).</summary>
-    public static StackPanel Labeled(string label, FrameworkElement field)
+    /// <summary>A small (i) icon whose tooltip is <paramref name="description"/>; focusable, so the description is also reachable by keyboard.</summary>
+    public static FrameworkElement Info(string description)
     {
-        var row = new StackPanel { Spacing = Density.Space1 };
-        var text = new TextBlock { Text = label, FontSize = Density.FontBody, TextWrapping = TextWrapping.Wrap };
+        var icon = new FontIcon { Glyph = "", FontSize = 12, Opacity = 0.7 };
+        var host = new ContentControl
+        {
+            Content = icon,
+            IsTabStop = true,
+            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(2),
+        };
+        ToolTipService.SetToolTip(host, description);
+        ToolTipService.SetPlacement(host, Microsoft.UI.Xaml.Controls.Primitives.PlacementMode.Right);
+        AutomationProperties.SetName(host, "Info");
+        AutomationProperties.SetHelpText(host, description);
+        host.PointerEntered += (_, _) => icon.Opacity = 1;
+        host.PointerExited += (_, _) => icon.Opacity = 0.7;
+        return host;
+    }
+
+    /// <summary>Label beside its field, so a form row is one line tall; the label column is wide enough for short labels and wraps beyond that.</summary>
+    public static Grid Labeled(string label, FrameworkElement field, string? info = null)
+    {
+        var row = new Grid { ColumnSpacing = Density.Space2 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(112) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var text = new TextBlock { Text = label, FontSize = Density.FontBody, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         Density.Name(text, label);
-        row.Children.Add(text);
+        // A field that already carries a tooltip gets it as the description; the field's own tooltip is dropped so it is not shown twice.
+        if (info is null && ToolTipService.GetToolTip(field) is string tip && tip.Length > 0)
+        {
+            info = tip;
+            ToolTipService.SetToolTip(field, null);
+        }
+        if (info is { Length: > 0 })
+        {
+            var cell = new Grid { ColumnSpacing = 4 };
+            cell.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            cell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var icon = Info(info);
+            Grid.SetColumn(icon, 1);
+            cell.Children.Add(text);
+            cell.Children.Add(icon);
+            row.Children.Add(cell);
+        }
+        else
+        {
+            row.Children.Add(text);
+        }
+        Grid.SetColumn(field, 1);
+        field.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(field);
         return row;
     }

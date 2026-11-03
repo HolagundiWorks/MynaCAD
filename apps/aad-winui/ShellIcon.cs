@@ -30,6 +30,13 @@ internal static class ShellIcon
         }
     }
 
+    /// <summary>The suite lockup (mark, name, role, suite line) the welcome screen shows, as O-Studio's does.</summary>
+    public static ImageSource? Lockup()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "lockup.png");
+        return File.Exists(path) ? new BitmapImage(new Uri(path)) : null;
+    }
+
     public static ImageSource? Logo()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "aad-256.png");

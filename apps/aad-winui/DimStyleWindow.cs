@@ -34,7 +34,7 @@ internal static class DimStyleWindow
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
         Density.Name(status, "Dimension style status");
 
-        var list = new ListBox { MinHeight = 160, MinWidth = Density.ManagerListWidth };
+        var list = new ListBox { MinHeight = 96, MinWidth = Density.ManagerListWidth };
         Density.Name(list, "Dimension styles");
         var currentLabel = Density.Secondary("Current style: —", TextWrapping.Wrap);
         Density.Name(currentLabel, "Current dimension style");
@@ -382,7 +382,7 @@ internal static class DimStyleWindow
                 Content = new Grid { RequestedTheme = theme, Children = { root } },
             },
         };
-        StandardWindow.Present(window, owner, WindowTemplate.Manager, "dimstyle");
+        StandardWindow.Present(window, owner, WindowTemplate.Manager, "dimstyle", new WindowBounds(400, 240, 760, 800));
         Reload(null);
         return window;
     }

@@ -39,7 +39,7 @@ internal static class PlotStyleWindow
         Density.Name(layoutLabel, "Layout plot style");
         var desc = Density.Secondary("", TextWrapping.Wrap);
         Density.Name(desc, "Table description");
-        var styles = new ListBox { MinHeight = 220, MinWidth = 180 };
+        var styles = new ListBox { MinHeight = 140, MinWidth = 180 };
         Density.Name(styles, "Plot styles");
         var objectColor = new CheckBox { Content = "Object colour", MinHeight = Density.ControlHeight };
         Density.Name(objectColor, "Object colour");

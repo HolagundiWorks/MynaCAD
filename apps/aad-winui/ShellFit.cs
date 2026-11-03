@@ -253,6 +253,9 @@ internal static class ShellFit
         }
         var pad = state.Options.PadDip;
         var contentW = Math.Clamp(desired.Width + pad, state.Options.MinWidthDip, state.Options.MaxWidthDip);
+        // Wrapped text measures as one line at unlimited width, so the height is taken again at the width the window will have.
+        root.Measure(new Size(Math.Max(1, contentW - pad), double.PositiveInfinity));
+        desired = root.DesiredSize;
         var contentH = Math.Clamp(desired.Height + pad, state.Options.MinHeightDip, state.Options.MaxHeightDip);
         FrameOverhead(window, scale, out var frameW, out var frameH);
         var pixelW = (int)Math.Ceiling(contentW * scale) + frameW;

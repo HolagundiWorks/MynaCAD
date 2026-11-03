@@ -56,7 +56,7 @@ internal static class StorySettingsWindow
 
         var model = new List<StoryRow>();
         var implicitDrawing = false;
-        var listHost = new ListView { SelectionMode = ListViewSelectionMode.Single, MinHeight = 280 };
+        var listHost = new ListView { SelectionMode = ListViewSelectionMode.Single, MinHeight = 120 };
         var insertAbove = DialogLayout.Action("Insert Above");
         var insertBelow = DialogLayout.Action("Insert Below");
         var deleteStory = DialogLayout.Action("Delete Story");
@@ -263,7 +263,7 @@ internal static class StorySettingsWindow
             Title = "Levels",
             Content = new ScrollViewer { Content = new Grid { RequestedTheme = theme, Children = { root } } },
         };
-        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "storysettings", new WindowBounds(480, 420, 720, 900));
+        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "storysettings", new WindowBounds(480, 240, 720, 900));
 
         PaintList();
         if (selectLevelId is not null)

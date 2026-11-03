@@ -26,14 +26,16 @@ internal static class PageSetupWindow
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
         Density.Name(status, "Page setup status");
 
-        var list = new ListBox { MinHeight = 180, MinWidth = Density.ManagerListWidth };
+        var list = new ListBox { MinHeight = 110, MinWidth = Density.ManagerListWidth };
         Density.Name(list, "Layouts");
         var paper = new ComboBox { MinWidth = 200, MinHeight = Density.ControlHeight };
         Density.Name(paper, "Paper size");
-        var portrait = new RadioButton { Content = "Portrait", MinHeight = Density.ControlHeight, GroupName = "orient" };
-        var landscape = new RadioButton { Content = "Landscape", MinHeight = Density.ControlHeight, GroupName = "orient" };
-        Density.Name(portrait, "Portrait");
-        Density.Name(landscape, "Landscape");
+        var portrait = new CommunityToolkit.WinUI.Controls.SegmentedItem { Content = "Portrait" };
+        var landscape = new CommunityToolkit.WinUI.Controls.SegmentedItem { Content = "Landscape" };
+        var orient = new CommunityToolkit.WinUI.Controls.Segmented { SelectionMode = ListViewSelectionMode.Single, HorizontalAlignment = HorizontalAlignment.Left };
+        orient.Items.Add(portrait);
+        orient.Items.Add(landscape);
+        Density.Name(orient, "Orientation");
         var plotArea = new ComboBox { MinWidth = 160, MinHeight = Density.ControlHeight };
         foreach (var area in PlotAreas)
         {
@@ -61,9 +63,6 @@ internal static class PageSetupWindow
         var right = new StackPanel { Spacing = Density.SpaceSm, MinWidth = 260 };
         right.Children.Add(propsHeading);
         right.Children.Add(Labeled("Paper size", paper));
-        var orient = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Density.SpaceLg };
-        orient.Children.Add(portrait);
-        orient.Children.Add(landscape);
         right.Children.Add(Labeled("Orientation", orient));
         right.Children.Add(Labeled("Plot area", plotArea));
         right.Children.Add(fit);
@@ -121,8 +120,7 @@ internal static class PageSetupWindow
                 }
                 paper.SelectedItem = paper.Items.Cast<object>().FirstOrDefault(item => string.Equals(item as string, page.Paper, StringComparison.OrdinalIgnoreCase))
                     ?? page.Paper;
-                portrait.IsChecked = !page.Landscape;
-                landscape.IsChecked = page.Landscape;
+                orient.SelectedItem = page.Landscape ? landscape : portrait;
                 plotArea.SelectedItem = PlotAreas.FirstOrDefault(a => a.Equals(page.PlotArea, StringComparison.OrdinalIgnoreCase)) ?? "layout";
                 fit.IsChecked = page.ScaleToFit;
                 scale.IsEnabled = !page.ScaleToFit;
@@ -239,18 +237,11 @@ internal static class PageSetupWindow
                 Apply("paper", name);
             }
         };
-        portrait.Checked += (_, _) =>
+        orient.SelectionChanged += (_, _) =>
         {
-            if (!loading)
+            if (!loading && orient.SelectedItem != null)
             {
-                Apply("landscape", false);
-            }
-        };
-        landscape.Checked += (_, _) =>
-        {
-            if (!loading)
-            {
-                Apply("landscape", true);
+                Apply("landscape", ReferenceEquals(orient.SelectedItem, landscape));
             }
         };
         plotArea.SelectionChanged += (_, _) =>

@@ -25,9 +25,9 @@ internal static class ParametersWindow
 
         var revision = Density.Secondary("Graph revision: —", TextWrapping.Wrap);
         Density.Name(revision, "Graph revision");
-        var walls = new ListView { MinHeight = 180, MinWidth = 360, SelectionMode = ListViewSelectionMode.Single };
+        var walls = new ListView { MinHeight = 110, MinWidth = 360, SelectionMode = ListViewSelectionMode.Single };
         Density.Name(walls, "Parametric walls");
-        var nodes = new ListView { MinHeight = 120, MinWidth = 360, SelectionMode = ListViewSelectionMode.None };
+        var nodes = new ListView { MinHeight = 80, MinWidth = 360, SelectionMode = ListViewSelectionMode.None };
         Density.Name(nodes, "Library nodes");
 
         var refresh = ActionButton("Refresh");

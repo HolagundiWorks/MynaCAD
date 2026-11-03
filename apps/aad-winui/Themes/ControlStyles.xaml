@@ -190,6 +190,15 @@
         <Setter Property="Padding" Value="8,2" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
     </Style>
+    <!-- Lists in windows: rows as tall as a text line, not the 40 px Fluent default. -->
+    <Style TargetType="ListBoxItem" BasedOn="{StaticResource DefaultListBoxItemStyle}">
+        <Setter Property="MinHeight" Value="{StaticResource MenuItemHeight}" />
+        <Setter Property="Padding" Value="8,2" />
+    </Style>
+    <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+        <Setter Property="MinHeight" Value="{StaticResource MenuItemHeight}" />
+        <Setter Property="Padding" Value="8,2" />
+    </Style>
     <Style x:Key="CompactCheckBoxStyle" TargetType="CheckBox">
         <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />

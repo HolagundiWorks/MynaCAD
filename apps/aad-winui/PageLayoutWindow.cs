@@ -85,7 +85,7 @@ internal static class PageLayoutWindow
             Content = new ScrollViewer { Content = new Grid { RequestedTheme = theme, Children = { root } } },
         };
         close.Click += (_, _) => window.Close();
-        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "pagelayout", new WindowBounds(520, 360, 760, 700));
+        StandardWindow.Present(window, owner, WindowTemplate.PropertyDialog, "pagelayout", new WindowBounds(440, 220, 760, 700));
         return window;
     }
 

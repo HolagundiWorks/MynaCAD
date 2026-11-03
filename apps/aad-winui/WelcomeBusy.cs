@@ -36,9 +36,13 @@ public sealed partial class MainWindow
         {
             return;
         }
-        WelcomeLogo.Source = ShellIcon.Logo();
+        WelcomeLogo.Source = ShellIcon.Lockup() ?? ShellIcon.Logo();
         FillWelcomeRecent();
         WelcomeOverlay.Visibility = Visibility.Visible;
+        if (_host != IntPtr.Zero)
+        {
+            Native.SetCanvas(_host, false);
+        }
     }
 
     private void HideWelcome()
@@ -47,6 +51,10 @@ public sealed partial class MainWindow
         if (WelcomeOverlay != null)
         {
             WelcomeOverlay.Visibility = Visibility.Collapsed;
+            if (_host != IntPtr.Zero)
+            {
+                Native.SetCanvas(_host, true);
+            }
         }
     }
 

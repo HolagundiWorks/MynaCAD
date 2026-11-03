@@ -14,20 +14,34 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <TextBlock x:Name="PromptLive" Width="0" Height="0" Opacity="0" IsHitTestVisible="False" AutomationProperties.Name="Command prompt" />
+        <StackPanel Orientation="Vertical">
+        <!-- Open drawings and the take-off switch: a strip above the menu. -->
+        <Border x:Name="DocTabsHost" Background="{ThemeResource AppBackgroundBrush}" Padding="6,3,6,0" AutomationProperties.Name="Open drawings strip">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceSm}">
+                    <StackPanel x:Name="DrawingTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Open drawings" />
+                    <ToggleButton
+                        x:Name="TakeoffModeButton"
+                        Content="Take-off"
+                        MinHeight="{StaticResource ControlHeight}"
+                        FontSize="{StaticResource FontSizeCaption}"
+                        Padding="{StaticResource PaddingControl}"
+                        Click="OnTakeoffMode"
+                        AutomationProperties.Name="Take-off mode"
+                        ToolTipService.ToolTip="Take-off mode: shows the take-off tools (walls, beams, floors, record to O-CoreOp)" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
         <MenuBar
             x:Name="Bar"
             Style="{StaticResource ShellMenuBarStyle}"
             Background="{ThemeResource SurfaceBrush}"
             FontSize="{StaticResource FontSizeBody}"
             AutomationProperties.Name="Menu" />
+        </StackPanel>
         <!-- Standard tools: layer, draw/modify/annotate, architecture (one row under the menu). -->
         <!-- Drawing tabs across the top: Design, then one tab per discipline, each with its own paper size and orientation. -->
         <StackPanel Grid.Row="1" Orientation="Vertical">
-        <Border x:Name="TabRowHost" Background="{ThemeResource SurfaceBrush}" BorderBrush="{ThemeResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="{StaticResource PaddingSm}" AutomationProperties.Name="Drawing tabs">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                <StackPanel x:Name="TabRow" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" />
-            </ScrollViewer>
-        </Border>
         <Border x:Name="ToolStripHost" Style="{StaticResource ToolStripChromeStyle}" BorderThickness="0,0,0,1" AutomationProperties.Name="Drawing and architecture tools" AutomationProperties.LandmarkType="Navigation">
             <ScrollViewer VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceSm}" Margin="{StaticResource PaddingSm}">
@@ -72,7 +86,35 @@
                     </StackPanel>
                 </ScrollViewer>
             </Border>
-            <Border x:Name="CanvasHost" Grid.Column="1" Background="{ThemeResource CanvasBackgroundBrush}" SizeChanged="OnCanvasSize" AutomationProperties.Name="Drawing" />
+            <!-- The drawing with its tabs: sheet tabs above, level tabs below; the active tab takes the canvas colour so they read as one piece. -->
+            <Grid x:Name="CanvasColumn" Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+            <Border x:Name="TabRowHost" Grid.Row="0" Background="{ThemeResource SurfaceBrush}" BorderThickness="0" Padding="6,4,6,0" AutomationProperties.Name="Drawing tabs">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="TabRow" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" />
+                </ScrollViewer>
+            </Border>
+                <Border x:Name="CanvasHost" Grid.Row="1" Background="{ThemeResource CanvasBackgroundBrush}" SizeChanged="OnCanvasSize" AutomationProperties.Name="Drawing" />
+            <!-- Level tabs run along the bottom edge of the drawing; the active tab joins it. -->
+            <Border x:Name="LevelBarHost" Grid.Row="2" Background="{ThemeResource SurfaceStatusBrush}" BorderThickness="0" Padding="6,0,6,3" AutomationProperties.Name="Levels">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                        <StackPanel x:Name="LevelTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Level tabs" />
+                        <Button x:Name="AddLevelButton" Click="OnAddLevel" AutomationProperties.Name="Add level" ToolTipService.ToolTip="Add a level" Style="{StaticResource IconButtonStyle}">
+                            <local:DrawnIcon Kind="plus" />
+                        </Button>
+                        <Button x:Name="LevelsButton" Click="OnLevelsWindow" AutomationProperties.Name="Levels: names, elevations and heights" ToolTipService.ToolTip="Levels: names, elevations and heights" Style="{StaticResource IconButtonStyle}">
+                            <local:DrawnIcon Kind="gear" />
+                        </Button>
+                        <TextBlock x:Name="LevelHint" VerticalAlignment="Center" Margin="{StaticResource PaddingMd}" FontSize="{StaticResource FontSizeCaption}" Opacity="0.7" AutomationProperties.Name="Level mode" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+            </Grid>
             <local:ResizeGrip x:Name="LeftSplitter" Grid.Column="2" Width="{StaticResource SplitterWidth}" MinWidth="{StaticResource SplitterWidth}" Background="{ThemeResource BorderDefaultBrush}" PointerPressed="OnSplitPressed" PointerMoved="OnSplitMoved" PointerReleased="OnSplitReleased" PointerCaptureLost="OnSplitCaptureLost" KeyDown="OnSplitKey" AutomationProperties.Name="Resize side panel" ToolTipService.ToolTip="Drag, or Left and Right arrows when focused" />
             <Border x:Name="SideHost" Grid.Column="3" Style="{StaticResource SidePanelChromeStyle}" BorderThickness="1,0,0,0" PointerEntered="OnColumnEntered" PointerExited="OnColumnExited">
             <!-- The open panel, then a rail of panel titles that is always visible (open or collapsed). -->
@@ -280,21 +322,6 @@
                 <FontIcon x:Name="HistoryGlyph" Visibility="Collapsed" Glyph="&#xE70D;" />
             </StackPanel>
         </Border>
-        <!-- Level tabs under the drawing; the bar is a row of its own because the canvas is a native child window. -->
-        <Border x:Name="LevelBarHost" Grid.Row="4" Background="{ThemeResource SurfaceStatusBrush}" BorderThickness="0" Padding="{StaticResource PaddingSm}" AutomationProperties.Name="Levels">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
-                    <StackPanel x:Name="LevelTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Level tabs" />
-                    <Button x:Name="AddLevelButton" Click="OnAddLevel" AutomationProperties.Name="Add level" ToolTipService.ToolTip="Add a level" Style="{StaticResource IconButtonStyle}">
-                        <local:DrawnIcon Kind="plus" />
-                    </Button>
-                    <Button x:Name="LevelsButton" Click="OnLevelsWindow" AutomationProperties.Name="Levels: names, elevations and heights" ToolTipService.ToolTip="Levels: names, elevations and heights" Style="{StaticResource IconButtonStyle}">
-                        <local:DrawnIcon Kind="gear" />
-                    </Button>
-                    <TextBlock x:Name="LevelHint" VerticalAlignment="Center" Margin="{StaticResource PaddingMd}" FontSize="{StaticResource FontSizeCaption}" Opacity="0.7" AutomationProperties.Name="Level mode" />
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
         <Border Grid.Row="5" Background="{ThemeResource SurfaceStatusBrush}" BorderBrush="{ThemeResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="{StaticResource PaddingStatus}">
         <Grid x:Name="StatusRow" Style="{StaticResource StatusBarStyle}" ColumnSpacing="{StaticResource SpaceSm}" AutomationProperties.Name="Status">
             <Grid.ColumnDefinitions>
@@ -303,16 +330,6 @@
             </Grid.ColumnDefinitions>
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceSm}">
-                    <StackPanel x:Name="DrawingTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Open drawings" />
-<ToggleButton
-                        x:Name="TakeoffModeButton"
-                        Content="Take-off"
-                        MinHeight="{StaticResource ControlHeight}"
-                        FontSize="{StaticResource FontSizeCaption}"
-                        Padding="{StaticResource PaddingControl}"
-                        Click="OnTakeoffMode"
-                        AutomationProperties.Name="Take-off mode"
-                        ToolTipService.ToolTip="Take-off mode: shows the take-off tools (walls, beams, floors, record to O-CoreOp)" />
                                         <TextBlock x:Name="Coords" VerticalAlignment="Center" Margin="{StaticResource MarginGroupStart}" FontFamily="{StaticResource FontFamilyMono}" FontSize="{StaticResource FontSizeMono}" AutomationProperties.Name="Cursor coordinates" />
                 </StackPanel>
             </ScrollViewer>
@@ -434,20 +451,16 @@
                     VerticalAlignment="Center"
                     Margin="{StaticResource MarginWelcomePanel}"
                     Spacing="{StaticResource SpaceLg}">
-                    <Image x:Name="WelcomeLogo" Width="{StaticResource LogoWelcome}" Height="{StaticResource LogoWelcome}" HorizontalAlignment="Center" AutomationProperties.Name="O-Draft" />
+                    <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="O-Draft" />
                     <TextBlock
-                        Text="O-Draft"
-                        FontSize="{StaticResource FontSizeSplashTitle}"
-                        FontWeight="SemiBold"
-                        HorizontalAlignment="Center"
-                        AutomationProperties.HeadingLevel="Level1" />
+                        Text="Start a drawing, open one, or let the Project Wizard set one up. Projects are chosen in the O-Studio launcher; O-Draft opens on the one it locked."
+                        TextWrapping="WrapWholeWords"
+                        FontSize="{StaticResource FontSizeBody}"
+                        Foreground="{ThemeResource TextPrimaryBrush}" />
                     <TextBlock
-                        Text="Architectural drafting with O-Studio and O-CoreOp"
-                        FontSize="{StaticResource FontSizeSection}"
-                        Foreground="{ThemeResource TextSecondaryBrush}"
-                        HorizontalAlignment="Center"
-                        TextWrapping="Wrap"
-                        TextAlignment="Center" />
+                        Text="Developed by Human Centric Works"
+                        FontSize="{StaticResource FontSizeCaption}"
+                        Foreground="{ThemeResource TextSecondaryBrush}" />
                     <StackPanel Spacing="{StaticResource SpaceSm}" HorizontalAlignment="Stretch">
                         <Button
                             Content="New drawing"

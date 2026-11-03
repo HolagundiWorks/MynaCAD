@@ -287,27 +287,15 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>A horizontal drawing tab: its name, with an accent underline when active. Right-click opens the tab's menu.</summary>
+    /// <summary>A sheet tab above the drawing: its name; the active tab takes the canvas colour with an accent line on top. Right-click opens the tab's menu.</summary>
     private FrameworkElement MakeTopTab(string name, string tip, bool active, Action activate, Func<MenuFlyout>? menu = null)
     {
-        var accent = Density.ThemeBrush("AccentBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
-        var clear = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-        var tab = new Button
-        {
-            Content = new TextBlock
-            {
-                Text = name,
-                FontSize = Density.FontBody,
-                FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal,
-                VerticalAlignment = VerticalAlignment.Center,
-            },
-            MinHeight = Density.ControlHeight,
-            Padding = new Thickness(Density.SpaceMd, 2, Density.SpaceMd, 2),
-            Background = clear,
-            BorderBrush = active ? accent : clear,
-            BorderThickness = new Thickness(0, 0, 0, 2),
-            CornerRadius = new CornerRadius(0),
-        };
+        var tab = SeamlessTab.Create(
+            new TextBlock { Text = name, FontSize = Density.FontBody, VerticalAlignment = VerticalAlignment.Center },
+            active,
+            TabEdge.Top,
+            SeamlessTab.LabelPadding);
+        tab.MinHeight = Density.ControlHeight;
         AutomationProperties.SetName(tab, (active ? "Current tab: " : "Switch to ") + name);
         ToolTipService.SetToolTip(tab, tip + (menu != null ? "  (right-click for more)" : ""));
         tab.Click += (_, _) => activate();

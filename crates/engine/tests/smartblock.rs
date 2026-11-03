@@ -29,6 +29,8 @@ fn insert_reuses_blocks_and_edit_repoints_the_reference() {
     let mut s = metric();
     let a = s.execute("smartblock.insert", &json!({ "id": "rcc.column.rect", "at": [1000, 2000] })).unwrap();
     let b = s.execute("smartblock.insert", &json!({ "id": "rcc.column.rect", "at": [5000, 2000] })).unwrap();
+    // The new reference is selected, so Properties lists its parameters.
+    assert_eq!(s.selection().iter().map(|h| h.hex()).collect::<Vec<_>>(), vec![b["handle"].as_str().unwrap().to_string()]);
     assert_eq!(a["block"], b["block"], "same parameters share one block");
     let h = a["handle"].as_str().unwrap().to_string();
     let (name, x, y, scale, layer) = reference(&s, &h);
@@ -169,10 +171,13 @@ fn hostile_params_never_panic() {
     }
     // Edits of something that is not a smart block, or with bad values, are refused too.
     let l = s.execute("line", &json!({ "points": [[0, 0], [10, 0]] })).unwrap();
-    assert!(s.execute("smartblock.edit", &json!({ "handle": l["handle"], "params": {} })).is_err());
+    // Whatever the line command reports, this is the handle of the one object that is not a smart block.
+    let lh = l["handles"][0].as_str().unwrap_or_default().to_string();
+    assert!(!lh.is_empty(), "the line reports its handle: {l}");
+    assert!(s.execute("smartblock.edit", &json!({ "handle": lh, "params": {} })).is_err());
     let r = s.execute("smartblock.insert", &json!({ "id": "rcc.column.rect", "at": [0, 0] })).unwrap();
     assert!(s.execute("smartblock.edit", &json!({ "handle": r["handle"], "params": { "width": -5 } })).is_err());
-    assert!(s.execute("smartblock.get", &json!({ "handle": l["handle"] })).is_err());
+    assert!(s.execute("smartblock.get", &json!({ "handle": lh })).is_err());
 }
 
 /// (parameter grips, all grips) of reference `h`.
@@ -259,7 +264,7 @@ fn the_properties_rows_show_and_set_parameters() {
     assert_eq!(row("sb:width")["label"], "Width (mm)");
     assert_eq!(row("sb:bar")["value"], "16");
     assert!(row("sb:bar")["choices"].as_array().unwrap().iter().any(|c| c == "20"));
-    assert_eq!(fields[0]["label"], "Smart block");
+    assert_eq!(fields[0]["label"], "Parametric block");
 
     s.execute("properties.set", &json!({ "handles": [h], "sb:width": 300, "sb:bar": "20" })).unwrap();
     let got = s.execute("smartblock.get", &json!({ "handle": h })).unwrap();

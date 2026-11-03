@@ -30,8 +30,8 @@ the control channel, MCP and the agent reach the same code. Programmatic calls n
   `units` parameter): scale 1 in a millimetre drawing, 0.001 in a metre drawing, times `scale`.
 - The reference goes on the definition's layer (created with its colour and lineweight when
   missing) unless `layer` is given. Block contents are on layer 0, so they follow the reference.
-- Menus: Insert > Smart Block > Insert... opens a form (block, parameters as text, rotation, then
-  the insertion point); Insert > Smart Block > List; Modify > Object > Smart Block... asks
+- Menus: parametric and ordinary blocks share one place. Insert > Block... opens the Blocks window (below);
+  there is no separate Smart Block menu. Modify > Object > Block Parameters... asks
   for the parameters (text) and runs `smartblock.edit` on the selection. Aliases: `sbinsert`, `smartblock`, `sblist`, `sbedit`.
 - `properties.set` takes smart block parameters as `sb:<name>` keys (`{"handles": [...], "sb:width": 300,
   "sb:bar": "20"}`) and edits them like `smartblock.edit`.
@@ -53,14 +53,14 @@ the control channel, MCP and the agent reach the same code. Programmatic calls n
 
 ### Windows app
 
-- Blocks panel: a **Smart blocks...** button opens the Smart Blocks window, and a **Discipline
-  blocks** section lists the five DXF sets below as collapsed groups; thumbnails are made when a
-  group is first opened. Clicking a thumbnail starts `insert.place` with that file, as for the
-  furniture set.
-- Smart Blocks window (Insert > Smart Block > Insert..., or the button): filter by discipline,
-  pick a block, fill in its parameters (lists for choices, numbers with the range as a tooltip) and
-  a rotation; **Insert** starts the `smartblock.insert` form with these values and the insertion
-  point is picked on the drawing.
+- Blocks panel: one **Block library** with a **Blocks...** button and a collapsed group per discipline
+  (RCC, structural, plumbing, HVAC, electrical, interior). Each group holds the parametric blocks and the
+  ready-made DXF symbols; thumbnails are made when a group is first opened. Clicking a parametric
+  thumbnail places it with its default parameters; a symbol starts `insert.place` with that file, as for the furniture set.
+- Blocks window (Insert > Block..., or the button): one window of thumbnails, grouped, for this drawing's
+  blocks and the parametric library; filter by drawing or discipline. Click a block and pick its insertion
+  point on the drawing. A parametric block goes in with its default parameters and is left selected; its
+  parameters are entered in the Properties panel (or by its grips), not in the window.
 
 Examples (control channel or `aad-cli run --cmd`):
 

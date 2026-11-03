@@ -17,6 +17,9 @@ internal enum TabEdge
 
     /// <summary>Right of the side panel's edge, against the open panel (panel titles).</summary>
     Right,
+
+    /// <summary>Above the drawing (sheet tabs).</summary>
+    Top,
 }
 
 /// <summary>
@@ -86,6 +89,10 @@ internal static class SeamlessTab
             case TabEdge.Left:
                 button.BorderThickness = new Thickness(Density.SpaceXs, 0, 0, 0);
                 button.CornerRadius = new CornerRadius(Density.Space1, 0, 0, Density.Space1);
+                break;
+            case TabEdge.Top:
+                button.BorderThickness = new Thickness(0, Density.SpaceXs, 0, 0);
+                button.CornerRadius = new CornerRadius(Density.Space1, Density.Space1, 0, 0);
                 break;
             default:
                 button.BorderThickness = new Thickness(0, 0, Density.SpaceXs, 0);
