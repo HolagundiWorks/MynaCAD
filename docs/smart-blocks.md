@@ -81,6 +81,15 @@ Cover by exposure (Table 16): mild 20 mm, moderate 30, severe 45, very severe 50
 defaults of every block comply at the default exposure (mild). The plan of a footing carries no
 reinforcement and is not checked. The rules are in `crates/engine/src/is456.rs`, each with a test.
 
+### Detailing style
+
+The RCC blocks are drawn as the structural drawings in use draw them: bars coloured by diameter, ties with 135 degree hooks and cross-ties, dimensions
+in feet and inches (or millimetres with `ftin` = 0), leaders with the bar notation of a schedule (`4Y20 + 6Y16`, `Ties-Y8@6"`, `Y10@5"`), PCC and boulder
+soling under a footing with the development length Ld of the column bars (IS 456 cl. 26.2.1 and Table 5), the pedestal offset and the ground level.
+`rcc.beam.elevation` draws a beam along its span with continuous and extra bars, their curtailment lengths, and the stirrup zones (`5 nos @ 6"`, `@ 7"`);
+`rcc.stirrup.detail` the stirrup and its hook; `rcc.footing.combined` and `rcc.raft.lift` the plans of a combined footing and a lift raft. A column can have
+corner bars of one diameter and the others of another (`bar`, `bar2`). The switches `label` (leaders and notes), `dims` and `ftin` are parameters of each.
+
 ### In O-CoreOp
 
 O-CoreOp draws the RCC blocks too, read only. When O-Draft saves a drawing into a project file (`.osp`) it records every RCC block in the model, with the
@@ -127,7 +136,7 @@ the id of a built-in one takes its place in that drawing.
 
 | Discipline | Ids |
 |---|---|
-| RCC (`S-RCC`) | `rcc.column.rect`, `rcc.column.circular`, `rcc.beam.section`, `rcc.footing.plan`, `rcc.footing.section`, `rcc.lintel.section`, `rcc.slab.section` |
+| RCC (`S-RCC`) | `rcc.column.rect`, `rcc.column.circular`, `rcc.beam.section`, `rcc.beam.elevation`, `rcc.stirrup.detail`, `rcc.footing.plan`, `rcc.footing.section`, `rcc.footing.combined`, `rcc.raft.lift`, `rcc.lintel.section`, `rcc.slab.section` |
 | Structural steel (`S-STEEL`) | `struct.ibeam`, `struct.channel`, `struct.angle`, `struct.hollow.rect`, `struct.baseplate` |
 | Plumbing (`P-FIXT`, `P-PIPE`) | `plumb.wc.european`, `plumb.wc.indian`, `plumb.basin`, `plumb.sink.kitchen`, `plumb.shower`, `plumb.floor.trap`, `plumb.chamber`, `plumb.tank.round`, `plumb.riser` |
 | HVAC (`M-HVAC`) | `hvac.duct.rect`, `hvac.diffuser.square`, `hvac.grille`, `hvac.split.indoor`, `hvac.split.outdoor`, `hvac.fan.exhaust` |
@@ -194,6 +203,12 @@ Unknown keys are refused.
 | `text` | `{at, height, value, align?: "l" \| "c", rotation?}`; `{name}` in `value` is replaced by a parameter's value (a choice's label) or a derived value |
 | `hatch` | `{pts, pattern, scale?}` with a standard pattern name or `SOLID` |
 | `ring` | `{c, r, count, dot}` dots evenly on a circle |
+| `dim` | `{from: [x, y], to: [x, y], off, height, text?}` a dimension along x or y (the longer way between the points): dimension line `off` away (above or to the right when positive), extension lines, ticks and the length as text, orange. Without `text` the length is written in feet and inches (`1'-6"`, to the half inch) when the block's `ftin` parameter is above zero, else in millimetres |
+| `leader` | `{from, to, height, text}` a line from `from` to `to`, a short landing and the text after it (before it when it runs left), orange |
+
+Any item can take `"color": n` (an AutoCAD colour index) to be drawn in that colour instead of the reference's; the RCC blocks use red for main bars,
+magenta and blue for bars of other diameters, green and cyan for ties and cross-ties. In text, `{name:len}` writes a derived value or parameter as a
+length in the unit chosen by `ftin`.
 | `repeat` | `{var, count, items}`; `var` counts from 0 |
 
 Limits (larger input is refused, never truncated): 64 KB per inline definition, 48 parameters,

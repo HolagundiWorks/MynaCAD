@@ -136,33 +136,62 @@ fn column_rect(v: &BTreeMap<String, f64>, r: &mut Report) {
     let (b, d, cover) = (get(v, "width"), get(v, "depth"), get(v, "cover"));
     let (nx, ny) = (get(v, "nx"), get(v, "ny"));
     let (bar, tie, tiesp) = (get(v, "bar"), get(v, "tie"), get(v, "tiesp"));
+    // The four corner bars are `bar`; the others are `bar2` (the same size when it is not given).
+    let bar2 = if get(v, "bar2") > 0.0 { get(v, "bar2") } else { bar };
+    let (largest, smallest) = (bar.max(bar2), bar.min(bar2));
     let nbars = 2.0 * nx + 2.0 * (ny - 2.0);
-    let ast = nbars * bar_area(bar);
+    let ast = 4.0 * bar_area(bar) + (nbars - 4.0).max(0.0) * bar_area(bar2);
     let ag = b * d;
     let pct = if ag > 0.0 { ast / ag * 100.0 } else { 0.0 };
-    r.line("Longitudinal bars", format!("{}-{} dia, Ast {} mm² ({} % of the section)", n(nbars), n(bar), n(ast.round()), n(pct)));
+    r.line(
+        "Longitudinal bars",
+        if bar2 == bar {
+            format!("{}-{} dia, Ast {} mm² ({} % of the section)", n(nbars), n(bar), n(ast.round()), n(pct))
+        } else {
+            format!(
+                "4-{} dia at the corners and {}-{} dia, Ast {} mm² ({} % of the section)",
+                n(bar),
+                n(nbars - 4.0),
+                n(bar2),
+                n(ast.round()),
+                n(pct)
+            )
+        },
+    );
     r.line("Steel limits", "0.8 % to 6 % of the gross section".to_string());
     if pct < 0.8 {
         r.issue("26.5.3.1(a)", format!("Steel is {} %, below the 0.8 % minimum; add bars or a larger diameter", n(pct)));
     } else if pct > 6.0 {
         r.issue("26.5.3.1(a)", format!("Steel is {} %, above the 6 % maximum", n(pct)));
     }
-    if bar < 12.0 {
-        r.issue("26.5.3.1(c)", format!("Longitudinal bars are {} mm; the minimum is 12 mm", n(bar)));
+    if smallest < 12.0 {
+        r.issue("26.5.3.1(c)", format!("Longitudinal bars are {} mm; the minimum is 12 mm", n(smallest)));
     }
     if nbars < 4.0 {
         r.issue("26.5.3.1(b)", "A rectangular column needs at least 4 longitudinal bars".to_string());
     }
-    cover_check(r, cover, exposure_cover(get(v, "exposure")).max(40.0).max(bar), get(v, "exposure"), "(40 mm or the bar diameter, and the exposure)");
-    let tie_min = (bar / 4.0).max(6.0);
+    cover_check(
+        r,
+        cover,
+        exposure_cover(get(v, "exposure")).max(40.0).max(largest),
+        get(v, "exposure"),
+        "(40 mm or the bar diameter, and the exposure)",
+    );
+    let tie_min = (largest / 4.0).max(6.0);
     r.line(
         "Ties",
-        format!("{} dia at {} mm c/c (minimum dia {}; maximum spacing {})", n(tie), n(tiesp), n(tie_min), n(b.min(d).min(16.0 * bar).min(300.0))),
+        format!(
+            "{} dia at {} mm c/c (minimum dia {}; maximum spacing {})",
+            n(tie),
+            n(tiesp),
+            n(tie_min),
+            n(b.min(d).min(16.0 * smallest).min(300.0))
+        ),
     );
     if tie + 1e-9 < tie_min {
         r.issue("26.5.3.2(c)(2)", format!("Ties are {} mm; the minimum is a quarter of the largest bar or 6 mm, {} mm", n(tie), n(tie_min)));
     }
-    let tie_max = b.min(d).min(16.0 * bar).min(300.0);
+    let tie_max = b.min(d).min(16.0 * smallest).min(300.0);
     if tiesp > tie_max + 1e-9 {
         r.issue(
             "26.5.3.2(c)(1)",
@@ -172,8 +201,8 @@ fn column_rect(v: &BTreeMap<String, f64>, r: &mut Report) {
     let inner = cover + tie;
     let centres_x = if nx > 1.0 { (b - 2.0 * inner - bar) / (nx - 1.0) } else { 0.0 };
     let centres_y = if ny > 1.0 { (d - 2.0 * inner - bar) / (ny - 1.0) } else { 0.0 };
-    gap_check(r, "the bars on the width face", clear_gap(b - 2.0 * inner, nx, bar), bar);
-    gap_check(r, "the bars on the depth face", clear_gap(d - 2.0 * inner, ny, bar), bar);
+    gap_check(r, "the bars on the width face", clear_gap(b - 2.0 * inner, nx, largest), largest);
+    gap_check(r, "the bars on the depth face", clear_gap(d - 2.0 * inner, ny, largest), largest);
     if centres_x.max(centres_y) > 300.0 + 1e-9 {
         r.issue("26.5.3.1(h)", format!("Bars are {} mm apart along a face; the maximum is 300 mm centre to centre", n(centres_x.max(centres_y))));
     }

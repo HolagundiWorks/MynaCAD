@@ -73,8 +73,12 @@ pub(crate) const IDS: &[&str] = &[
     "rcc.column.rect",
     "rcc.column.circular",
     "rcc.beam.section",
+    "rcc.beam.elevation",
+    "rcc.stirrup.detail",
     "rcc.footing.plan",
     "rcc.footing.section",
+    "rcc.footing.combined",
+    "rcc.raft.lift",
     "rcc.lintel.section",
     "rcc.slab.section",
     "struct.ibeam",
@@ -291,6 +295,9 @@ struct Item {
     layer: Option<String>,
     #[serde(default)]
     linetype: Option<String>,
+    /// An AutoCAD colour index for this item (bars by diameter, ties, dimensions); otherwise the reference's colour.
+    #[serde(default)]
+    color: Option<i16>,
     #[serde(flatten)]
     shape: Shape,
 }
@@ -316,6 +323,32 @@ enum Shape {
     /// Dots evenly on a circle (bars of a circular column).
     Ring(RingDef),
     Repeat(RepeatDef),
+    /// A dimension along the x or y axis, with extension lines, ticks and its text (orange by default).
+    Dim(DimDef),
+    /// A leader: a line from a point to a landing, with text after it.
+    Leader(LeaderDef),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DimDef {
+    from: [Num; 2],
+    to: [Num; 2],
+    /// How far the dimension line is from the measured points: above (x axis) or to the right (y axis) when positive.
+    off: Num,
+    height: Num,
+    /// The text; the measured length (in the unit chosen by the `ftin` parameter) when left out.
+    #[serde(default)]
+    text: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LeaderDef {
+    from: [Num; 2],
+    to: [Num; 2],
+    height: Num,
+    text: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -593,8 +626,11 @@ fn fmt_num(v: f64) -> String {
 struct Ctx<'a> {
     def: &'a Def,
     vars: BTreeMap<String, f64>,
-    out: Vec<(Option<String>, Option<String>, EntityKind)>,
+    out: Vec<Made>,
 }
+
+/// One object a definition makes: its layer, linetype and colour index when given, and the object.
+type Made = (Option<String>, Option<String>, Option<i16>, EntityKind);
 
 impl Ctx<'_> {
     fn num(&self, n: &Num) -> Result<f64> {
@@ -611,8 +647,23 @@ impl Ctx<'_> {
         if self.out.len() >= MAX_OBJECTS {
             return Err(err(format!("`{}` makes more than {MAX_OBJECTS} objects", self.def.id)));
         }
-        self.out.push((it.layer.clone(), it.linetype.clone(), k));
+        self.out.push((it.layer.clone(), it.linetype.clone(), it.color, k));
         Ok(())
+    }
+    /// As `push`, with `color` when the item names none.
+    fn push_or(&mut self, it: &Item, color: i16, k: EntityKind) -> Result<()> {
+        if self.out.len() >= MAX_OBJECTS {
+            return Err(err(format!("`{}` makes more than {MAX_OBJECTS} objects", self.def.id)));
+        }
+        self.out.push((it.layer.clone(), it.linetype.clone(), it.color.or(Some(color)), k));
+        Ok(())
+    }
+    /// Whether lengths are shown in feet and inches (the `ftin` parameter above zero) rather than millimetres.
+    fn ftin(&self) -> bool {
+        self.vars.get("ftin").is_some_and(|v| *v > 0.0)
+    }
+    fn length(&self, mm: f64) -> String {
+        if self.ftin() { fmt_ftin(mm) } else { fmt_num(mm) }
     }
     fn text(&self, t: &str) -> String {
         let mut s = String::new();
@@ -623,7 +674,11 @@ impl Ctx<'_> {
             match after.find('}') {
                 Some(j) => {
                     let name = &after[..j];
-                    s.push_str(&self.label(name).unwrap_or_else(|| format!("{{{name}}}")));
+                    let shown = match name.strip_suffix(":len") {
+                        Some(n) => self.vars.get(n).map(|v| self.length(*v)),
+                        None => self.label(name),
+                    };
+                    s.push_str(&shown.unwrap_or_else(|| format!("{{{name}}}")));
                     rest = &after[j + 1..];
                 }
                 None => {
@@ -761,6 +816,8 @@ impl Ctx<'_> {
                 }
                 Ok(())
             }
+            Shape::Dim(d) => self.dim(it, d),
+            Shape::Leader(l) => self.leader(it, l),
             Shape::Repeat(r) => {
                 let n = self.count(&r.count)?;
                 let saved = self.vars.insert(r.var.clone(), 0.0);
@@ -779,6 +836,61 @@ impl Ctx<'_> {
         }
     }
 
+    fn dim(&mut self, it: &Item, d: &DimDef) -> Result<()> {
+        const COLOR: i16 = 30;
+        let (a, b, off, h) = (self.pt(&d.from)?, self.pt(&d.to)?, self.num(&d.off)?, self.num(&d.height)?);
+        if h <= 0.0 {
+            return Err(err(format!("`{}`: dimension text height must be positive", self.def.id)));
+        }
+        let horizontal = (b.x - a.x).abs() >= (b.y - a.y).abs();
+        let len = if horizontal { (b.x - a.x).abs() } else { (b.y - a.y).abs() };
+        if len < 1e-6 {
+            return Ok(());
+        }
+        // `m` runs along the dimension and `n` across it; the dimension line is at `off` across.
+        let at = |m: f64, n: f64| if horizontal { Vec2::new(m, n) } else { Vec2::new(n, m) };
+        let (m0, m1) = if horizontal { (a.x, b.x) } else { (a.y, b.y) };
+        let (n0, n1) = if horizontal { (a.y, b.y) } else { (a.x, b.x) };
+        let side = if off < 0.0 { -1.0 } else { 1.0 };
+        let line_n = n0 + off;
+        self.push_or(it, COLOR, line(at(m0, line_n), at(m1, line_n)))?;
+        for (m, n) in [(m0, n0), (m1, n1)] {
+            self.push_or(it, COLOR, line(at(m, n + side * h * 0.3), at(m, line_n + side * h * 0.5)))?;
+            let t = h * 0.45;
+            self.push_or(it, COLOR, line(at(m - t, line_n - t), at(m + t, line_n + t)))?;
+        }
+        let value = match &d.text {
+            Some(t) => self.text(t),
+            None => self.length(len),
+        };
+        let mid = (m0 + m1) / 2.0;
+        let k = if horizontal {
+            // Above the line when the dimension is above, below it otherwise.
+            let (y, v) = if side > 0.0 { (line_n + h * 0.35, VAlign::Baseline) } else { (line_n - h * 0.35, VAlign::Top) };
+            text_kind(Vec2::new(mid, y), &value, h, 0.0, (HAlign::Center, v))
+        } else {
+            // Turned to read from the right, on the side of the line away from the measured points.
+            let v = if side > 0.0 { VAlign::Top } else { VAlign::Bottom };
+            text_kind(Vec2::new(line_n + side * h * 0.35, mid), &value, h, std::f64::consts::FRAC_PI_2, (HAlign::Center, v))
+        };
+        self.push_or(it, COLOR, k)
+    }
+
+    fn leader(&mut self, it: &Item, l: &LeaderDef) -> Result<()> {
+        const COLOR: i16 = 30;
+        let (a, b, h) = (self.pt(&l.from)?, self.pt(&l.to)?, self.num(&l.height)?);
+        if h <= 0.0 {
+            return Err(err(format!("`{}`: leader text height must be positive", self.def.id)));
+        }
+        let side = if b.x < a.x { -1.0 } else { 1.0 };
+        let land = Vec2::new(b.x + side * h * 1.5, b.y);
+        self.push_or(it, COLOR, lwpoly([a, b, land].into_iter().map(PolyVertex::new).collect(), false))?;
+        let value = self.text(&l.text);
+        let j = if side < 0.0 { (HAlign::Right, VAlign::Baseline) } else { (HAlign::Left, VAlign::Baseline) };
+        let k = text_kind(Vec2::new(land.x + side * h * 0.3, land.y - h * 0.35), &value, h, 0.0, j);
+        self.push_or(it, COLOR, k)
+    }
+
     fn count(&self, n: &Num) -> Result<usize> {
         let c = self.num(n)?.round();
         if !(0.0..=MAX_REPEAT).contains(&c) {
@@ -786,6 +898,15 @@ impl Ctx<'_> {
         }
         Ok(c as usize)
     }
+}
+
+/// A length in feet and inches to the nearest half inch: `1'-6"`, `9"`, `1.5"`.
+fn fmt_ftin(mm: f64) -> String {
+    let inches = (mm / 25.4 * 2.0).round() / 2.0;
+    let feet = (inches / 12.0).floor();
+    let rest = inches - feet * 12.0;
+    let r = fmt_num(rest);
+    if feet >= 1.0 { format!("{}'-{r}\"", fmt_num(feet)) } else { format!("{r}\"") }
 }
 
 fn text_kind(at: Vec2, value: &str, height: f64, rotation: f64, j: (HAlign, VAlign)) -> EntityKind {
@@ -829,10 +950,13 @@ pub(super) fn default_entities(d: &aad_doc::Drawing, id: &str) -> Result<Vec<Ent
     let objs = evaluate(&found.def, &vals)?;
     Ok(objs
         .into_iter()
-        .map(|(layer, _, kind)| {
+        .map(|(layer, _, color, kind)| {
             let mut e = Entity::new(aad_doc::Handle(0), kind);
             if let Some(l) = layer {
                 e.common.layer = l;
+            }
+            if let Some(c) = color {
+                e.common.color = aad_color::Color::from_aci(c);
             }
             e
         })
@@ -840,7 +964,7 @@ pub(super) fn default_entities(d: &aad_doc::Drawing, id: &str) -> Result<Vec<Ent
 }
 
 /// Evaluate `d` with parameter values `vals` into objects (millimetres, about the origin).
-fn evaluate(d: &Def, vals: &BTreeMap<String, f64>) -> Result<Vec<(Option<String>, Option<String>, EntityKind)>> {
+fn evaluate(d: &Def, vals: &BTreeMap<String, f64>) -> Result<Vec<Made>> {
     let mut cx = context(d, vals)?;
     cx.items(&d.items)?;
     if cx.out.is_empty() {
@@ -871,11 +995,14 @@ fn build(s: &mut Session, d: &Def, vals: &BTreeMap<String, f64>, stored: Option<
     let doc = s.doc_mut()?;
     let mut b = Block::new(&name);
     b.description = json!({ TAG: 1, "id": d.id, "params": params_json(vals) }).to_string();
-    for (layer, lt, mut kind) in objs {
+    for (layer, lt, color, mut kind) in objs {
         if let EntityKind::Text(t) = &mut kind {
             t.style = style.clone();
         }
         let mut e = Entity::new(doc.new_handle(), kind);
+        if let Some(c) = color {
+            e.common.color = aad_color::Color::from_aci(c);
+        }
         if let Some(l) = layer {
             if !valid_layer(&l) {
                 return Err(err(format!("`{}`: layer `{l}` is not a valid name", d.id)));
@@ -922,10 +1049,10 @@ fn smart_ref(s: &Session, h: aad_doc::Handle) -> Result<Option<(String, String, 
 /// The O-CoreOp element page a reinforced concrete block is the detail of, if it is one.
 fn detail_kind(id: &str) -> Option<&'static str> {
     Some(match id {
-        "rcc.beam.section" => "beams",
+        "rcc.beam.section" | "rcc.beam.elevation" => "beams",
         "rcc.column.rect" | "rcc.column.circular" => "columns",
         "rcc.slab.section" => "slabs",
-        "rcc.footing.section" => "footings",
+        "rcc.footing.section" | "rcc.footing.combined" | "rcc.raft.lift" => "footings",
         "rcc.lintel.section" => "lintels",
         _ => return None,
     })
@@ -1387,7 +1514,7 @@ mod tests {
         .unwrap();
         let vals = resolve("t", &d, &Map::new(), &Map::new()).unwrap();
         let out = evaluate(&d, &vals).unwrap();
-        let EntityKind::Text(t) = &out[0].2 else { panic!() };
+        let EntityKind::Text(t) = &out[0].3 else { panic!() };
         assert_eq!(t.value, "230 Two {zz}");
     }
 }

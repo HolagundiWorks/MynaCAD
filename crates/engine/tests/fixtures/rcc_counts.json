@@ -2,9 +2,9 @@
   {
     "counts": {
       "dot": 6,
-      "hatch": 1,
-      "poly": 2,
-      "text": 2
+      "line": 13,
+      "poly": 4,
+      "text": 5
     },
     "id": "rcc.column.rect",
     "params": ""
@@ -12,11 +12,22 @@
   {
     "counts": {
       "dot": 10,
-      "poly": 2,
-      "text": 2
+      "line": 15,
+      "poly": 4,
+      "text": 5
     },
     "id": "rcc.column.rect",
     "params": "nx=3, ny=4, bar=20, hatch=0"
+  },
+  {
+    "counts": {
+      "dot": 10,
+      "line": 15,
+      "poly": 4,
+      "text": 5
+    },
+    "id": "rcc.column.rect",
+    "params": "nx=4, ny=3, bar=20, bar2=16, ftin=0"
   },
   {
     "counts": {
@@ -38,9 +49,9 @@
   {
     "counts": {
       "dot": 5,
-      "hatch": 1,
-      "poly": 2,
-      "text": 2
+      "line": 12,
+      "poly": 5,
+      "text": 6
     },
     "id": "rcc.beam.section",
     "params": ""
@@ -48,18 +59,48 @@
   {
     "counts": {
       "dot": 8,
-      "poly": 4,
-      "text": 2
+      "line": 12,
+      "poly": 7,
+      "text": 6
     },
     "id": "rcc.beam.section",
     "params": "ntop=3, nbot=5, slab=150, hatch=0"
   },
   {
     "counts": {
-      "hatch": 1,
-      "line": 4,
+      "dot": 2,
+      "line": 47,
+      "poly": 8,
+      "text": 11
+    },
+    "id": "rcc.beam.elevation",
+    "params": ""
+  },
+  {
+    "counts": {
+      "dot": 2,
+      "line": 44,
       "poly": 4,
-      "text": 1
+      "text": 6
+    },
+    "id": "rcc.beam.elevation",
+    "params": "span=6000, nxtop=0, nxbot=0, endn=3, dims=0"
+  },
+  {
+    "counts": {
+      "line": 12,
+      "poly": 2,
+      "text": 4
+    },
+    "id": "rcc.stirrup.detail",
+    "params": ""
+  },
+  {
+    "counts": {
+      "hatch": 1,
+      "line": 15,
+      "poly": 10,
+      "text": 7
     },
     "id": "rcc.footing.plan",
     "params": ""
@@ -67,8 +108,9 @@
   {
     "counts": {
       "hatch": 1,
-      "poly": 2,
-      "text": 1
+      "line": 15,
+      "poly": 9,
+      "text": 7
     },
     "id": "rcc.footing.plan",
     "params": "sloped=0, pcc=0"
@@ -76,21 +118,48 @@
   {
     "counts": {
       "dot": 10,
-      "hatch": 1,
-      "line": 2,
-      "poly": 6,
-      "text": 1
+      "hatch": 2,
+      "line": 29,
+      "poly": 16,
+      "text": 11
     },
     "id": "rcc.footing.section",
     "params": ""
   },
   {
     "counts": {
+      "line": 19,
+      "poly": 12,
+      "text": 7
+    },
+    "id": "rcc.footing.combined",
+    "params": ""
+  },
+  {
+    "counts": {
+      "line": 4,
+      "poly": 11,
+      "text": 4
+    },
+    "id": "rcc.footing.combined",
+    "params": "pcc=0, dims=0, ftin=0"
+  },
+  {
+    "counts": {
+      "line": 28,
+      "poly": 14,
+      "text": 8
+    },
+    "id": "rcc.raft.lift",
+    "params": ""
+  },
+  {
+    "counts": {
       "dot": 23,
-      "hatch": 1,
-      "line": 2,
-      "poly": 6,
-      "text": 1
+      "hatch": 2,
+      "line": 29,
+      "poly": 16,
+      "text": 11
     },
     "id": "rcc.footing.section",
     "params": "sloped=0, length=2400, spacing=100"
