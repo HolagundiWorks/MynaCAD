@@ -8,8 +8,7 @@ O-Draft has two block libraries for services and structure:
 | Discipline DXF blocks | `assets/blocks/<discipline>/` | 79 static CC0 symbols and details (plumbing, HVAC, electrical, structural / RCC, interior) |
 
 Smart blocks use O-Draft's parametric format (`osas-smartblocks` v1): one definition, many sizes
-and variants, with an open, documented format and engine commands. DWG and DXF files may carry
-dynamic-block metadata from other programs; O-Draft opens that geometry as static blocks only.
+and variants, with an open, documented format and engine commands.
 
 ## Commands
 

@@ -141,6 +141,37 @@ fn install_io() {
     aad_engine::cmd::file::set_raster_reader(|bytes| {
         aad_io::raster::read_gray(bytes).map(|g| aad_engine::cmd::file::Raster { width: g.width, height: g.height, gray: g.gray })
     });
+    aad_engine::cmd::file::set_container(aad_engine::cmd::file::ContainerHooks { read: read_project_drawing, write: write_project_drawing });
+}
+
+/// The drawing inside a project file (`.osp`): its bytes and its name, which says whether it is DWG or DXF.
+fn read_project_drawing(path: &str) -> Result<(Vec<u8>, String), String> {
+    let odp = aad_odp::Odp::open(std::path::Path::new(path)).map_err(|e| format!("{path}: {e}"))?;
+    let name = odp
+        .drawing_names()
+        .map_err(|e| format!("{path}: {e}"))?
+        .into_iter()
+        .next()
+        .ok_or_else(|| format!("{path} holds no drawing yet"))?;
+    let drawing = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.ok_or_else(|| format!("{path}: the drawing {name} is missing"))?;
+    Ok((drawing.bytes, drawing.name))
+}
+
+/// Write the drawing into a project file, in the format of the drawing already in it, as one revision and not at all when the bytes are unchanged.
+fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_hint: Option<&str>) -> Result<usize, String> {
+    let p = std::path::Path::new(path);
+    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("Project").to_string();
+    let mut odp = if p.exists() { aad_odp::Odp::open(p) } else { aad_odp::Odp::create(p, &stem) }.map_err(|e| format!("{path}: {e}"))?;
+    let name = odp.drawing_names().map_err(|e| format!("{path}: {e}"))?.into_iter().next().unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
+    let bytes = aad_io::write(drawing, &name).map_err(|e| e.to_string())?;
+    let same = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.is_some_and(|d| d.sha256 == aad_odp::sha256_hex(&bytes));
+    if !same {
+        let ext = std::path::Path::new(&name).extension().and_then(|e| e.to_str()).unwrap_or("dxf").to_string();
+        let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
+        edit.put_drawing(&name, &ext, &bytes).map_err(|e| format!("{path}: {e}"))?;
+        edit.commit().map_err(|e| format!("{path}: {e}"))?;
+    }
+    Ok(bytes.len())
 }
 
 fn open(s: &mut Session, path: &str) -> Result<(), String> {
@@ -189,9 +220,17 @@ fn export(s: &Session, out: &str) -> Result<(), String> {
 fn export_framed(s: &Session, out: &str, window: Option<Bounds2>) -> Result<(), String> {
     let d = s.doc().map_err(|e| e.to_string())?;
     let bytes = aad_io::write_framed(d, out, window).map_err(|e| e.to_string())?;
-    std::fs::write(out, &bytes).map_err(|e| format!("{out}: {e}"))?;
+    if aad_io::is_image(out) {
+        std::fs::write(out, &bytes).map_err(|e| format!("{out}: {e}"))?;
+    } else {
+        // Like a save in the app: the file being replaced is kept once as `<out>.bak`.
+        aad_engine::cmd::file::store(out, &bytes).map_err(|e| e.to_string())?;
+    }
     eprintln!("wrote {out} ({} bytes)", bytes.len());
     if !aad_io::is_image(out) {
+        if let Err(e) = aad_engine::revision::record(out, &bytes, d.entity_count()) {
+            eprintln!("Drawing revision not recorded: {e}");
+        }
         let lost = aad_engine::cmd::file::not_saved(d);
         if let Some(m) = aad_engine::cmd::file::not_saved_message(&lost) {
             eprintln!("{m}");
