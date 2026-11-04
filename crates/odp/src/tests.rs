@@ -226,7 +226,7 @@ fn details_are_replaced_as_a_set_and_an_unchanged_set_is_no_revision() {
 
     let mut e = odp.edit().unwrap();
     e.replace_details("plan.dxf", &[b.clone(), a.clone()]).unwrap();
-    e.replace_details("other.dxf", &[other.clone()]).unwrap();
+    e.replace_details("other.dxf", std::slice::from_ref(&other)).unwrap();
     assert_eq!(e.commit().unwrap(), 1);
     assert_eq!(odp.details().unwrap(), vec![other.clone(), a.clone(), b.clone()], "listed by id");
 
@@ -238,7 +238,7 @@ fn details_are_replaced_as_a_set_and_an_unchanged_set_is_no_revision() {
     // One changed, one gone: only that drawing's rows change, the other drawing keeps its own.
     let a2 = detail("plan.dxf", "1A", "beams", 250.0);
     let mut e = odp.edit().unwrap();
-    e.replace_details("plan.dxf", &[a2.clone()]).unwrap();
+    e.replace_details("plan.dxf", std::slice::from_ref(&a2)).unwrap();
     assert_eq!(e.commit().unwrap(), 2);
     assert_eq!(odp.details().unwrap(), vec![other, a2]);
     let log: Vec<(String, String)> = odp.changes_since(1).unwrap().into_iter().map(|(_, t, k, op)| (format!("{t}:{k}"), op)).collect();
