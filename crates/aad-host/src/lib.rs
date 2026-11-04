@@ -2388,7 +2388,7 @@ impl Host {
         if self.hwnd == 0 {
             return Err("no drawing window".into());
         }
-        window::move_to(self.hwnd, x, y, width, height)?;
+        window::move_to(self.hwnd, x, y, width, height, self.canvas_visible)?;
         self.apply_size(width, height);
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.resize(self.width, self.height)?;
@@ -3045,7 +3045,8 @@ mod tests {
             v["library"].as_array().unwrap().iter().map(|b| b["id"].as_str().unwrap().to_string()).collect()
         };
         let design = library(&host);
-        assert!(design.len() > 30, "design lists every smart block: {}", design.len());
+        assert!(design.len() > 25, "design lists every smart block: {}", design.len());
+        assert!(design.iter().all(|id| !id.starts_with("rcc.")), "the RCC blocks are toolbar tools, not library entries: {design:?}");
         host.execute("sheetset.standard", &json!({})).unwrap();
         host.execute("sheetset.activate", &json!({ "set": "Electrical" })).unwrap();
         let electrical = library(&host);

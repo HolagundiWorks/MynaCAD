@@ -131,7 +131,7 @@ Saving: O-Draft writes the drawing back into the `.osp` only when its bytes chan
 | Suite architecture and integration map | O-Studio `docs/suite-architecture.md`, `docs/suite-hub.md` |
 | Suite hub and wire | O-Studio `docs/suite-hub.md`, `Office.Shared/SuiteWire.cs` |
 | Company file ABI | O-Studio `docs/office-abi.md` |
-| O-Draft UI, commands, performance | O-Draft `docs/UI_UX.md`, `docs/PERFORMANCE.md`, `docs/PERFORMANCE-AUDIT-2026-10-30.md` |
+| O-Draft UI, commands, performance | O-Draft `docs/UI_UX.md`, `docs/PERFORMANCE.md` |
 | O-CoreOp shell, model, take-off | O-CoreOp `docs/WINUI-SHELL.md`, `docs/LOCAL-MODEL.md`, `docs/PROJECT-FILE.md` |
 | O-Studio assistant and Neon sync | O-Studio `docs/AI_RUNTIME.md`, `docs/CLOUD-NEON.md`, `docs/ODP-PROJECT-FILE-AND-SYNC.md` |
 | Shared WinUI chrome | O-UI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |

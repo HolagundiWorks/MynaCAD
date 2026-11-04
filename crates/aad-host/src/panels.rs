@@ -145,8 +145,10 @@ pub fn panels_json(session: &Session, hover: Option<Handle>) -> String {
         "blocks": blocks,
         "blocksTruncated": blocks_truncated,
         // Smart blocks that can be inserted: the active tab's own ones in a sheet view, all in design.
+        // The reinforced concrete blocks are tools on the Architecture bar (Architecture > RCC Structure), not entries of the library.
         "library": aad_engine::cmd::smartblock::library_entries(doc, scope)
             .iter()
+            .filter(|b| b["discipline"] != "rcc")
             .take(200)
             .map(|b| json!({ "id": b["id"], "title": b["title"], "discipline": b["discipline"], "layer": b["layer"], "description": b["description"] }))
             .collect::<Vec<_>>(),

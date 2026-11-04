@@ -4942,7 +4942,7 @@ public sealed partial class MainWindow : Window
     private void AddBlockLibrary(PanelSnapshot snapshot)
     {
         BlocksPanel.Children.Add(Heading("Block library"));
-        BlocksPanel.Children.Add(FieldLabel("RCC, steel, plumbing, HVAC, electrical and interior blocks: parametric ones (edit a placed one in Properties or by its grips) and ready-made symbols (CC0, millimetres). Click a thumbnail to insert."));
+        BlocksPanel.Children.Add(FieldLabel("Steel, plumbing, HVAC, electrical and interior blocks (the RCC members are tools on the Architecture bar): parametric ones (edit a placed one in Properties or by its grips) and ready-made symbols (CC0, millimetres). Click a thumbnail to insert."));
         var open = new Button { Content = "Blocks...", MinHeight = Density.ControlHeight };
         Density.Name(open, "Open blocks");
         ToolTipService.SetToolTip(open, "Pick a block from this drawing or the library, set its parameters and insert it");
@@ -4950,7 +4950,7 @@ public sealed partial class MainWindow : Window
         BlocksPanel.Children.Add(open);
 
         var symbols = FurnitureCatalog.LoadDisciplines();
-        var order = new List<string> { "rcc", "structural", "plumbing", "hvac", "electrical", "interior" };
+        var order = new List<string> { "structural", "plumbing", "hvac", "electrical", "interior" };
         order.AddRange(snapshot.Library.Select(l => l.Discipline.ToLowerInvariant()).Where(d => d.Length > 0 && !order.Contains(d)).Distinct());
         foreach (var id in order)
         {

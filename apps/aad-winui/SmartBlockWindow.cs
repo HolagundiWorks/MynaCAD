@@ -12,7 +12,7 @@ namespace Aad.WinUi;
 /// afterwards, with the new block selected (<c>smartblock.list</c>, <c>blocks.list</c>, <c>smartblock.insert</c>, <c>insert.place</c>).</summary>
 internal static class SmartBlockWindow
 {
-    private static readonly string[] Disciplines = { "All", "drawing", "rcc", "structural", "plumbing", "hvac", "electrical", "interior" };
+    private static readonly string[] Disciplines = { "All", "drawing", "structural", "plumbing", "hvac", "electrical", "interior" };
     private const int Columns = 3;
 
     private sealed record Spec(string Id, string Title, string Discipline, string Description, bool Drawing);
@@ -191,7 +191,6 @@ internal static class SmartBlockWindow
 
     private static string Title(string discipline) => discipline switch
     {
-        "rcc" => "RCC",
         "hvac" => "HVAC",
         "All" => "All blocks",
         "drawing" => "This drawing",

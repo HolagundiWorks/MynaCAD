@@ -132,7 +132,8 @@ fn covered(hwnd: HWND) -> bool {
     false
 }
 
-pub fn move_to(hwnd: isize, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
+/// Move and size the drawing window. It is shown only when `show` is set, so a page drawn over it (the welcome screen) is not covered by a move.
+pub fn move_to(hwnd: isize, x: i32, y: i32, width: u32, height: u32, show: bool) -> Result<(), String> {
     let hwnd = hwnd as HWND;
     let ok = unsafe {
         SetWindowPos(
@@ -142,7 +143,7 @@ pub fn move_to(hwnd: isize, x: i32, y: i32, width: u32, height: u32) -> Result<(
             y,
             i32::try_from(width).unwrap_or(i32::MAX),
             i32::try_from(height).unwrap_or(i32::MAX),
-            SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            SWP_NOACTIVATE | if show { SWP_SHOWWINDOW } else { 0 },
         )
     };
     if ok == 0 {

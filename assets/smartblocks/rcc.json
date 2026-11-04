@@ -359,7 +359,6 @@
     {
       "id": "rcc.beam.elevation",
       "title": "RCC beam longitudinal section (top and bottom bars with curtailment, stirrup zones, dimensions)",
-      "discipline": "structural",
       "description": "A beam along its span between two supports: continuous and extra bars, stirrups by zone, curtailment lengths and bar callouts, checked to IS 456:2000.",
       "layer": "S-RCC",
       "color": 1,
@@ -547,7 +546,6 @@
     {
       "id": "rcc.stirrup.detail",
       "title": "Typical stirrup (shape with 135 degree hooks and dimensions)",
-      "discipline": "structural",
       "description": "A closed stirrup of a beam or tie of a column: its shape, the 135 degree hook (at least 6 bar diameters or 75 mm) and the sizes.",
       "layer": "S-RCC",
       "color": 1,
@@ -860,7 +858,6 @@
     {
       "id": "rcc.footing.combined",
       "title": "RCC combined footing (plan with two columns, top and bottom bars, dimensions)",
-      "discipline": "structural",
       "description": "A combined footing under two columns: the plan with the columns offset from the edge, bars along and across, their notation and the sizes.",
       "layer": "S-RCC",
       "color": 1,
@@ -952,7 +949,6 @@
     {
       "id": "rcc.raft.lift",
       "title": "Lift raft (plan with the corner columns, tie beams, mesh and dimensions)",
-      "discipline": "structural",
       "description": "A raft under a lift shaft: the raft, its PCC, the four corner columns joined by tie beams, the mesh in both directions and the sizes.",
       "layer": "S-RCC",
       "color": 1,

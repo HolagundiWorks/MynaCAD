@@ -101,7 +101,7 @@ Footings and Lintels pages of O-CoreOp list those details, draw the chosen one, 
 ### Windows app
 
 - Blocks panel: one **Block library** with a **Blocks...** button and a collapsed group per discipline
-  (RCC, structural, plumbing, HVAC, electrical, interior). Each group holds the parametric blocks and the
+  (structural steel, plumbing, HVAC, electrical, interior). The RCC blocks are not listed: they are tools on the Architecture bar (below). Each group holds the parametric blocks and the
   ready-made DXF symbols; thumbnails are made when a group is first opened. Clicking a parametric
   thumbnail places it with its default parameters; a symbol starts `insert.place` with that file, as for the furniture set.
 - Blocks window (Insert > Block..., or the button): one window of thumbnails, grouped, for this drawing's
