@@ -1871,7 +1871,9 @@ public sealed partial class MainWindow : Window
     private void PublishActiveProject(string? drawing) => ActiveProjectPointer.Set(drawing);
 
     private string? ActiveDrawingPath(DocTab? active) =>
-        active is not null && _docPaths.TryGetValue(active.Title, out var path) && System.IO.File.Exists(path) ? path : null;
+        active is null ? null
+        : !string.IsNullOrEmpty(active.Path) && System.IO.File.Exists(active.Path) ? active.Path
+        : _docPaths.TryGetValue(active.Title, out var path) && System.IO.File.Exists(path) ? path : null;
 
     private async Task<bool> PickFileCore(string id)
     {
@@ -4627,7 +4629,7 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            // AutoCAD Blocks palette: medium thumbnails with title (click = select, double-click = insert).
+            // Blocks palette: medium thumbnails with title (click = select, double-click = insert).
             var ordered = snapshot.Blocks
                 .OrderByDescending(b => b.Focus || b.Selected || b.Hovered || string.Equals(b.Name, _selectedBlock, StringComparison.OrdinalIgnoreCase))
                 .ThenBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
@@ -4895,7 +4897,7 @@ public sealed partial class MainWindow : Window
         return card;
     }
 
-    /// <summary>AutoCAD DesignCenter-style tile: quiet chrome, light-blue selection, hover wash.</summary>
+    /// <summary>DesignCenter-style tile: quiet chrome, light-blue selection, hover wash.</summary>
     private Border DesignCenterCard(bool selected, string a11yName, string tip)
     {
         var idle = Density.ThemeBrush("CardBackgroundFillColorDefaultBrush")
@@ -6805,6 +6807,8 @@ public sealed partial class MainWindow : Window
     {
         public int Index { get; set; }
         public string Title { get; set; } = "";
+        /// <summary>The saved file behind the drawing, as the engine knows it (also set for files opened by the control channel).</summary>
+        public string? Path { get; set; }
         public bool Dirty { get; set; }
         public bool Active { get; set; }
     }

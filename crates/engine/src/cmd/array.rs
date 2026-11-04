@@ -177,8 +177,11 @@ fn run_array(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn run_arrayrect(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
-    let rows = p.get("rows").and_then(Value::as_u64).unwrap_or(3).max(1);
-    let cols = p.get("cols").and_then(Value::as_u64).unwrap_or(4).max(1);
+    let rows = p.get("rows").and_then(Value::as_u64).unwrap_or(3);
+    let cols = p.get("cols").and_then(Value::as_u64).unwrap_or(4);
+    if rows == 0 || cols == 0 {
+        return Err(bad("arrayrect", "`rows` and `cols` must be at least 1"));
+    }
     check_size(s, rows.saturating_mul(cols), hs.len())?;
     let rs = f64_or(p, "rowSpacing", 1.0);
     let cs = f64_or(p, "colSpacing", 1.0);
@@ -189,7 +192,10 @@ fn run_arrayrect(s: &mut Session, p: &Value) -> Result<Value> {
 fn run_arraypolar(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
     let c = point_req("arraypolar", p, "center")?;
-    let n = p.get("count").and_then(Value::as_u64).unwrap_or(6).max(1);
+    let n = p.get("count").and_then(Value::as_u64).unwrap_or(6);
+    if n == 0 {
+        return Err(bad("arraypolar", "`count` must be at least 1"));
+    }
     check_size(s, n, hs.len())?;
     let fill = f64_or(p, "angle", 360.0);
     let rotate = bool_or(p, "rotate", true);

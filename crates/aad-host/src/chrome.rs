@@ -259,6 +259,7 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
             serde_json::json!({
                 "index": index,
                 "title": doc.title,
+                "path": doc.path,
                 "dirty": doc.is_dirty(),
                 "active": index == session.active,
             })

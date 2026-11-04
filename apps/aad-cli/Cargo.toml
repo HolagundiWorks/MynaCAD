@@ -19,11 +19,9 @@ aad-auditor = { workspace = true }
 serde_json = { workspace = true }
 aad-agent = { workspace = true }
 aad-llm = { workspace = true }
+aad-odp = { workspace = true }
 
 [features]
 # The local language model runtime (llama.cpp). Off by default: building it needs CMake, a C++
 # toolchain and LLVM's libclang (see docs/BUILD_AND_DEVELOPMENT.md).
 assistant = ["aad-llm/llama"]
-
-[dev-dependencies]
-aad-odp = { workspace = true }

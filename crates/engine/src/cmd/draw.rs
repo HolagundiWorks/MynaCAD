@@ -95,6 +95,9 @@ fn run_line(s: &mut Session, p: &Value) -> Result<Value> {
     if pts.len() < 2 {
         return Err(bad("line", "need at least 2 points"));
     }
+    if pts.iter().any(|q| q.x.abs() >= 1e12 || q.y.abs() >= 1e12) {
+        return Err(bad("line", "`points` must be within 1e12 units of the origin"));
+    }
     // A repeated point would make a zero-length line.
     let pts = distinct_points(&pts);
     if pts.len() < 2 {

@@ -25,7 +25,14 @@ pub fn export_window(d: &Drawing, space: &Space, window: Option<Bounds2>) -> Str
 pub fn export_layers(d: &Drawing, space: &Space, window: Option<Bounds2>, layers: bool) -> String {
     let list = aad_render::build(d, space, &aad_render::Options::default());
     let window = window.filter(|w| !w.is_empty());
-    let b = window.unwrap_or(list.bounds);
+    // A corrupted coordinate far outside any drawing would stretch the view and print hundreds of digits per point: fit to what is within range.
+    let in_range = |q: &aad_geom::Vec2| q.x.abs() < 1e12 && q.y.abs() < 1e12;
+    let fitted = if in_range(&list.bounds.min) && in_range(&list.bounds.max) {
+        list.bounds
+    } else {
+        Bounds2::from_points(list.prims.iter().flat_map(|p| list.points(p).iter().copied()).filter(|q| in_range(q)))
+    };
+    let b = window.unwrap_or(fitted);
     let (w, h) = if b.is_empty() { (1.0, 1.0) } else { (b.width().max(1e-9), b.height().max(1e-9)) };
     let m = if window.is_some() { 0.0 } else { (w.max(h)) * 0.02 };
     let (x0, y1) = if b.is_empty() { (0.0, 1.0) } else { (b.min.x - m, b.max.y + m) };
@@ -49,6 +56,10 @@ pub fn export_layers(d: &Drawing, space: &Space, window: Option<Bounds2>, layers
         let s = &mut bodies[g];
         let c = p.display_rgb(white).hex();
         let pts = list.points(p);
+        // A corrupted coordinate far outside any drawing would print hundreds of digits for every point of the shape.
+        if pts.iter().any(|q| !(q.x.abs() < 1e12 && q.y.abs() < 1e12)) {
+            continue;
+        }
         match p.kind {
             Kind::Polyline => {
                 let _ = write!(

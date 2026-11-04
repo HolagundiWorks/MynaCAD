@@ -1314,7 +1314,7 @@ fn ltype_pattern(tags: &[Tag], styles: &HashMap<String, String>) -> Vec<DashElem
 pub fn read(bytes: &[u8]) -> Result<Drawing> {
     let tags = aad_dxf::parse(bytes).map_err(|e| IoError::Format(e.to_string()))?;
     let secs = sections(&tags);
-    if secs.is_empty() {
+    if secs.iter().all(|s| s.name.is_empty()) {
         return Err(IoError::Format("no sections found".into()));
     }
     let mut d = Drawing::new_imperial();
