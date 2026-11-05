@@ -29,6 +29,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/package.ps
 5. Optional SBOM (any host): `cargo xtask sbom --out dist/release/o-draft-<version>.cdx.json`
    (CycloneDX JSON from `cargo metadata`; no secrets). The release workflow attaches this artifact.
 
+## Suite install (O-Suite)
+
+For practice machines that run the whole O-Studio family, ship the **portable zip** output of
+`package.ps1` into O-Studio’s `installer/suite/build-single.ps1` (not the per-machine MSI).
+End users normally run **`O-Suite-Setup-<version>.exe`** (O-Studio repo): install or remove
+O-Studio, O-CoreOp, and O-Draft from one wizard. See O-Studio `installer/suite/README.md` and
+[docs/SUITE.md](SUITE.md).
+
 Output: `dist/release/o-draft-<version>-windows-x64.msi` and `...-portable.zip`, or with `-Assistant`
 `o-draft-ai-<version>-windows-x64.msi` (and matching portable zip).
 

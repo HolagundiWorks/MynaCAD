@@ -1,6 +1,6 @@
 # O-Studio suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the O-Studio repository, `docs/SUITE.md`. Each app repository carries an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called, what their toolbars hold and how they connect. If you change one, change all four. Updated 2026-10-31.
+**Canonical copy:** the O-Studio repository, `docs/SUITE.md`. Each app repository carries an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called, what their toolbars hold and how they connect. If you change one, change all four. Updated 2026-11-04.
 
 ## 1. Names
 
@@ -14,7 +14,7 @@ The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI)
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
 | **O-Form**, **O-Dynamo** | Planned, not built | O-Form: Deep Sea Green `#075056` | `O-Form`, `O-Dynamo` | |
 
-**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). O-Studio starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (O-Studio), `aad-office::wire` (O-Draft).
+**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). O-Studio starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`, `OSTUDIO_PROJECT_NAME`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (O-Studio), `aad-office::wire` (O-Draft).
 
 Other names:
 
@@ -100,7 +100,7 @@ Details: `docs/WINUI-SHELL.md`.
 
 | Region | Contents |
 |---|---|
-| Sign-in / company | New or open company file (`.osas`); sign in once; remember path in `suite.json`; admin password and **Users** |
+| Sign-in / company | New or open company file (`.osas`) **in the launcher**; sign in once; remember path in `suite.json`; admin password and **Users** (in O-Studio) |
 | Left pane | Practice (Pulse, Clients, Projects, enquiries, site records, permits, proposals, meetings); Documents (letters, templates); Billing (invoices, receipts, reconciliation); Books (expenses, income, salaries, assets, journals); Reports and tax; Office (firm profile, staff, leave, attendance, library, security, backup); **Suite** (dashboard, **Cloud sync**, approvals) |
 | Shortcuts | Ctrl+N new record, Ctrl+S save, Ctrl+P print, Ctrl+F search, Ctrl+K go to page |
 | Bottom shell | Same status row and Ask pill as O-Draft and O-CoreOp (`O.Ui`); **launch O-CoreOp, O-Draft, O-Form** from the status row |
@@ -113,7 +113,7 @@ Details: `docs/WINUI-SHELL.md`.
 | O-Studio -> apps | Starts the app with `OSTUDIO_COMPANY` + one-time `OSTUDIO_TICKET` (and Olmo client env when applicable) | on launch |
 | Company -> apps | `office.dll` (C ABI from `office-ffi`), read by the app | on open |
 | O-Draft -> O-CoreOp | Both open the **same `.osp`**. O-Draft's `takeoff.record` writes headers/rows/annotated PDF in one revision; O-CoreOp polls `meta.revision` every 2 s and notifies | about 2 s, no server |
-| Launcher -> apps (which project) | The launcher locks one project (`selected-project.json`) and starts O-CoreOp and O-Draft with `OSTUDIO_PROJECT_ID` + `OSTUDIO_PROJECT_OSP`; an app started alone, or a double-clicked `.osp`, asks the launcher (`O-Studio.Launcher.exe --launch <app>` / `--open <file>`), which signs in, locks the project and starts the app | on launch |
+| Launcher -> apps (which project) | The launcher locks one project (`selected-project.json`) and starts O-CoreOp and O-Draft with `OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`, and `OSTUDIO_PROJECT_NAME`; an app started alone, or a double-clicked `.osp`, asks the launcher (`O-Studio.Launcher.exe --launch <app>` / `--open <file>`), which signs in, locks the project and starts the app | on launch |
 | O-Draft -> O-CoreOp (which file) | Active-project pointer (kept for one release; the lock decides now): `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
 | Two programs, one file | SQLite WAL, immediate write transactions, 5 s busy timeout: writers take turns, every commit is exactly one revision, readers never block (tested with 4 writers x 40 commits) | immediate |
 | Machine -> machine | O-Studio syncs `.osp` with **Neon** by revision (connector MVP; see `docs/CLOUD-NEON.md`); a viewer on tablet/phone reads what O-Studio pushed and sends markups back | Postgres revision + Object Storage |
@@ -131,12 +131,12 @@ Saving: O-Draft writes the drawing back into the `.osp` only when its bytes chan
 | Suite architecture and integration map | O-Studio `docs/suite-architecture.md`, `docs/suite-hub.md` |
 | Suite hub and wire | O-Studio `docs/suite-hub.md`, `Office.Shared/SuiteWire.cs` |
 | Company file ABI | O-Studio `docs/office-abi.md` |
-| O-Draft UI, commands, performance | O-Draft `docs/UI_UX.md`, `docs/PERFORMANCE.md` |
+| O-Draft UI, commands, performance | O-Draft `docs/UI_UX.md`, `docs/PERFORMANCE.md`, `docs/PERFORMANCE-AUDIT-2026-10-30.md` |
 | O-CoreOp shell, model, take-off | O-CoreOp `docs/WINUI-SHELL.md`, `docs/LOCAL-MODEL.md`, `docs/PROJECT-FILE.md` |
 | O-Studio assistant and Neon sync | O-Studio `docs/AI_RUNTIME.md`, `docs/CLOUD-NEON.md`, `docs/ODP-PROJECT-FILE-AND-SYNC.md` |
 | Shared WinUI chrome | O-UI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |
 | ShilpiDB → `.osp` migration (historical) | Each app repo `docs/MIGRATION-OSP.md` — do not use **ShilpiDB** in new user text |
-| Installers | O-Studio `installer/suite/README.md`; O-CoreOp `docs/PACKAGING.md`, `docs/SUITE-PACKAGING.md` |
+| Installers | **Unified:** O-Studio `installer/suite/README.md` (`O-Suite-Setup-<version>.exe`, install and remove modes). Per-app: O-Studio `docs/packaging.md`, O-CoreOp `docs/PACKAGING.md`, O-Draft `docs/RELEASE_AND_PACKAGING.md` |
 | Testing | O-Studio `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
 | Brand (palette, the mark, the AI agent orb, type) | O-Studio `docs/BRANDING.md`; artwork and colour files in `o-ui` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
 
@@ -151,3 +151,7 @@ Saving: O-Draft writes the drawing back into the `.osp` only when its bytes chan
 - New project data goes in the `.osp` schema with a change-log row, not a sidecar file.
 - Apps do not call each other; they meet in the `.osp`, the company file, the active-project pointer, or the AI Core on loopback.
 - Cloud keys, Neon credentials, and the Olmo host process live only in the **launcher** and **O-Studio**; O-CoreOp and O-Draft hold none.
+
+## AI agent privacy
+
+The AI agent (Olmo 3 7B) runs on this computer and is hosted by the launcher. The launcher's Ask page has a **Privacy** panel whose choices are saved in `%LOCALAPPDATA%\O-Studio\ai-privacy.json` (`Osas.Core.Suite.AiPrivacy`): tell it which project is loaded (default off), remember the conversation while the window is open (default off), allow attaching files with the + button (default on), and Clear this conversation. Not done yet: a switch to stop the agent altogether, per-app permissions for O-Draft and O-CoreOp, and the same panel in those apps' prompt bars.
