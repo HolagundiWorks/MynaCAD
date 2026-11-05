@@ -165,12 +165,16 @@ fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_
         .unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
     let bytes = aad_io::write(drawing, &name).map_err(|e| e.to_string())?;
     let same = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.is_some_and(|d| d.sha256 == aad_odp::sha256_hex(&bytes));
+    // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for O-CoreOp to draw read only.
+    let details = aad_engine::structural_details(drawing, &name);
+    let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
     if !same {
         let ext = std::path::Path::new(&name).extension().and_then(|e| e.to_str()).unwrap_or("dxf").to_string();
-        let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
         edit.put_drawing(&name, &ext, &bytes).map_err(|e| format!("{path}: {e}"))?;
-        edit.commit().map_err(|e| format!("{path}: {e}"))?;
     }
+    edit.replace_details(&name, &details).map_err(|e| format!("{path}: {e}"))?;
+    // Nothing changed: no revision.
+    edit.commit().map_err(|e| format!("{path}: {e}"))?;
     Ok(bytes.len())
 }
 
@@ -214,6 +218,13 @@ fn info(path: &str) -> Result<(), String> {
 }
 
 fn export(s: &Session, out: &str) -> Result<(), String> {
+    // A project file (`.osp`) takes the drawing as a revision, with its structural details, as a save from the app does.
+    if out.to_ascii_lowercase().ends_with(".osp") {
+        let d = s.doc().map_err(|e| e.to_string())?;
+        let n = write_project_drawing(out, d, Some("dxf"))?;
+        eprintln!("wrote {out} ({n} bytes)");
+        return Ok(());
+    }
     export_framed(s, out, None)
 }
 

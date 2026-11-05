@@ -50,3 +50,29 @@ fn saving_over_a_file_keeps_the_first_version_as_bak() {
     }
     assert!(bak.is_file(), "no .bak beside {}", out.display());
 }
+
+/// `--save` to a project file puts the drawing in it as a revision, with the structural details O-CoreOp draws; the file opens again.
+#[test]
+fn saving_into_a_project_file_records_the_drawing_and_its_structural_details() {
+    let osp = temp("details.osp");
+    let _ = std::fs::remove_file(&osp);
+    let o = cli(&[
+        "run",
+        "--metric",
+        "--cmd",
+        r#"smartblock.insert {"id":"rcc.column.rect","at":[0,0]}"#,
+        "--cmd",
+        r#"smartblock.insert {"id":"rcc.beam.section","at":[2000,0]}"#,
+        "--save",
+        osp.to_str().unwrap(),
+    ]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let odp = aad_odp::Odp::open(&osp).unwrap();
+    assert_eq!(odp.drawing_names().unwrap().len(), 1);
+    let kinds: Vec<String> = odp.details().unwrap().into_iter().map(|d| d.kind).collect();
+    assert_eq!(kinds.len(), 2, "{kinds:?}");
+    assert!(kinds.contains(&"columns".to_string()) && kinds.contains(&"beams".to_string()));
+    let o = cli(&["info", osp.to_str().unwrap()]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    assert!(String::from_utf8_lossy(&o.stdout).contains("entityCount"));
+}
