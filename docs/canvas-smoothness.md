@@ -34,7 +34,7 @@ Every frame goes through one shared path (WinUI host and optional egui shell). T
 
 | Question | Decision |
 | --- | --- |
-| Lineweight look | **Screen pixels** in model space (AutoCAD-style; not zoom-scaled). True paper scale is a Phase 2 layout mode. |
+| Lineweight look | **Screen pixels** in model space (compact CAD look; not zoom-scaled). True paper scale is a Phase 2 layout mode. |
 | Vsync default | **On** (`AutoVsync`). Opt out with `AAD_VSYNC=0`. Smoothness wins over one frame of cursor lag. |
 | Vello | Prototype only after Phase 1–2, if custom shaders still fall short on sheets. Env flag: `AAD_CANVAS=vello` (L5 `aad-vello` / `vello_cpu` PNG path for control `ui.render` only; interactive mesh unchanged). |
 

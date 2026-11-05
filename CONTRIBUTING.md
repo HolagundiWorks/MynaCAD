@@ -7,7 +7,7 @@ welcome under the same terms.
 2. Follow [docs/documentation-policy.md](docs/documentation-policy.md): assess documentation impact, update canonical docs with the code, and use the pull-request checklist there.
 3. Build and test with `cargo xtask ci` (fmt, clippy -D warnings, tests, assets, layering, licences, UI rules, wasm). Disclose any tests you did not run.
 4. New behaviour is a command with tests; update [docs/status.md](docs/status.md) when functionality lands (describe only what exists and is verified).
-5. Do not add Autodesk material (fonts, patterns, icons, templates, help text) or GPL/LGPL/AGPL code.
+5. Do not add proprietary third-party CAD vendor material (fonts, patterns, icons, templates, help text) or GPL/LGPL/AGPL code.
 
 Report bugs and security issues through GitHub issues; for a security issue, open a private advisory.
 
@@ -36,4 +36,4 @@ otherwise, any contribution you submit for inclusion is licensed under the same 
 without additional terms or conditions, as the Apache License 2.0 section 5 describes. Only submit
 work you have the right to license this way: your own, or material under a compatible open licence
 that you record in [ATTRIBUTION.md](ATTRIBUTION.md) or [NOTICE](NOTICE). Never submit code copied
-from GPL, LGPL or AGPL projects, or anything taken from Autodesk software (see CLAUDE.md).
+from GPL, LGPL or AGPL projects, or material taken from closed-source CAD products (see CLAUDE.md).

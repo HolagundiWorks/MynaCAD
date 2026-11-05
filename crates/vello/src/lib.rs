@@ -9,7 +9,7 @@
 //! - The interactive model-space canvas stays on the custom mesh/wgpu presenters; this crate
 //!   does not touch GPU present.
 //! - Implementation uses Linebender [`vello_cpu`] (Apache-2.0 OR MIT), not GPL code and not
-//!   Autodesk assets. Full GPU `vello` remains a possible follow-up if CPU compare wins on sheets.
+//!   proprietary third-party CAD assets. Full GPU `vello` remains a possible follow-up if CPU compare wins on sheets.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 

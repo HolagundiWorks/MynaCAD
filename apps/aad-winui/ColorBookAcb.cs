@@ -7,7 +7,7 @@ internal sealed record ColorBookEntry(string Name, byte R, byte G, byte B, strin
 
 internal sealed record ColorBook(string Name, string SourcePath, IReadOnlyList<ColorBookEntry> Entries);
 
-/// <summary>Loads AutoCAD-style colour book files (<c>.acb</c>, unencrypted <c>RGB8</c>).</summary>
+/// <summary>Loads colour book files (<c>.acb</c>, unencrypted <c>RGB8</c>).</summary>
 internal static class ColorBookCatalog
 {
     private static IReadOnlyList<ColorBook>? _cache;

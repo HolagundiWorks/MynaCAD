@@ -10,7 +10,7 @@ using Microsoft.UI.Xaml.Shapes;
 
 namespace Aad.WinUi;
 
-/// <summary>Format / Modify &gt; Hatch Editor? ? pattern library with AutoCAD-style swatches.</summary>
+/// <summary>Format / Modify &gt; Hatch Editor — pattern library with standard swatches.</summary>
 internal static class HatchWindow
 {
     private const double SwatchDip = Density.HatchSwatch;

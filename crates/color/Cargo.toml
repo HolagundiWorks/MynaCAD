@@ -1,6 +1,6 @@
 [package]
 name = "aad-color"
-description = "AAD colour: AutoCAD Color Index palette, true colour, ByLayer/ByBlock"
+description = "O-Draft colour: ACI (256-index) palette, true colour, ByLayer/ByBlock"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

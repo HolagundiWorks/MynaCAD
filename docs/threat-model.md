@@ -59,7 +59,7 @@ SmartScreen still warns for self-signed builds. Rotate by reissuing Trusted Sign
 - Commit private keys, `.pfx` / `.p12`, Azure client secrets, model/API tokens, or filled `ossign.config.yaml` (use the example file only).
 - Treat loopback-without-auth as remote enterprise AuthZ.
 - Disable hostile-input caps or DWG process isolation for convenience.
-- Link GPL/LGPL/AGPL code or Autodesk assets.
+- Link GPL/LGPL/AGPL code or proprietary third-party CAD assets.
 
 ## Supply chain (current vs follow-up)
 

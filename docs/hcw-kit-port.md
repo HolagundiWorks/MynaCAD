@@ -1,6 +1,6 @@
 # hcwCAD-KIT port
 
-hcwCAD-KIT (MIT, Holgundi Consulting Works) is an AutoCAD plugin in C#. Its tools are rebuilt
+hcwCAD-KIT (MIT, Holgundi Consulting Works) is a legacy C# architectural toolkit. Its tools are rebuilt
 here in Rust as built-in commands (`crates/engine/src/cmd/`), not as an add-on. Each tool is a
 normal command: JSON form, menu entry under **Architecture**, tests. Behaviour reference: the
 kit's README (`/HolagundiWorks/hcwCAD-KIT`). No C# source is included.

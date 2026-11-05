@@ -1,6 +1,6 @@
 namespace Aad.WinUi;
 
-/// <summary>AutoCAD Color Index (ACI) 0..255 RGB table — same algorithm as <c>aad_color</c>.</summary>
+/// <summary>256-index (ACI) colour table — same algorithm as <c>aad_color</c>.</summary>
 internal static class AciPalette
 {
     private static readonly (byte R, byte G, byte B)[] Table = Build();

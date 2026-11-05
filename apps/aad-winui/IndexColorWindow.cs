@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Media;
 namespace Aad.WinUi;
 
 /// <summary>
-/// AutoCAD-style Select Color dialog: Index Color grid (256 ACI), True Color, preview, and optional ByLayer/ByBlock.
+/// <summary>ACI Select Color dialog: Index Color grid (256 ACI), True Color, preview, and optional ByLayer/ByBlock.</summary>
 /// </summary>
 internal static class IndexColorWindow
 {
