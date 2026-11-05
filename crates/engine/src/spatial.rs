@@ -326,6 +326,7 @@ mod tests {
             xref_path: None,
             explodable: true,
             units: 0,
+            building: None,
         };
         blk.entities.push(Entity::new(aad_doc::Handle(1_000_000), EntityKind::Circle(aad_doc::Circle { center: v3(0.0, 0.0), radius: 1.0 })));
         d.blocks.insert("B".into(), Arc::new(blk));

@@ -154,6 +154,7 @@ Generated-in-code assets are original and have no file to list:
 | `assets/smartblocks/plumbing.json` | O-Draft contributors | original parametric block definitions (`osas-smartblocks` v1) | MIT OR Apache-2.0 | built into the engine |
 | `assets/smartblocks/rcc.json` | O-Draft contributors | original parametric block definitions (`osas-smartblocks` v1) | MIT OR Apache-2.0 | built into the engine |
 | `assets/smartblocks/structural.json` | O-Draft contributors | original parametric block definitions (`osas-smartblocks` v1) | MIT OR Apache-2.0 | built into the engine |
+| `assets/specs/indian-index.json` | O-Draft contributors | open Indian / IFC **code index** (ids and short titles only; not BIS/IS/CPWD body text; no DSR rates) | MIT OR Apache-2.0 | built into the engine (`spec.*`) |
 
 ## Interface translations
 

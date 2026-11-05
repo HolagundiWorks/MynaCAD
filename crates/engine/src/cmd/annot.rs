@@ -284,6 +284,7 @@ fn run_lock(s: &mut Session, p: &Value) -> Result<Value> {
                 description: "Annotation placed by hand".into(),
                 selectable: false,
                 members: Vec::new(),
+                child_groups: Vec::new(),
             });
             d.groups.len() - 1
         }

@@ -1611,7 +1611,13 @@ impl Objects {
                 .filter(|m| d.entity(*m).is_some())
                 .take(MAX_OBJECTS)
                 .collect();
-            let g = Group { name: name.clone(), description: t.s(300).unwrap_or_default(), selectable: t.i(71).unwrap_or(1) != 0, members };
+            let g = Group {
+                name: name.clone(),
+                description: t.s(300).unwrap_or_default(),
+                selectable: t.i(71).unwrap_or(1) != 0,
+                members,
+                child_groups: Vec::new(),
+            };
             match d.groups.iter_mut().find(|x| x.name.eq_ignore_ascii_case(name)) {
                 Some(x) => *x = g,
                 None => d.groups.push(g),

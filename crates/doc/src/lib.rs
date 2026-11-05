@@ -6,6 +6,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+mod building;
 mod entity;
 mod extents;
 mod header;
@@ -20,6 +21,7 @@ use std::collections::BTreeMap;
 
 pub use aad_color as color;
 pub use aad_geom as geom;
+pub use building::*;
 pub use entity::*;
 pub use extents::{MAX_BLOCK_DEPTH, entity_bounds};
 pub use header::{HVal, Header};

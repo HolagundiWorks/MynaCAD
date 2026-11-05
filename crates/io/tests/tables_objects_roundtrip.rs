@@ -101,10 +101,10 @@ fn named_views_ucss_and_groups_round_trip() {
     let line = d.add(&Space::Model, Common::default(), EntityKind::Line(Line { a: Vec3::ZERO, b: Vec3::new(10.0, 0.0, 0.0) })).expect("line");
     d.views.push(NamedView { name: "Front".into(), center: Vec2::new(5.0, 5.0), height: 20.0, width: 30.0, layer_state: Some("Plan".into()) });
     d.ucss.push(Ucs { name: "Tilted".into(), origin: Vec3::new(1.0, 2.0, 0.0), x_axis: Vec3::new(0.6, 0.8, 0.0), y_axis: Vec3::new(-0.8, 0.6, 0.0) });
-    d.groups.push(Group { name: "G1".into(), description: "grp".into(), selectable: false, members: vec![line] });
+    d.groups.push(Group { name: "G1".into(), description: "grp".into(), selectable: false, members: vec![line], child_groups: Vec::new() });
     // A member that no longer exists is not written.
     let gone = d.new_handle();
-    d.groups.push(Group { name: "*A1".into(), description: String::new(), selectable: true, members: vec![line, gone] });
+    d.groups.push(Group { name: "*A1".into(), description: String::new(), selectable: true, members: vec![line, gone], child_groups: Vec::new() });
     let r = round_trip(&d);
     assert_eq!(r.views, d.views);
     assert_eq!(r.ucss, d.ucss);

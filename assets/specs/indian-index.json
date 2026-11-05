@@ -1,0 +1,205 @@
+{
+  "format": "osas-indian-spec-index",
+  "version": 1,
+  "disclaimer": "Open code index authored for O-Draft. Not a certified copy of BIS, IS or CPWD text. Titles are short labels only; no standard body text is reproduced. Rates stay in O-CoreOp.",
+  "entries": [
+    {
+      "id": "IS:456",
+      "system": "IS",
+      "code": "456",
+      "title": "Plain and reinforced concrete — code of practice (index)",
+      "applies": ["column", "beam", "slab", "footing"],
+      "ifcTypes": ["IfcColumn", "IfcBeam", "IfcSlab", "IfcFooting"],
+      "cpwdItemHints": [],
+      "fields": { "gradeOptions": ["M20", "M25", "M30", "M35"] },
+      "measurementRule": "hcw-aqc-bridge/1#columns"
+    },
+    {
+      "id": "IS:875",
+      "system": "IS",
+      "code": "875",
+      "title": "Design loads for buildings and structures (index)",
+      "applies": ["wall", "slab", "beam", "column"],
+      "ifcTypes": ["IfcWall", "IfcSlab", "IfcBeam", "IfcColumn"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": null
+    },
+    {
+      "id": "IS:1905",
+      "system": "IS",
+      "code": "1905",
+      "title": "Structural use of unreinforced masonry (index)",
+      "applies": ["wall"],
+      "ifcTypes": ["IfcWall"],
+      "cpwdItemHints": [],
+      "fields": { "thicknessMmOptions": [115, 230] },
+      "measurementRule": "hcw-aqc-bridge/1#walls"
+    },
+    {
+      "id": "IS:2212",
+      "system": "IS",
+      "code": "2212",
+      "title": "Brick works — code of practice (index)",
+      "applies": ["wall"],
+      "ifcTypes": ["IfcWall"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#walls"
+    },
+    {
+      "id": "IS:1003",
+      "system": "IS",
+      "code": "1003",
+      "title": "Timber panelled and glazed shutters (index)",
+      "applies": ["door", "window"],
+      "ifcTypes": ["IfcDoor", "IfcWindow"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#openings"
+    },
+    {
+      "id": "IS:1038",
+      "system": "IS",
+      "code": "1038",
+      "title": "Steel doors, windows and ventilators (index)",
+      "applies": ["door", "window", "grill"],
+      "ifcTypes": ["IfcDoor", "IfcWindow", "IfcDiscreteAccessory"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#openings"
+    },
+    {
+      "id": "CPWD:DSR:masonry",
+      "system": "CPWD",
+      "code": "DSR-masonry",
+      "title": "CPWD DSR — masonry item codes (index labels only)",
+      "applies": ["wall"],
+      "ifcTypes": ["IfcWall"],
+      "cpwdItemHints": ["6.1", "6.2", "6.3"],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#walls"
+    },
+    {
+      "id": "CPWD:DSR:rcc",
+      "system": "CPWD",
+      "code": "DSR-rcc",
+      "title": "CPWD DSR — RCC item codes (index labels only)",
+      "applies": ["column", "beam", "slab", "footing"],
+      "ifcTypes": ["IfcColumn", "IfcBeam", "IfcSlab", "IfcFooting"],
+      "cpwdItemHints": ["5.1", "5.2", "5.3", "5.9"],
+      "fields": {},
+      "measurementRule": null
+    },
+    {
+      "id": "CPWD:DSR:finishing",
+      "system": "CPWD",
+      "code": "DSR-finishing",
+      "title": "CPWD DSR — finishing item codes (index labels only)",
+      "applies": ["plaster", "paint", "flooring"],
+      "ifcTypes": ["IfcCovering"],
+      "cpwdItemHints": ["13.1", "13.2", "14.1", "11.1"],
+      "fields": {},
+      "measurementRule": null
+    },
+    {
+      "id": "CPWD:DSR:woodwork",
+      "system": "CPWD",
+      "code": "DSR-woodwork",
+      "title": "CPWD DSR — wood work / joinery item codes (index labels only)",
+      "applies": ["door", "window", "grill"],
+      "ifcTypes": ["IfcDoor", "IfcWindow", "IfcDiscreteAccessory"],
+      "cpwdItemHints": ["9.1", "9.5", "10.1"],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#openings"
+    },
+    {
+      "id": "IFC:IfcWall",
+      "system": "IFC",
+      "code": "IfcWall",
+      "title": "IFC wall type",
+      "applies": ["wall"],
+      "ifcTypes": ["IfcWall"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#walls"
+    },
+    {
+      "id": "IFC:IfcColumn",
+      "system": "IFC",
+      "code": "IfcColumn",
+      "title": "IFC column type",
+      "applies": ["column"],
+      "ifcTypes": ["IfcColumn"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#columns"
+    },
+    {
+      "id": "IFC:IfcBeam",
+      "system": "IFC",
+      "code": "IfcBeam",
+      "title": "IFC beam type",
+      "applies": ["beam"],
+      "ifcTypes": ["IfcBeam"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": null
+    },
+    {
+      "id": "IFC:IfcSlab",
+      "system": "IFC",
+      "code": "IfcSlab",
+      "title": "IFC slab type",
+      "applies": ["slab"],
+      "ifcTypes": ["IfcSlab"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#slabs"
+    },
+    {
+      "id": "IFC:IfcFooting",
+      "system": "IFC",
+      "code": "IfcFooting",
+      "title": "IFC footing type",
+      "applies": ["footing"],
+      "ifcTypes": ["IfcFooting"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": null
+    },
+    {
+      "id": "IFC:IfcDoor",
+      "system": "IFC",
+      "code": "IfcDoor",
+      "title": "IFC door type",
+      "applies": ["door"],
+      "ifcTypes": ["IfcDoor"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#openings"
+    },
+    {
+      "id": "IFC:IfcWindow",
+      "system": "IFC",
+      "code": "IfcWindow",
+      "title": "IFC window type",
+      "applies": ["window"],
+      "ifcTypes": ["IfcWindow"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": "hcw-aqc-bridge/1#openings"
+    },
+    {
+      "id": "IFC:IfcCovering",
+      "system": "IFC",
+      "code": "IfcCovering",
+      "title": "IFC covering (finish) type",
+      "applies": ["plaster", "paint", "flooring"],
+      "ifcTypes": ["IfcCovering"],
+      "cpwdItemHints": [],
+      "fields": {},
+      "measurementRule": null
+    }
+  ]
+}

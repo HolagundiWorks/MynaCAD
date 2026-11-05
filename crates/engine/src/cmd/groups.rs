@@ -1,9 +1,11 @@
-//! Groups: GROUP, UNGROUP, GROUPEDIT, the group listing, and the post-command pass that drops
-//! members which no longer exist (an erased member leaves its groups; an empty group goes away).
+//! Groups: GROUP, UNGROUP, GROUPEDIT, GROUP.EXPLODE, the group listing, and the post-command
+//! pass that drops members which no longer exist (an erased member leaves its groups; an empty
+//! group goes away).
 //!
 //! A group is a named (or unnamed, `*A1`, `*A2`…) ordered set of objects in the drawing's
-//! `groups`, saved as GROUP objects in the ACAD_GROUP dictionary. The JSON forms never prompt;
-//! typed, the commands ask as command-line versions do.
+//! `groups`, saved as GROUP objects in the ACAD_GROUP dictionary. Nested child groups
+//! (SketchUp-style) live in `child_groups` and round-trip through project key `groupNest`.
+//! The JSON forms never prompt; typed, the commands ask as command-line versions do.
 
 use std::sync::Arc;
 
@@ -16,23 +18,29 @@ use crate::{Accept, Input, Interactive, Prompt, Result, Session, Step};
 
 /// The most groups one drawing holds, and the most names one call lists.
 const MAX_GROUPS: usize = 100_000;
+/// Nesting depth for SketchUp-style child groups (same spirit as `MAX_BLOCK_DEPTH`).
+pub(crate) const MAX_GROUP_DEPTH: usize = 16;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("group", "Group", run_group)
             .menu(&["Tools", "Group"])
             .alias(&["g"])
-            .params("{name? (default: an unnamed group *A1, *A2…), description?, handles? (default the selection), selectable?: bool (default true)} → {name, members}")
+            .params("{name? (default: an unnamed group *A1, *A2…), description?, handles? (default the selection), childGroups?: [names], selectable?: bool (default true)} → {name, members, childGroups}")
             .interactive(|_| Ok(Box::new(GroupM::default()))),
         CommandSpec::new("ungroup", "Ungroup", run_ungroup)
             .menu(&["Tools", "Ungroup"])
             .params("{name?: \"G1\" | \"G1,G2\" | [names]} | {handles?} (default the selection: every group holding one of the objects) → {ungrouped: [names]}")
             .interactive(|_| Ok(Box::new(UngroupM::default()))),
         CommandSpec::new("groupedit", "Group Edit", run_groupedit)
-            .params("{name, add?: [handles], remove?: [handles], rename?: new name} → {name, members}. Removing every member deletes the group.")
+            .params("{name, add?: [handles], remove?: [handles], addGroups?: [names], removeGroups?: [names], rename?: new name} → {name, members, childGroups}. Removing every member and child deletes the group.")
             .interactive(|_| Ok(Box::new(GroupEditM::default()))),
+        CommandSpec::new("group.explode", "Explode Group Nesting", run_explode)
+            .menu(&["Tools", "Explode Group Nesting"])
+            .params("{name} → {name, promotedGroups, members}: one level — child groups become siblings; the parent keeps only entity members")
+            .alias(&["gexplode"]),
         CommandSpec::new("groups.list", "List Groups", run_list)
-            .params("{} → {groups: [{name, description, selectable, unnamed, members: [handles]}]}")
+            .params("{} → {groups: [{name, description, selectable, unnamed, members: [handles], childGroups: [names]}]}")
             .noundo(),
     ]
 }
@@ -68,15 +76,74 @@ fn existing(d: &Drawing, hs: &[Handle]) -> Vec<Handle> {
     hs.iter().copied().filter(|h| d.entity(*h).is_some() && seen.insert(*h)).collect()
 }
 
-/// Make a group of `hs`. `name` None (or empty) makes an unnamed group. Returns its name.
-pub(crate) fn create(s: &mut Session, name: Option<&str>, description: &str, hs: &[Handle], selectable: bool) -> Result<String> {
+/// Nesting depth of `name` walking `child_groups` upward via who lists it as a child.
+fn depth_of(d: &Drawing, name: &str) -> usize {
+    let mut depth = 0usize;
+    let mut cur = name.to_string();
+    let mut seen = std::collections::HashSet::new();
+    while seen.insert(cur.to_ascii_lowercase()) {
+        let parent = d.groups.iter().find(|g| g.child_groups.iter().any(|c| c.eq_ignore_ascii_case(&cur))).map(|g| g.name.clone());
+        match parent {
+            Some(p) => {
+                depth = depth.saturating_add(1);
+                if depth > MAX_GROUP_DEPTH {
+                    return depth;
+                }
+                cur = p;
+            }
+            None => break,
+        }
+    }
+    depth
+}
+
+fn would_cycle(d: &Drawing, parent: &str, child: &str) -> bool {
+    if parent.eq_ignore_ascii_case(child) {
+        return true;
+    }
+    let mut stack = vec![child.to_string()];
+    let mut seen = std::collections::HashSet::new();
+    while let Some(n) = stack.pop() {
+        if !seen.insert(n.to_ascii_lowercase()) {
+            continue;
+        }
+        if n.eq_ignore_ascii_case(parent) {
+            return true;
+        }
+        if let Some(g) = d.groups.iter().find(|g| g.name.eq_ignore_ascii_case(&n)) {
+            stack.extend(g.child_groups.iter().cloned());
+        }
+    }
+    false
+}
+
+/// Make a group of `hs` and optional nested `child_groups`. `name` None makes an unnamed group.
+pub(crate) fn create(
+    s: &mut Session,
+    name: Option<&str>,
+    description: &str,
+    hs: &[Handle],
+    child_groups: &[String],
+    selectable: bool,
+) -> Result<String> {
     let d = s.doc()?;
     let members = existing(d, hs);
-    if members.is_empty() {
-        return Err(bad("group", "no objects to group"));
+    if members.is_empty() && child_groups.is_empty() {
+        return Err(bad("group", "no objects or child groups to group"));
     }
     if d.groups.len() >= MAX_GROUPS {
         return Err(bad("group", "the drawing has too many groups"));
+    }
+    if child_groups.len() > 256 {
+        return Err(bad("group", "too many child groups"));
+    }
+    for c in child_groups {
+        if find(d, c).is_none() {
+            return Err(bad("group", format!("no group named \"{c}\"")));
+        }
+        if depth_of(d, c) + 1 > MAX_GROUP_DEPTH {
+            return Err(bad("group", format!("nesting \"{c}\" would exceed the group depth limit ({MAX_GROUP_DEPTH})")));
+        }
     }
     let name = match name.map(str::trim).filter(|n| !n.is_empty()) {
         Some(n) if !valid_name(n) => return Err(bad("group", format!("\"{n}\" is not a valid group name"))),
@@ -84,7 +151,17 @@ pub(crate) fn create(s: &mut Session, name: Option<&str>, description: &str, hs:
         Some(n) => n.to_string(),
         None => next_unnamed(d),
     };
-    s.doc_mut()?.groups.push(Group { name: name.clone(), description: description.to_string(), selectable, members });
+    for c in child_groups {
+        if would_cycle(d, &name, c) {
+            return Err(bad("group", format!("nesting \"{c}\" under \"{name}\" would cycle")));
+        }
+    }
+    let children: Vec<String> = child_groups
+        .iter()
+        .map(|c| d.groups.iter().find(|g| g.name.eq_ignore_ascii_case(c)).map(|g| g.name.clone()).unwrap_or_else(|| c.clone()))
+        .collect();
+    s.doc_mut()?.groups.push(Group { name: name.clone(), description: description.to_string(), selectable, members, child_groups: children });
+    super::classify::sync_meta(s.doc_mut()?);
     Ok(name)
 }
 
@@ -119,8 +196,7 @@ pub(crate) fn add_members(s: &mut Session, i: usize, hs: &[Handle]) -> Result<us
     Ok(add.len())
 }
 
-/// Remove `hs` from the group at `i`; a group left with no members is deleted. Returns how many
-/// left and whether the group was deleted.
+/// Remove `hs` from the group at `i`; a group left with no members and no child groups is deleted.
 pub(crate) fn remove_members(s: &mut Session, i: usize, hs: &[Handle]) -> Result<(usize, bool)> {
     let g = s.doc()?.groups.get(i).ok_or_else(|| bad("groupedit", "no such group"))?;
     let n = g.members.iter().filter(|h| hs.contains(h)).count();
@@ -131,7 +207,7 @@ pub(crate) fn remove_members(s: &mut Session, i: usize, hs: &[Handle]) -> Result
     let empty = match d.groups.get_mut(i) {
         Some(g) => {
             g.members.retain(|h| !hs.contains(h));
-            g.members.is_empty()
+            g.members.is_empty() && g.child_groups.is_empty()
         }
         None => false,
     };
@@ -201,7 +277,7 @@ pub(crate) fn after_command(s: &mut Session, before: Option<&Arc<Drawing>>) {
         .groups
         .iter()
         .map(|g| Group { members: g.members.iter().copied().filter(|h| d.entity(*h).is_some()).collect(), ..g.clone() })
-        .filter(|g| !g.members.is_empty())
+        .filter(|g| !g.members.is_empty() || !g.child_groups.is_empty())
         .collect();
     Arc::make_mut(&mut st.doc).groups = groups;
 }
@@ -226,11 +302,36 @@ fn handles_at(cmd: &str, p: &Value, key: &str) -> Result<Vec<Handle>> {
     }
 }
 
+fn child_names_at(cmd: &str, p: &Value, key: &str) -> Result<Vec<String>> {
+    match p.get(key) {
+        None | Some(Value::Null) => Ok(Vec::new()),
+        Some(Value::Array(a)) => {
+            if a.len() > 256 {
+                return Err(bad(cmd, format!("`{key}` has too many names")));
+            }
+            a.iter()
+                .map(|v| {
+                    v.as_str()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .ok_or_else(|| bad(cmd, format!("`{key}` must hold group names")))
+                })
+                .collect()
+        }
+        Some(v) => Err(bad(cmd, format!("`{key}` must be an array of group names, got {v}"))),
+    }
+}
+
 fn run_group(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
-    let name = create(s, str_param(p, "name"), str_param(p, "description").unwrap_or_default(), &hs, bool_or(p, "selectable", true))?;
-    let n = s.doc()?.groups.iter().find(|g| g.name == name).map_or(0, |g| g.members.len());
-    Ok(json!({ "name": name, "members": n }))
+    let children = child_names_at("group", p, "childGroups")?;
+    let name = create(s, str_param(p, "name"), str_param(p, "description").unwrap_or_default(), &hs, &children, bool_or(p, "selectable", true))?;
+    let g = s.doc()?.groups.iter().find(|g| g.name == name);
+    Ok(json!({
+        "name": name,
+        "members": g.map_or(0, |g| g.members.len()),
+        "childGroups": g.map(|g| g.child_groups.clone()).unwrap_or_default(),
+    }))
 }
 
 fn run_ungroup(s: &mut Session, p: &Value) -> Result<Value> {
@@ -256,6 +357,13 @@ fn run_ungroup(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("ungroup", "the objects are not in a group"));
     }
     let names = ungroup(s, &idx)?;
+    // Drop nesting pointers that named a removed group.
+    if let Ok(d) = s.doc_mut() {
+        for g in &mut d.groups {
+            g.child_groups.retain(|c| !names.iter().any(|n| n.eq_ignore_ascii_case(c)));
+        }
+        super::classify::sync_meta(d);
+    }
     Ok(json!({ "ungrouped": names }))
 }
 
@@ -264,6 +372,8 @@ fn run_groupedit(s: &mut Session, p: &Value) -> Result<Value> {
     let i = find(s.doc()?, name).ok_or_else(|| bad("groupedit", format!("no group named \"{name}\"")))?;
     let add = handles_at("groupedit", p, "add")?;
     let remove = handles_at("groupedit", p, "remove")?;
+    let add_groups = child_names_at("groupedit", p, "addGroups")?;
+    let remove_groups = child_names_at("groupedit", p, "removeGroups")?;
     if let Some(h) = add.iter().find(|h| s.doc().is_ok_and(|d| d.entity(**h).is_none())) {
         return Err(bad("groupedit", format!("`add`: no object with handle {}", h.hex())));
     }
@@ -275,16 +385,57 @@ fn run_groupedit(s: &mut Session, p: &Value) -> Result<Value> {
             return Err(bad("groupedit", format!("\"{n}\" is not a valid new group name, or a group of that name exists")));
         }
     }
+    {
+        let d = s.doc()?;
+        let parent = &d.groups[i].name;
+        for c in &add_groups {
+            if find(d, c).is_none() {
+                return Err(bad("groupedit", format!("no group named \"{c}\"")));
+            }
+            if would_cycle(d, parent, c) {
+                return Err(bad("groupedit", format!("nesting \"{c}\" under \"{parent}\" would cycle")));
+            }
+            if depth_of(d, c) + 1 > MAX_GROUP_DEPTH {
+                return Err(bad("groupedit", format!("nesting \"{c}\" would exceed the group depth limit ({MAX_GROUP_DEPTH})")));
+            }
+        }
+    }
     add_members(s, i, &add)?;
     let (_, deleted) = remove_members(s, i, &remove)?;
     if deleted {
-        return Ok(json!({ "name": name, "members": 0, "deleted": true }));
+        return Ok(json!({ "name": name, "members": 0, "childGroups": [], "deleted": true }));
+    }
+    if let Some(g) = s.doc_mut()?.groups.get_mut(i) {
+        for c in &add_groups {
+            if !g.child_groups.iter().any(|x| x.eq_ignore_ascii_case(c)) {
+                g.child_groups.push(c.clone());
+            }
+        }
+        g.child_groups.retain(|x| !remove_groups.iter().any(|r| r.eq_ignore_ascii_case(x)));
+        if g.members.is_empty() && g.child_groups.is_empty() {
+            s.doc_mut()?.groups.remove(i);
+            super::classify::sync_meta(s.doc_mut()?);
+            return Ok(json!({ "name": name, "members": 0, "childGroups": [], "deleted": true }));
+        }
     }
     if let Some(n) = new_name {
         rename(s, i, n)?;
     }
+    super::classify::sync_meta(s.doc_mut()?);
     let g = s.doc()?.groups.get(i).ok_or_else(|| bad("groupedit", "no such group"))?;
-    Ok(json!({ "name": g.name, "members": g.members.len() }))
+    Ok(json!({ "name": g.name, "members": g.members.len(), "childGroups": g.child_groups }))
+}
+
+fn run_explode(s: &mut Session, p: &Value) -> Result<Value> {
+    let name = str_param(p, "name").ok_or_else(|| bad("group.explode", "`name` is required"))?;
+    let i = find(s.doc()?, name).ok_or_else(|| bad("group.explode", format!("no group named \"{name}\"")))?;
+    let promoted = {
+        let g = s.doc_mut()?.groups.get_mut(i).ok_or_else(|| bad("group.explode", "no such group"))?;
+        std::mem::take(&mut g.child_groups)
+    };
+    super::classify::sync_meta(s.doc_mut()?);
+    let g = s.doc()?.groups.get(i).ok_or_else(|| bad("group.explode", "no such group"))?;
+    Ok(json!({ "name": g.name, "promotedGroups": promoted, "members": g.members.len() }))
 }
 
 fn run_list(s: &mut Session, _p: &Value) -> Result<Value> {
@@ -294,7 +445,14 @@ fn run_list(s: &mut Session, _p: &Value) -> Result<Value> {
         .iter()
         .map(|g| {
             let members: Vec<String> = g.members.iter().filter(|h| d.entity(**h).is_some()).map(|h| h.hex()).collect();
-            json!({ "name": g.name, "description": g.description, "selectable": g.selectable, "unnamed": g.name.starts_with('*'), "members": members })
+            json!({
+                "name": g.name,
+                "description": g.description,
+                "selectable": g.selectable,
+                "unnamed": g.name.starts_with('*'),
+                "members": members,
+                "childGroups": g.child_groups,
+            })
         })
         .collect();
     Ok(json!({ "groups": groups }))
@@ -330,7 +488,7 @@ struct GroupM {
 
 impl GroupM {
     fn finish(&mut self, s: &mut Session, hs: &[Handle]) -> Result<Step> {
-        match create(s, self.name.as_deref(), &self.description, hs, true) {
+        match create(s, self.name.as_deref(), &self.description, hs, &[], true) {
             Ok(n) if n.starts_with('*') => s.echo(format!("Unnamed group {n} created with {} object(s).", hs.len())),
             Ok(n) => s.echo(format!("Group \"{n}\" created with {} object(s).", hs.len())),
             Err(e) => s.echo(e.to_string()),

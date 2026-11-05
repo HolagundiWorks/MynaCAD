@@ -220,6 +220,9 @@ pub struct Common {
     /// What this object is for quantity take-off. Absent on ordinary geometry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub takeoff: Option<TakeoffMark>,
+    /// Building-element classification (structural / finish / shop). Absent on ordinary geometry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub building: Option<crate::BuildingElement>,
 }
 
 impl Default for Common {
@@ -236,6 +239,7 @@ impl Default for Common {
             extrusion: Vec3::Z,
             plot_style: "ByLayer".into(),
             takeoff: None,
+            building: None,
         }
     }
 }

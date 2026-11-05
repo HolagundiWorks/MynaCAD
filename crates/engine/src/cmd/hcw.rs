@@ -532,7 +532,13 @@ fn make_room(s: &mut Session, p1: Vec2, p2: Vec2, name: &str, prefix: &str, rect
     // Group the rectangle (if any) with its labels so grip edits can refresh size and area.
     let key = handles.first().map(|h| h.hex()).unwrap_or_else(|| "0".into());
     let d = s.doc_mut()?;
-    d.groups.push(Group { name: format!("AAD-ROOM-{key}"), description: ROOM_GROUP_DESC.into(), selectable: true, members: handles.clone() });
+    d.groups.push(Group {
+        name: format!("AAD-ROOM-{key}"),
+        description: ROOM_GROUP_DESC.into(),
+        selectable: true,
+        members: handles.clone(),
+        child_groups: Vec::new(),
+    });
     Ok(RoomLabel { name: full, width: w, height: h, handles, area, unit })
 }
 

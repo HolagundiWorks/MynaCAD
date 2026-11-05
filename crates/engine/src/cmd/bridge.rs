@@ -469,6 +469,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
             row["type"] = json!(text_of(e, "type"));
         }
         super::takeoffphase::stamp_row(d, Some(*handle), &mut row);
+        super::classify::stamp_building_on_row(d, Some(*handle), &mut row);
         items.push(Item { kind: KIND_OPENING, n: number_of(*handle), row: row.clone() });
         opening_rows.push(row);
     }
@@ -493,7 +494,8 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
             let nominal = if half { HALF_BRICK_MM } else { FULL_BRICK_MM };
             let from_mark = it["thicknessMm"].as_f64().filter(|t| t.is_finite() && *t > 0.0);
             let measured = handle.and_then(|h| super::takeoff::thickness_from_faces_mm(d, &space, h, unit_mm));
-            let thickness = from_mark.or(measured).unwrap_or(nominal);
+            // Prefer A-WALL face spacing; otherwise mark / layer nominal.
+            let thickness = measured.or(from_mark).unwrap_or(nominal);
             let wall_type = it["wallType"].as_str().unwrap_or(if half { "internal" } else { "external" });
             let paint = saved(d, "WallPaint").and_then(|t| {
                 t["items"].as_array().and_then(|a| a.iter().find(|p| handle.is_some_and(|h| p["handle"].as_str() == Some(&h.hex()))).cloned())
@@ -503,11 +505,12 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
                 "ref": wall_ref, "level": wall_level, "length_mm": mm(len * lf), "height_mm": mm(ceiling_of(&wall_level)),
                 "thickness_mm": thickness, "layer": layer, "wall_type": wall_type,
             });
-            if from_mark.is_none() && measured.is_none() {
+            if measured.is_none() {
                 nominal_thickness += 1;
                 row["_note"] =
                     json!(format!("thickness {nominal} mm is the nominal value the measure layer implies, not a measured thickness; check it"));
             }
+            super::classify::stamp_building_on_row(d, handle, &mut row);
             if let Some(p) = paint {
                 if let Some(v) = p["externalPaint"].as_f64() {
                     row["paint_external_m2"] = json!((v * 100.0).round() / 100.0);

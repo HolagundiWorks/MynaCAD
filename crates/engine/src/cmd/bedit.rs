@@ -105,6 +105,7 @@ fn write_back(s: &mut Session) -> Result<(String, usize)> {
         xref_path: existing.xref_path.clone(),
         explodable: existing.explodable,
         units: existing.units,
+        building: existing.building.clone(),
     };
     for e in entities {
         let h = d.new_handle();

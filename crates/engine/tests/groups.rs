@@ -28,7 +28,7 @@ fn groups(s: &Session) -> Vec<(String, String, Vec<Handle>)> {
 fn group_json_named_and_unnamed() {
     let (mut s, hs) = three_lines();
     let r = s.execute("group", &json!({ "name": "Doors", "description": "front", "handles": hex(&hs[..2]) })).unwrap();
-    assert_eq!(r, json!({ "name": "Doors", "members": 2 }));
+    assert_eq!(r, json!({ "name": "Doors", "members": 2, "childGroups": [] }));
     // Unnamed groups are *A1, *A2…; the current selection is the default.
     s.set_selection(vec![hs[2]]);
     let r = s.execute("group", &json!({})).unwrap();
@@ -131,7 +131,7 @@ fn groupedit_add_remove_rename() {
     assert_eq!(groups(&s), vec![("Pair".into(), String::new(), vec![hs[1]])]);
     // JSON.
     let r = s.execute("groupedit", &json!({ "name": "pair", "add": hex(&hs), "rename": "Trio" })).unwrap();
-    assert_eq!(r, json!({ "name": "Trio", "members": 3 }));
+    assert_eq!(r, json!({ "name": "Trio", "members": 3, "childGroups": [] }));
     assert!(s.execute("groupedit", &json!({ "name": "Trio", "add": ["FFFFF"] })).is_err());
     assert!(s.execute("groupedit", &json!({ "name": "Trio", "rename": "bad?" })).is_err());
     assert!(s.execute("groupedit", &json!({ "name": "nope" })).is_err());
@@ -154,4 +154,19 @@ fn erased_members_leave_groups() {
     s.input(Input::Pick(vec![hs[0], hs[1]])).unwrap();
     s.cmdline("").unwrap();
     assert_eq!(groups(&s).iter().map(|g| g.0.as_str()).collect::<Vec<_>>(), ["B"]);
+}
+
+#[test]
+fn nested_child_groups_and_explode() {
+    let (mut s, hs) = three_lines();
+    s.execute("group", &json!({ "name": "Inner", "handles": hex(&hs[..1]) })).unwrap();
+    let r = s.execute("group", &json!({ "name": "Outer", "handles": hex(&hs[1..]), "childGroups": ["Inner"] })).unwrap();
+    assert_eq!(r["childGroups"], json!(["Inner"]));
+    let list = s.execute("groups.list", &json!({})).unwrap();
+    let outer = list["groups"].as_array().unwrap().iter().find(|g| g["name"] == "Outer").unwrap();
+    assert_eq!(outer["childGroups"], json!(["Inner"]));
+    let ex = s.execute("group.explode", &json!({ "name": "Outer" })).unwrap();
+    assert_eq!(ex["promotedGroups"], json!(["Inner"]));
+    assert!(s.doc().unwrap().groups.iter().find(|g| g.name == "Outer").unwrap().child_groups.is_empty());
+    assert!(s.doc().unwrap().groups.iter().any(|g| g.name == "Inner"));
 }

@@ -179,6 +179,7 @@ pub struct Prepared {
 /// replaced by an explicit save.
 pub fn prepare(mut d: Drawing) -> Prepared {
     super::takeoff::apply_meta(&mut d);
+    super::classify::apply_meta(&mut d);
     let levels_note = d.project.remove(aad_doc::LEVELS_NOTE_KEY);
     let original = std::sync::Arc::new(d.clone());
     let report = crate::flatten::flatten_drawing(&mut d);

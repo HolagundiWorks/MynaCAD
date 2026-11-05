@@ -11,6 +11,10 @@ pub const ENV_OFFICE_DLL: &str = "OSTUDIO_OFFICE_DLL";
 pub const ENV_PROJECT_ID: &str = "OSTUDIO_PROJECT_ID";
 pub const ENV_PROJECT_OSP: &str = "OSTUDIO_PROJECT_OSP";
 
+pub const ENV_PROJECT_NAME: &str = "OSTUDIO_PROJECT_NAME";
+pub const ENV_STANDALONE: &str = "OSTUDIO_STANDALONE";
+pub const ENV_LAUNCHER: &str = "OSTUDIO_LAUNCHER";
+
 pub const PROJECT_FORMAT: &str = "osp";
 pub const ACTIVE_PROJECT_FORMAT: &str = "studio-active-project";
 pub const SELECTED_PROJECT_FORMAT: &str = "studio-selected-project";

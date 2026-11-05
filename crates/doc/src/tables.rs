@@ -502,6 +502,9 @@ pub struct Block {
     pub explodable: bool,
     #[serde(default)]
     pub units: u8,
+    /// Building-element classification for SketchUp-style components (block definitions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub building: Option<crate::BuildingElement>,
 }
 
 impl Block {
@@ -515,6 +518,7 @@ impl Block {
             xref_path: None,
             explodable: true,
             units: 0,
+            building: None,
         }
     }
 }
@@ -609,13 +613,16 @@ pub struct LayerState {
     pub layers: Vec<Layer>,
 }
 
-/// A named group of entities (GROUP).
+/// A named group of entities (GROUP), optionally nesting other groups (SketchUp-style).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Group {
     pub name: String,
     pub description: String,
     pub selectable: bool,
     pub members: Vec<crate::Handle>,
+    /// Nested child group names (O-Draft nesting; depth capped in the engine). Empty on DXF-only groups.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub child_groups: Vec<String>,
 }
 
 /// Shared ownership helper: blocks are cloned on write.
