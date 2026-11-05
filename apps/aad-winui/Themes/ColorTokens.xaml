@@ -17,7 +17,8 @@
             <!-- Suite glass soft-UI (aligned with O.Ui SuiteColors). Canvas stays white. -->
             <SolidColorBrush x:Key="SurfaceBrush" Color="#EEF2F8" />
             <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#FFFFFF" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="#3E56A0" />
+            <SolidColorBrush x:Key="LockupPlateBrush" Color="#00FFFFFF" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="#5D6B82" />
             <SolidColorBrush x:Key="AccentBrush" Color="#102C80" />
             <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="ControlHoverBrush" Color="#F1F5FA" />
@@ -37,8 +38,8 @@
             <SolidColorBrush x:Key="ErrorBrush" Color="#C42B1C" />
             <SolidColorBrush x:Key="DestructiveBrush" Color="#C42B1C" />
             <Color x:Key="TitleBarBackgroundColor">#E4EAF2</Color>
-            <Color x:Key="TitleBarForegroundColor">#102C80</Color>
-            <Color x:Key="TitleBarInactiveForegroundColor">#3E56A0</Color>
+            <Color x:Key="TitleBarForegroundColor">#1A2332</Color>
+            <Color x:Key="TitleBarInactiveForegroundColor">#5D6B82</Color>
             <Color x:Key="TitleBarHoverColor">#F1F5FA</Color>
             <Color x:Key="TitleBarPressedColor">#D8DEE8</Color>
         </ResourceDictionary>
@@ -50,14 +51,15 @@
             <SolidColorBrush x:Key="SurfaceBrush" Color="#151922" />
             <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#000000" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="#A8B0BD" />
-            <SolidColorBrush x:Key="AccentBrush" Color="#6F8FF0" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#6B8FD8" />
             <SolidColorBrush x:Key="AccentForegroundBrush" Color="#0B1020" />
             <SolidColorBrush x:Key="ControlHoverBrush" Color="#2A3140" />
             <SolidColorBrush x:Key="ControlPressedBrush" Color="#3A4250" />
-            <SolidColorBrush x:Key="ControlSelectedBrush" Color="#1C2A50" />
-            <SolidColorBrush x:Key="FocusBorderBrush" Color="#6F8FF0" />
+            <SolidColorBrush x:Key="ControlSelectedBrush" Color="#2A3F66" />
+            <SolidColorBrush x:Key="FocusBorderBrush" Color="#6B8FD8" />
             <SolidColorBrush x:Key="ControlDisabledBrush" Color="#708090" />
             <SolidColorBrush x:Key="InputBackgroundBrush" Color="#242A36" />
+            <SolidColorBrush x:Key="LockupPlateBrush" Color="#EEF2F8" />
             <SolidColorBrush x:Key="CommandChromeBrush" Color="#F2151922" />
             <SolidColorBrush x:Key="CommandChromeCadBrush" Color="#F21B1F28" />
             <SolidColorBrush x:Key="CommandChromeAccentBrush" Color="#6F8FF0" />
@@ -82,14 +84,15 @@
             <SolidColorBrush x:Key="SurfaceBrush" Color="#151922" />
             <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#000000" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="#A8B0BD" />
-            <SolidColorBrush x:Key="AccentBrush" Color="#6F8FF0" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#6B8FD8" />
             <SolidColorBrush x:Key="AccentForegroundBrush" Color="#0B1020" />
             <SolidColorBrush x:Key="ControlHoverBrush" Color="#2A3140" />
             <SolidColorBrush x:Key="ControlPressedBrush" Color="#3A4250" />
-            <SolidColorBrush x:Key="ControlSelectedBrush" Color="#1C2A50" />
-            <SolidColorBrush x:Key="FocusBorderBrush" Color="#6F8FF0" />
+            <SolidColorBrush x:Key="ControlSelectedBrush" Color="#2A3F66" />
+            <SolidColorBrush x:Key="FocusBorderBrush" Color="#6B8FD8" />
             <SolidColorBrush x:Key="ControlDisabledBrush" Color="#708090" />
             <SolidColorBrush x:Key="InputBackgroundBrush" Color="#242A36" />
+            <SolidColorBrush x:Key="LockupPlateBrush" Color="#EEF2F8" />
             <SolidColorBrush x:Key="CommandChromeBrush" Color="#F2151922" />
             <SolidColorBrush x:Key="CommandChromeCadBrush" Color="#F21B1F28" />
             <SolidColorBrush x:Key="CommandChromeAccentBrush" Color="#6F8FF0" />

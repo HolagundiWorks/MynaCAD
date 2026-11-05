@@ -451,7 +451,10 @@
                     VerticalAlignment="Center"
                     Margin="{StaticResource MarginWelcomePanel}"
                     Spacing="{StaticResource SpaceLg}">
-                    <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="O-Draft" />
+                    <!-- The lockup artwork has dark text: on the dark theme it sits on a light plate. -->
+                    <Border HorizontalAlignment="Left" CornerRadius="4" Padding="12" Background="{ThemeResource LockupPlateBrush}">
+                        <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="O-Draft" />
+                    </Border>
                     <TextBlock
                         Text="Start a drawing, open one, or let the Project Wizard set one up. Projects are chosen in the O-Studio launcher; O-Draft opens on the one it locked."
                         TextWrapping="WrapWholeWords"
