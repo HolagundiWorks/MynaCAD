@@ -53,6 +53,18 @@ struct PendingList {
     rx: std::sync::mpsc::Receiver<DisplayList>,
 }
 
+/// First display list of a freshly opened large drawing, built on a worker so the window stays alive.
+struct FirstBuild {
+    key: ListKey,
+    doc: std::sync::Arc<Drawing>,
+    rx: std::sync::mpsc::Receiver<(DisplayList, Option<aad_render::Scene>)>,
+}
+
+/// Returned by `mesh()` while the first display list is still being built.
+const LOADING: &str = "display list loading";
+/// Drawings with at least this many entities get their first display list built off the UI thread.
+const ASYNC_FIRST_BUILD_ENTITIES: usize = 3000;
+
 /// Eased wheel zoom in progress (~120 ms). Fast notches accumulate onto `target`.
 struct ZoomAnim {
     from: aad_engine::View,
@@ -120,6 +132,7 @@ struct FrameCache {
     /// True when the last mesh rebuild used the spatial tile path.
     mesh_tiled: bool,
     pending: Option<PendingList>,
+    first: Option<FirstBuild>,
     /// Last synchronous display-list build time (ms). Worker rebuilds do not update this.
     list_build_ms: f64,
     /// Last mesh pack time (ms).
@@ -152,6 +165,7 @@ impl Default for FrameCache {
             tiles_total: 0,
             mesh_tiled: false,
             pending: None,
+            first: None,
             list_build_ms: 0.0,
             mesh_ms: 0.0,
         }
@@ -2143,6 +2157,24 @@ impl Host {
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => self.frame.pending = None,
             }
         }
+        // First build of a large drawing: finished on a worker, or still running (nothing to paint yet).
+        if let Some(f) = &self.frame.first {
+            match f.rx.try_recv() {
+                Ok((list, scene)) => {
+                    if let Some(f) = self.frame.first.take()
+                        && f.key.0 == list_key.0
+                    {
+                        self.frame.list = Some(list);
+                        self.frame.scene = scene;
+                        self.frame.list_key = f.key;
+                        self.frame.list_doc = Some(f.doc);
+                        self.frame.clear_mesh();
+                    }
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => return Err(LOADING.to_string()),
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => self.frame.first = None,
+            }
+        }
         if self.frame.list_key != list_key || self.frame.list.is_none() {
             let same_drawing = self.frame.list.is_some()
                 && (self.frame.list_key.0, self.frame.list_key.1, self.frame.list_key.3, self.frame.list_key.4, self.frame.list_key.6)
@@ -2161,6 +2193,30 @@ impl Host {
                     self.frame.pending = Some(PendingList { key: list_key, rx });
                 }
             } else if !same_drawing {
+                let fresh = self.frame.list.is_none() || self.frame.list_key.0 != list_key.0;
+                if fresh && self.gpu.is_some() && state.doc.entity_count() >= ASYNC_FIRST_BUILD_ENTITIES {
+                    if self.frame.first.as_ref().is_none_or(|f| f.key.0 != list_key.0) {
+                        let (tx, rx) = std::sync::mpsc::channel();
+                        let (doc, space, opts) = (state.doc.clone(), state.space.clone(), opts.clone());
+                        let doc_keep = doc.clone();
+                        if std::thread::Builder::new()
+                            .name("aad-first-list".into())
+                            .spawn(move || {
+                                aad_engine::spatial::warm(doc.clone(), space.clone());
+                                let _ = tx.send(build_list_and_scene(&doc, &space, &opts, background));
+                            })
+                            .is_ok()
+                        {
+                            self.frame.first = Some(FirstBuild { key: list_key, doc: doc_keep, rx });
+                        }
+                    }
+                    if self.frame.first.is_some() {
+                        self.frame.list = None;
+                        self.frame.scene = None;
+                        self.frame.pending = None;
+                        return Err(LOADING.to_string());
+                    }
+                }
                 if perf::start().is_some() {
                     perf::force(&format!("sync list build: old key {:?} new key {:?}", self.frame.list_key, list_key));
                 }
@@ -2418,7 +2474,7 @@ impl Host {
             let zooming = self.tick_zoom()?;
             // Idle pumps skip the GPU path: document/overlay only change on input, commands
             // (`present_if_ready`), resize, a zoom animation, or a background display-list band finishing.
-            let need = had_events || self.paint_dirty || zooming || self.frame.pending.is_some();
+            let need = had_events || self.paint_dirty || zooming || self.frame.pending.is_some() || self.frame.first.is_some();
             if self.gpu.is_some() && need {
                 self.redraw()?;
                 self.paint_dirty = zooming;
@@ -2433,7 +2489,10 @@ impl Host {
     pub fn redraw(&mut self) -> Result<(), String> {
         let t_all = perf::start();
         self.pixels_per_point = window::dpi_scale(self.hwnd);
-        let (key, uniform, origin) = self.mesh()?;
+        let (key, uniform, origin) = match self.mesh() {
+            Err(e) if e == LOADING => return Ok(()),
+            other => other?,
+        };
         let t_mesh = perf::lap(&t_all);
         let paper = self.paper();
         let warm_grip = self.screen.and_then(|s| self.grip_at(s.x, s.y)).map(|g| (g.handle, g.index));
