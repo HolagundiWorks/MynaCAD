@@ -12,6 +12,40 @@ mechanical features removed.
 What is built and what is planned is listed in [docs/status.md](docs/status.md). Nothing in the
 documentation describes a feature as available unless it exists and has tests.
 
+## The interface
+
+![O-Draft opens on a welcome screen with New drawing, Open drawing and Project Wizard](docs/images/draft-welcome.png)
+
+**Welcome.** O-Draft opens here until you start or open a drawing: **New drawing**, **Open drawing...** or **Project Wizard...**. Projects are chosen in the O-Studio launcher; O-Draft opens on the one the launcher locked, and recent drawings are listed underneath.
+
+![The O-Draft workspace: tool strip, canvas, side panels and status bar, with the parametric footing under the pointer described in Properties](docs/images/draft-workspace.png)
+
+**Workspace.** From the top of the window down:
+
+| Area | What it is |
+|---|---|
+| Title bar and tabs | One drawing per window (the open drawing's tab), and a **Take-off** tab that opens the quantity take-off toolbar (walls, openings, columns, beams, floors, phases). |
+| Menus | File, Edit, View, Insert, Format, Tools, Draw, Dimension, Modify, **Architecture**, Help, Window. Every item is an engine command, so the command line, scripts, MCP and the AI assistant run the same code. |
+| Layer bar | The current layer. |
+| Tool strip (left) | Draw, modify and annotate tools in two columns, then the architecture group (doors, windows, rooms, axis grid, stairs) and the **structural tools**: RCC column, Round column, RCC beam, Footing, Slab and Lintel. |
+| Canvas | The drawing, drawn on the GPU. **Design** and **Drawing tabs** switch between the model and the sheets; the level bar underneath holds the levels (L0, +) and the Ask bar floats at the bottom. |
+| Side panels (right) | **Properties**, **Layers**, **Blocks**, **Project**, **History** and **Revisions**, chosen from the rail on the right edge. Properties shows what is under the pointer; for a parametric block it lists the type and every parameter. |
+| Status bar | Pointer coordinates and the drafting switches (object snap, ortho, polar, snap tracking, dynamic input), lineweight and transparency display, drawing units, the layer manager, plot preview, the theme, and the state of the AI assistant. |
+
+**Ask bar.** The pill at the bottom of the canvas takes plain-language requests for the local assistant, hosted by the suite launcher. It asks before it changes anything (Allow or Decline). Typed commands (`line`, `zoom`, `smartblock.insert ...`) go to the command line, which opens as you type.
+
+### Structural details
+
+![Structural details drawn by the reinforced concrete tools: column, beam, stirrup, isolated and combined footings, beam elevation and lift raft](docs/images/structural-details.png)
+
+The Architecture bar's structural tools place **parametric reinforced concrete blocks** and the reinforcement is edited in the Properties panel, not in a dialog. They are drawn in the style of Indian structural drawings: bars coloured by diameter (corner bars red, others magenta or blue), hooked ties and cross-ties, dimensions in feet and inches (or millimetres), leaders with schedule notation (`4Y20 + 6Y16`, `Ties-Y8@6"`, `Y10@5"`), PCC and boulder soling under footings with the development length Ld to IS 456, and stirrup zones on a beam elevation (`5 nos @ 6"`, `@ 7"`).
+
+Parameters follow IS 456:2000: concrete and steel grade, exposure (Table 3), cover, bar and tie diameters and spacings. Below the parameters, Properties shows whether the member **complies** and, for each broken limit, the clause. When the drawing is saved into a project (`.osp`), the details are recorded for O-CoreOp, which shows them on the element pages (read only). See [docs/smart-blocks.md](docs/smart-blocks.md).
+
+![The Blocks panel lists the drawing's blocks as thumbnails](docs/images/draft-blocks.png)
+
+The **Blocks** panel shows this drawing's blocks and the library (steel sections, plumbing, HVAC, electrical, interior) as thumbnails; click one and pick a point. The reinforced concrete members are not listed there: they are tools on the Architecture bar.
+
 ## Status
 
 Version 0.6.0. Windows x64 is the only platform that is built, tested and packaged. Working today:
