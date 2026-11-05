@@ -459,8 +459,21 @@ pub fn mesh_tile_edge(view_height: f64) -> f64 {
     if !view_height.is_finite() || view_height <= 0.0 {
         return 1.0;
     }
-    let edge = view_height * MESH_TILE_VIEW_MULT;
+    let edge = quantize_view_height(view_height) * MESH_TILE_VIEW_MULT;
     if edge.is_finite() && edge > 0.0 { edge } else { 1.0 }
+}
+
+/// `view_height` rounded down to a power of two. The mesh origin step and the tile edge are derived
+/// from this instead of the exact height, so a wheel-zoom tick inside the same factor-of-two range
+/// keeps the origin, the tile keys and therefore the cached meshes (before, every tick changed
+/// them and remeshed the whole drawing). The result is within a factor of two below the input, so
+/// the origin-to-view offset stays below `32 x view_height` and `f32` precision is unaffected.
+pub fn quantize_view_height(view_height: f64) -> f64 {
+    if !(view_height.is_finite() && view_height > 0.0) {
+        return view_height;
+    }
+    let q = 2f64.powi(view_height.log2().floor() as i32);
+    if q.is_finite() && q > 0.0 { q } else { view_height }
 }
 
 /// Grid cell containing `p` for a positive finite `edge`.
@@ -819,7 +832,7 @@ pub fn choose_origin(bounds: &Bounds2, view_center: Vec2, view_height: f64) -> V
     {
         return if bounds.is_empty() { Vec2::ZERO } else { bounds.center() };
     }
-    let step = view_height * 64.0;
+    let step = quantize_view_height(view_height) * 64.0;
     Vec2::new((view_center.x / step).round() * step, (view_center.y / step).round() * step)
 }
 
@@ -827,6 +840,21 @@ pub fn choose_origin(bounds: &Bounds2, view_center: Vec2, view_height: f64) -> V
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zoom_ticks_inside_one_octave_keep_origin_and_tile_edge() {
+        let b = Bounds2::new(Vec2::new(0.0, 0.0), Vec2::new(1.0e6, 1.0e6));
+        let c = Vec2::new(123_456.0, 654_321.0);
+        let o = choose_origin(&b, c, 100.0);
+        for h in [100.0, 110.0, 125.0, 127.9] {
+            assert_eq!(choose_origin(&b, c, h), o, "height {h}");
+            assert_eq!(mesh_tile_edge(h), mesh_tile_edge(100.0), "height {h}");
+        }
+        assert_ne!(mesh_tile_edge(130.0), mesh_tile_edge(100.0));
+        assert!(quantize_view_height(100.0) <= 100.0 && quantize_view_height(100.0) > 50.0);
+        assert!(quantize_view_height(f64::NAN).is_nan());
+        assert_eq!(quantize_view_height(0.0), 0.0);
+    }
 
     #[test]
     fn hairlines_become_quads_and_keep_wipeout_order() {
