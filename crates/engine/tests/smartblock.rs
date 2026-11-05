@@ -442,3 +442,33 @@ fn the_structural_details_list_each_placed_rcc_block_with_its_parameters() {
     assert_eq!(b.params["fck"], 25.0);
     assert!(b.label.starts_with("RCC beam cross-section") && b.label.ends_with("(300 x 450)"), "{}", b.label);
 }
+
+/// The reinforced concrete blocks draw on an ISO-style set of layers, each with a colour, a linetype and a pen width, made in the drawing with the block.
+#[test]
+fn structural_blocks_draw_on_layers_with_colours_linetypes_and_lineweights() {
+    use aad_engine::doc::Lineweight;
+    let mut s = metric();
+    let c = s.execute("smartblock.insert", &json!({ "id": "rcc.column.rect", "at": [0, 0] })).unwrap();
+    s.execute("smartblock.insert", &json!({ "id": "rcc.footing.plan", "at": [4000, 0] })).unwrap();
+    s.execute("smartblock.insert", &json!({ "id": "rcc.footing.section", "at": [8000, 0] })).unwrap();
+    let d = s.doc().unwrap();
+    let look = |name: &str| {
+        let l = d.layer(name).unwrap_or_else(|| panic!("layer {name} was not made"));
+        (l.color.to_aci(), l.linetype.clone(), l.lineweight)
+    };
+    assert_eq!(look("S-CONC-OUTL"), (7, "Continuous".into(), Lineweight::Mm100(50)));
+    assert_eq!(look("S-REBR-MAIN"), (1, "Continuous".into(), Lineweight::Mm100(50)));
+    assert_eq!(look("S-REBR-LINK"), (3, "Continuous".into(), Lineweight::Mm100(25)));
+    assert_eq!(look("S-ANNO-DIMS"), (30, "Continuous".into(), Lineweight::Mm100(18)));
+    assert_eq!(look("S-CONC-HIDD"), (8, "HIDDEN".into(), Lineweight::Mm100(25)));
+    assert_eq!(look("S-GRND"), (8, "CENTER".into(), Lineweight::Mm100(18)));
+    assert!(d.linetype("HIDDEN").is_some() && d.linetype("CENTER").is_some(), "the linetypes are loaded with the layers");
+    // Nothing is left on layer 0 or on a colour of its own where the layer gives it: bars and ties take their colour from their layer.
+    let (name, ..) = reference(&s, c["handle"].as_str().unwrap());
+    let b = d.block(&name).unwrap();
+    assert!(b.entities.iter().all(|e| e.common.layer.starts_with("S-")), "every part is on a structural layer");
+    assert!(b.entities.iter().all(|e| matches!(e.common.color, aad_color::Color::ByLayer)), "colours come from the layers");
+    let on = |layer: &str| b.entities.iter().filter(|e| e.common.layer == layer).count();
+    assert_eq!(on("S-REBR-MAIN"), 6, "the bars of the default column");
+    assert!(on("S-ANNO-DIMS") > 0 && on("S-ANNO-NOTE") > 0 && on("S-REBR-LINK") > 0);
+}

@@ -1,1203 +1,5999 @@
 {
-  "format": "osas-smartblocks",
-  "version": 1,
-  "discipline": "rcc",
-  "note": "Reinforced concrete sections and plans. Geometry in millimetres about the insertion point. Drafting aids only: sizes, cover and reinforcement come from the structural design.",
-  "blocks": [
+ "format": "osas-smartblocks",
+ "version": 1,
+ "discipline": "rcc",
+ "note": "Reinforced concrete sections and plans. Geometry in millimetres about the insertion point. Drafting aids only: sizes, cover and reinforcement come from the structural design.",
+ "blocks": [
+  {
+   "id": "rcc.column.rect",
+   "title": "RCC column section (bars by diameter, hooked ties, cross-ties, dimensions)",
+   "grips": [
     {
-      "id": "rcc.column.rect",
-      "title": "RCC column section (bars by diameter, hooked ties, cross-ties, dimensions)",
-      "grips": [
-        {"param": "width", "at": ["width/2", 0], "axis": "x", "per": 2},
-        {"param": "depth", "at": [0, "depth/2"], "axis": "y", "per": 2}
-      ],
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "params": [
-        {"name": "width", "label": "Width", "unit": "mm", "default": 230, "min": 150, "max": 2000},
-        {"name": "depth", "label": "Depth", "unit": "mm", "default": 450, "min": 150, "max": 2000},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 40, "min": 20, "max": 75},
-        {"name": "nx", "label": "Bars on width face (with corners)", "default": 2, "min": 2, "max": 12, "integer": true},
-        {"name": "ny", "label": "Bars on depth face (with corners)", "default": 3, "min": 2, "max": 12, "integer": true},
-        {
-          "name": "bar",
-          "label": "Corner bar diameter",
-          "unit": "mm",
-          "default": 16,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25},
-            {"label": "32", "value": 32}
-          ]
-        },
-        {
-          "name": "bar2",
-          "label": "Intermediate bar diameter",
-          "unit": "mm",
-          "default": 0,
-          "choices": [
-            {"label": "Same as corner", "value": 0},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25},
-            {"label": "32", "value": 32}
-          ]
-        },
-        {
-          "name": "tie",
-          "label": "Tie diameter",
-          "unit": "mm",
-          "default": 8,
-          "choices": [
-            {"label": "6", "value": 6},
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12}
-          ]
-        },
-        {"name": "tiesp", "label": "Tie spacing (c/c)", "unit": "mm", "default": 150, "min": 50, "max": 300},
-        {
-          "name": "fck",
-          "label": "Concrete grade",
-          "default": 25,
-          "choices": [
-            {"label": "M20", "value": 20},
-            {"label": "M25", "value": 25},
-            {"label": "M30", "value": 30},
-            {"label": "M35", "value": 35},
-            {"label": "M40", "value": 40}
-          ]
-        },
-        {
-          "name": "fy",
-          "label": "Steel grade",
-          "default": 500,
-          "choices": [
-            {"label": "Fe250", "value": 250},
-            {"label": "Fe415", "value": 415},
-            {"label": "Fe500", "value": 500},
-            {"label": "Fe550", "value": 550}
-          ]
-        },
-        {
-          "name": "exposure",
-          "label": "Exposure (IS 456 Table 3)",
-          "default": 1,
-          "choices": [
-            {"label": "Mild", "value": 1},
-            {"label": "Moderate", "value": 2},
-            {"label": "Severe", "value": 3},
-            {"label": "Very severe", "value": 4},
-            {"label": "Extreme", "value": 5}
-          ]
-        },
-        {"name": "hatch", "label": "Concrete hatch", "default": 0, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "x0", "expr": "-width/2"},
-        {"name": "y0", "expr": "-depth/2"},
-        {"name": "ci", "expr": "cover + tie + bar/2"},
-        {"name": "sx", "expr": "(width - 2*ci)/(nx - 1)"},
-        {"name": "sy", "expr": "(depth - 2*ci)/(ny - 1)"},
-        {"name": "nbars", "expr": "2*nx + 2*(ny - 2)"},
-        {"name": "nmid", "expr": "nbars - 4"},
-        {"name": "xt", "expr": "width/2 - cover - tie/2"},
-        {"name": "yt", "expr": "depth/2 - cover - tie/2"},
-        {"name": "hk", "expr": "max(6*tie, 75)*0.7071"},
-        {"name": "b2", "expr": "bar2 + (1 - min(1, bar2))*bar"},
-        {"name": "mixed", "expr": "min(1, abs(b2 - bar))"},
-        {"name": "same", "expr": "1 - mixed"}
-      ],
-      "items": [
-        {"crect": [0, 0, "width", "depth"]},
-        {"when": "hatch", "hatch": {"pts": [["x0", "y0"], ["-x0", "y0"], ["-x0", "-y0"], ["x0", "-y0"]], "pattern": "AR-CONC", "scale": 80}},
-        {"crect": [0, 0, "width - 2*cover - tie", "depth - 2*cover - tie"]},
-        {"line": ["-xt", "yt", "-xt + hk", "yt - hk"]},
-        {"line": ["-xt", "yt", "-xt + hk*0.5", "yt"]},
-        {"color": 3, "repeat": {"var": "j", "count": "ny - 2", "items": [{"color": 3, "line": ["-xt", "y0 + ci + (j + 1)*sy", "xt", "y0 + ci + (j + 1)*sy"]}]}},
-        {"repeat": {"var": "i", "count": "nx - 2", "items": [{"color": 4, "line": ["x0 + ci + (i + 1)*sx", "y0 + ci", "x0 + ci + (i + 1)*sx", "-y0 - ci"]}]}},
-        {"color": 1, "dot": ["x0 + ci", "y0 + ci", "bar/2"]},
-        {"color": 1, "dot": ["-x0 - ci", "y0 + ci", "bar/2"]},
-        {"color": 1, "dot": ["x0 + ci", "-y0 - ci", "bar/2"]},
-        {"color": 1, "dot": ["-x0 - ci", "-y0 - ci", "bar/2"]},
-        {
-          "repeat": {"var": "i", "count": "nx - 2", "items": [{"when": "same", "color": 1, "dot": ["x0 + ci + (i + 1)*sx", "y0 + ci", "b2/2"]}, {"when": "same", "color": 1, "dot": ["x0 + ci + (i + 1)*sx", "-y0 - ci", "b2/2"]}, {"when": "mixed", "color": 6, "dot": ["x0 + ci + (i + 1)*sx", "y0 + ci", "b2/2"]}, {"when": "mixed", "color": 6, "dot": ["x0 + ci + (i + 1)*sx", "-y0 - ci", "b2/2"]}]}
-        },
-        {
-          "repeat": {"var": "j", "count": "ny - 2", "items": [{"when": "same", "color": 1, "dot": ["x0 + ci", "y0 + ci + (j + 1)*sy", "b2/2"]}, {"when": "same", "color": 1, "dot": ["-x0 - ci", "y0 + ci + (j + 1)*sy", "b2/2"]}, {"when": "mixed", "color": 6, "dot": ["x0 + ci", "y0 + ci + (j + 1)*sy", "b2/2"]}, {"when": "mixed", "color": 6, "dot": ["-x0 - ci", "y0 + ci + (j + 1)*sy", "b2/2"]}]}
-        },
-        {"when": "dims", "dim": {"from": ["x0", "-y0"], "to": ["-x0", "-y0"], "off": "1.6*txt", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["x0", "y0"], "to": ["x0", "-y0"], "off": "-1.6*txt", "height": "txt"}},
-        {"when": "label * same", "leader": {"from": ["-x0 - ci", "y0 + ci"], "to": ["-x0 + 2*txt", "y0 - 1.6*txt"], "height": "txt", "text": "{nbars}Y{bar}"}},
-        {"when": "label * mixed", "leader": {"from": ["-x0 - ci", "y0 + ci"], "to": ["-x0 + 2*txt", "y0 - 1.6*txt"], "height": "txt", "text": "4Y{bar} + {nmid}Y{b2}"}},
-        {"when": "label", "leader": {"from": ["xt", 0], "to": ["-x0 + 2*txt", 0], "height": "txt", "text": "Ties-Y{tie}@{tiesp:len}"}},
-        {"when": "label", "text": {"at": [0, "y0 - 4.2*txt"], "height": "txt", "value": "{fck}, {fy}", "align": "c"}}
-      ]
+     "param": "width",
+     "at": [
+      "width/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
     },
     {
-      "id": "rcc.column.circular",
-      "title": "RCC circular column (section with bars and tie)",
-      "grips": [
-        {"param": "dia", "at": ["dia/2", 0], "axis": "x", "per": 2}
-      ],
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "params": [
-        {"name": "dia", "label": "Diameter", "unit": "mm", "default": 450, "min": 200, "max": 2500},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 40, "min": 20, "max": 75},
-        {"name": "bars", "label": "Number of bars", "default": 8, "min": 6, "max": 40, "integer": true},
-        {
-          "name": "bar",
-          "label": "Bar diameter",
-          "unit": "mm",
-          "default": 16,
-          "choices": [
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25},
-            {"label": "32", "value": 32}
-          ]
-        },
-        {
-          "name": "tie",
-          "label": "Tie / spiral diameter",
-          "unit": "mm",
-          "default": 8,
-          "choices": [
-            {"label": "6", "value": 6},
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10}
-          ]
-        },
-        {"name": "tiesp", "label": "Tie spacing (c/c)", "unit": "mm", "default": 150, "min": 50, "max": 300},
-        {
-          "name": "fck",
-          "label": "Concrete grade",
-          "default": 25,
-          "choices": [
-            {"label": "M20", "value": 20},
-            {"label": "M25", "value": 25},
-            {"label": "M30", "value": 30},
-            {"label": "M35", "value": 35},
-            {"label": "M40", "value": 40}
-          ]
-        },
-        {
-          "name": "fy",
-          "label": "Steel grade",
-          "default": 500,
-          "choices": [
-            {"label": "Fe250", "value": 250},
-            {"label": "Fe415", "value": 415},
-            {"label": "Fe500", "value": 500},
-            {"label": "Fe550", "value": 550}
-          ]
-        },
-        {
-          "name": "exposure",
-          "label": "Exposure (IS 456 Table 3)",
-          "default": 1,
-          "choices": [
-            {"label": "Mild", "value": 1},
-            {"label": "Moderate", "value": 2},
-            {"label": "Severe", "value": 3},
-            {"label": "Very severe", "value": 4},
-            {"label": "Extreme", "value": 5}
-          ]
-        },
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500}
-      ],
-      "items": [
-        {"circle": [0, 0, "dia/2"]},
-        {"circle": [0, 0, "dia/2 - cover - tie/2"]},
-        {"ring": {"c": [0, 0], "r": "dia/2 - cover - tie - bar/2", "count": "bars", "dot": "bar/2"}},
-        {
-          "when": "label",
-          "text": {"at": [0, "-dia/2 - 1.8*txt"], "height": "txt", "value": "{dia} dia, {bars}-{bar} dia, {tie} dia ties @ {tiesp} c/c; {fck}, {fy}", "align": "c"}
-        }
-      ]
-    },
-    {
-      "id": "rcc.beam.section",
-      "title": "RCC beam cross-section (bars by diameter, hooked stirrup, dimensions, optional slab)",
-      "grips": [
-        {"param": "width", "at": ["width/2", 0], "axis": "x", "per": 2},
-        {"param": "depth", "at": [0, "depth/2"], "axis": "y", "per": 2}
-      ],
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "params": [
-        {"name": "width", "label": "Width", "unit": "mm", "default": 230, "min": 150, "max": 1500},
-        {"name": "depth", "label": "Overall depth", "unit": "mm", "default": 450, "min": 200, "max": 2500},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 25, "min": 20, "max": 75},
-        {"name": "ntop", "label": "Top bars", "default": 2, "min": 2, "max": 10, "integer": true},
-        {"name": "nbot", "label": "Bottom bars", "default": 3, "min": 2, "max": 10, "integer": true},
-        {
-          "name": "bartop",
-          "label": "Top bar diameter",
-          "unit": "mm",
-          "default": 12,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25}
-          ]
-        },
-        {
-          "name": "barbot",
-          "label": "Bottom bar diameter",
-          "unit": "mm",
-          "default": 16,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25},
-            {"label": "32", "value": 32}
-          ]
-        },
-        {
-          "name": "stir",
-          "label": "Stirrup diameter",
-          "unit": "mm",
-          "default": 8,
-          "choices": [
-            {"label": "6", "value": 6},
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12}
-          ]
-        },
-        {"name": "slab", "label": "Slab thickness (0: none)", "unit": "mm", "default": 0, "min": 0, "max": 300},
-        {"name": "stsp", "label": "Stirrup spacing (c/c)", "unit": "mm", "default": 150, "min": 50, "max": 450},
-        {
-          "name": "fck",
-          "label": "Concrete grade",
-          "default": 25,
-          "choices": [
-            {"label": "M20", "value": 20},
-            {"label": "M25", "value": 25},
-            {"label": "M30", "value": 30},
-            {"label": "M35", "value": 35},
-            {"label": "M40", "value": 40}
-          ]
-        },
-        {
-          "name": "fy",
-          "label": "Steel grade",
-          "default": 500,
-          "choices": [
-            {"label": "Fe250", "value": 250},
-            {"label": "Fe415", "value": 415},
-            {"label": "Fe500", "value": 500},
-            {"label": "Fe550", "value": 550}
-          ]
-        },
-        {
-          "name": "exposure",
-          "label": "Exposure (IS 456 Table 3)",
-          "default": 1,
-          "choices": [
-            {"label": "Mild", "value": 1},
-            {"label": "Moderate", "value": 2},
-            {"label": "Severe", "value": 3},
-            {"label": "Very severe", "value": 4},
-            {"label": "Extreme", "value": 5}
-          ]
-        },
-        {"name": "hatch", "label": "Concrete hatch", "default": 0, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "x0", "expr": "-width/2"},
-        {"name": "y0", "expr": "-depth/2"},
-        {"name": "ct", "expr": "cover + stir + bartop/2"},
-        {"name": "cb", "expr": "cover + stir + barbot/2"},
-        {"name": "st", "expr": "(width - 2*ct)/(ntop - 1)"},
-        {"name": "sb", "expr": "(width - 2*cb)/(nbot - 1)"},
-        {"name": "wing", "expr": "3*slab"},
-        {"name": "hk", "expr": "max(6*stir, 75)*0.7071"}
-      ],
-      "items": [
-        {"crect": [0, 0, "width", "depth"]},
-        {"when": "hatch", "hatch": {"pts": [["x0", "y0"], ["-x0", "y0"], ["-x0", "-y0"], ["x0", "-y0"]], "pattern": "AR-CONC", "scale": 80}},
-        {"crect": [0, 0, "width - 2*cover - stir", "depth - 2*cover - stir"]},
-        {"line": ["x0 + cover + stir/2", "-y0 - cover - stir/2", "x0 + cover + stir/2 + hk", "-y0 - cover - stir/2 - hk"]},
-        {"line": ["x0 + cover + stir/2", "-y0 - cover - stir/2", "x0 + cover + stir/2 + hk*0.5", "-y0 - cover - stir/2"]},
-        {"repeat": {"var": "i", "count": "ntop", "items": [{"color": 5, "dot": ["x0 + ct + i*st", "-y0 - ct", "bartop/2"]}]}},
-        {"repeat": {"var": "i", "count": "nbot", "items": [{"color": 1, "dot": ["x0 + cb + i*sb", "y0 + cb", "barbot/2"]}]}},
-        {"when": "slab", "poly": {"pts": [["x0", "-y0 - slab"], ["x0 - wing", "-y0 - slab"], ["x0 - wing", "-y0"], ["x0", "-y0"]]}},
-        {"when": "slab", "poly": {"pts": [["-x0", "-y0 - slab"], ["-x0 + wing", "-y0 - slab"], ["-x0 + wing", "-y0"], ["-x0", "-y0"]]}},
-        {"when": "dims", "dim": {"from": ["x0", "-y0"], "to": ["-x0", "-y0"], "off": "1.6*txt + slab", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["x0", "y0"], "to": ["x0", "-y0"], "off": "-1.6*txt - wing*0", "height": "txt"}},
-        {"when": "label", "leader": {"from": ["-x0 - ct", "-y0 - ct"], "to": ["-x0 + 2*txt", "-y0 + 0.4*txt"], "height": "txt", "text": "{ntop}Y{bartop}"}},
-        {"when": "label", "leader": {"from": ["-x0 - cb", "y0 + cb"], "to": ["-x0 + 2*txt", "y0 - 1.6*txt"], "height": "txt", "text": "{nbot}Y{barbot}"}},
-        {"when": "label", "leader": {"from": ["-x0 - cover - stir/2", 0], "to": ["-x0 + 2*txt", 0], "height": "txt", "text": "Y{stir}-Strp@{stsp:len}"}},
-        {"when": "label", "text": {"at": [0, "y0 - 4.2*txt"], "height": "txt", "value": "{fck}, {fy}", "align": "c"}}
-      ]
-    },
-    {
-      "id": "rcc.beam.elevation",
-      "title": "RCC beam longitudinal section (top and bottom bars with curtailment, stirrup zones, dimensions)",
-      "description": "A beam along its span between two supports: continuous and extra bars, stirrups by zone, curtailment lengths and bar callouts, checked to IS 456:2000.",
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "grips": [
-        {"param": "span", "at": ["span/2", 0], "axis": "x", "per": 2},
-        {"param": "depth", "at": [0, "depth/2"], "axis": "y", "per": 2}
-      ],
-      "params": [
-        {"name": "span", "label": "Clear span", "unit": "mm", "default": 3600, "min": 1500, "max": 12000},
-        {"name": "sup", "label": "Support width", "unit": "mm", "default": 230, "min": 150, "max": 900},
-        {"name": "width", "label": "Beam width", "unit": "mm", "default": 230, "min": 150, "max": 1500},
-        {"name": "depth", "label": "Overall depth", "unit": "mm", "default": 450, "min": 200, "max": 2500},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 25, "min": 20, "max": 75},
-        {"name": "ntop", "label": "Continuous top bars", "default": 2, "min": 2, "max": 10, "integer": true},
-        {
-          "name": "bartop",
-          "label": "Top bar diameter",
-          "unit": "mm",
-          "default": 12,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25}
-          ]
-        },
-        {"name": "nxtop", "label": "Extra top bars at the supports", "default": 2, "min": 0, "max": 10, "integer": true},
-        {
-          "name": "barxtop",
-          "label": "Extra top bar diameter",
-          "unit": "mm",
-          "default": 12,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25}
-          ]
-        },
-        {"name": "lx", "label": "Extra top bar length from the support face", "unit": "mm", "default": 900, "min": 300, "max": 4000},
-        {"name": "nbot", "label": "Continuous bottom bars", "default": 2, "min": 2, "max": 10, "integer": true},
-        {
-          "name": "barbot",
-          "label": "Bottom bar diameter",
-          "unit": "mm",
-          "default": 12,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25},
-            {"label": "32", "value": 32}
-          ]
-        },
-        {"name": "nxbot", "label": "Extra bottom bars at mid-span", "default": 1, "min": 0, "max": 10, "integer": true},
-        {
-          "name": "barxbot",
-          "label": "Extra bottom bar diameter",
-          "unit": "mm",
-          "default": 16,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25},
-            {"label": "32", "value": 32}
-          ]
-        },
-        {
-          "name": "stir",
-          "label": "Stirrup diameter",
-          "unit": "mm",
-          "default": 8,
-          "choices": [
-            {"label": "6", "value": 6},
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12}
-          ]
-        },
-        {"name": "endn", "label": "Stirrups in each end zone", "default": 5, "min": 1, "max": 30, "integer": true},
-        {"name": "endsp", "label": "End zone spacing (c/c)", "unit": "mm", "default": 150, "min": 50, "max": 300},
-        {"name": "midsp", "label": "Mid zone spacing (c/c)", "unit": "mm", "default": 175, "min": 50, "max": 450},
-        {
-          "name": "fck",
-          "label": "Concrete grade",
-          "default": 25,
-          "choices": [
-            {"label": "M20", "value": 20},
-            {"label": "M25", "value": 25},
-            {"label": "M30", "value": 30},
-            {"label": "M35", "value": 35},
-            {"label": "M40", "value": 40}
-          ]
-        },
-        {
-          "name": "fy",
-          "label": "Steel grade",
-          "default": 500,
-          "choices": [
-            {"label": "Fe250", "value": 250},
-            {"label": "Fe415", "value": 415},
-            {"label": "Fe500", "value": 500},
-            {"label": "Fe550", "value": 550}
-          ]
-        },
-        {
-          "name": "exposure",
-          "label": "Exposure (IS 456 Table 3)",
-          "default": 1,
-          "choices": [
-            {"label": "Mild", "value": 1},
-            {"label": "Moderate", "value": 2},
-            {"label": "Severe", "value": 3},
-            {"label": "Very severe", "value": 4},
-            {"label": "Extreme", "value": 5}
-          ]
-        },
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 60, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "ct", "expr": "cover + stir + bartop/2"},
-        {"name": "cb", "expr": "cover + stir + barbot/2"},
-        {"name": "yt", "expr": "depth/2 - ct"},
-        {"name": "yb", "expr": "-depth/2 + cb"},
-        {"name": "full", "expr": "span + 2*sup"},
-        {"name": "ez", "expr": "50 + (endn - 1)*endsp"},
-        {"name": "nmid", "expr": "max(0, ceil((span - 2*ez)/midsp - 0.3) - 1)"},
-        {"name": "xbl", "expr": "span*0.15"},
-        {"name": "ys", "expr": "-depth/2 - 2.4*txt"}
-      ],
-      "items": [
-        {"line": ["-span/2", "depth/2", "span/2", "depth/2"]},
-        {"line": ["-span/2", "-depth/2", "span/2", "-depth/2"]},
-        {"rect": ["-span/2 - sup", "-depth/2 - 100", "sup", "depth + 200"]},
-        {"rect": ["span/2", "-depth/2 - 100", "sup", "depth + 200"]},
-        {"line": ["-span/2 - sup", "-depth/2 - 100", "-span/2", "depth/2 + 100"]},
-        {"line": ["-span/2 - sup", "depth/2 + 100", "-span/2", "-depth/2 - 100"]},
-        {"line": ["span/2", "-depth/2 - 100", "span/2 + sup", "depth/2 + 100"]},
-        {"line": ["span/2", "depth/2 + 100", "span/2 + sup", "-depth/2 - 100"]},
-        {
-          "repeat": {"var": "i", "count": "endn", "items": [{"color": 3, "line": ["-span/2 + 50 + i*endsp", "-depth/2 + cover", "-span/2 + 50 + i*endsp", "depth/2 - cover"]}, {"color": 3, "line": ["span/2 - 50 - i*endsp", "-depth/2 + cover", "span/2 - 50 - i*endsp", "depth/2 - cover"]}]}
-        },
-        {
-          "repeat": {"var": "k", "count": "nmid", "items": [{"color": 3, "line": ["-span/2 + ez + (k + 1)*midsp", "-depth/2 + cover", "-span/2 + ez + (k + 1)*midsp", "depth/2 - cover"]}]}
-        },
-        {"color": 5, "line": ["-span/2 - sup + cover", "yt", "span/2 + sup - cover", "yt"]},
-        {"when": "nxtop", "color": 6, "poly": {"pts": [["-span/2 - sup + cover", "yt - bartop - 15"], ["-span/2 + lx", "yt - bartop - 15"]]}},
-        {"when": "nxtop", "color": 6, "poly": {"pts": [["span/2 + sup - cover", "yt - bartop - 15"], ["span/2 - lx", "yt - bartop - 15"]]}},
-        {"color": 1, "line": ["-span/2 - sup + cover", "yb", "span/2 + sup - cover", "yb"]},
-        {"when": "nxbot", "line": ["-span/2 + xbl", "yb + barbot + 15", "span/2 - xbl", "yb + barbot + 15"], "color": 4},
-        {"color": 5, "line": ["-span/2", "ys", "span/2", "ys"]},
-        {"color": 5, "dot": ["-span/2 + ez", "ys", 18]},
-        {"color": 5, "dot": ["span/2 - ez", "ys", 18]},
-        {"when": "label", "text": {"at": ["-span/2 + 50", "ys + 0.5*txt"], "height": "txt", "value": "{endn} nos @ {endsp:len}"}},
-        {"when": "label", "text": {"at": [0, "ys + 0.5*txt"], "height": "txt", "value": "@ {midsp:len}", "align": "c"}},
-        {"when": "label", "text": {"at": ["span/2 - 50 - 9*txt", "ys + 0.5*txt"], "height": "txt", "value": "{endn} nos @ {endsp:len}"}},
-        {"when": "dims * nxtop", "dim": {"from": ["-span/2", "depth/2"], "to": ["-span/2 + lx", "depth/2"], "off": "1.6*txt", "height": "txt"}},
-        {"when": "dims * nxtop", "dim": {"from": ["span/2 - lx", "depth/2"], "to": ["span/2", "depth/2"], "off": "1.6*txt", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-span/2", "-depth/2"], "to": ["span/2", "-depth/2"], "off": "-(3*txt + 2.4*txt)", "height": "txt"}},
-        {
-          "when": "label",
-          "leader": {"from": ["-span/2 + 0.4*lx", "yt"], "to": ["-span/2 + 0.4*lx + 3*txt", "depth/2 + 4.8*txt"], "height": "txt", "text": "{ntop}Y{bartop}"}
-        },
-        {
-          "when": "label * nxtop",
-          "leader": {"from": ["-span/2 + 0.2*lx", "yt - bartop - 15"], "to": ["-span/2 - sup - 1*txt", "depth/2 + 4.8*txt"], "height": "txt", "text": "{nxtop}Y{barxtop}"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["-span/2 + 0.8*xbl", "yb"], "to": ["-span/2 - sup - 2*txt", "-depth/2 - 0.8*txt"], "height": "txt", "text": "{nbot}Y{barbot}"}
-        },
-        {"when": "label * nxbot", "leader": {"from": ["0", "yb + barbot + 15"], "to": ["span*0.12", "depth/2 + 4.8*txt"], "height": "txt", "text": "{nxbot}Y{barxbot}"}},
-        {"when": "label", "text": {"at": ["-span/2", "depth/2 + 8*txt"], "height": "txt", "value": "Y{stir} stirrups, beam ({width:len} X {depth:len}); {fck}, {fy}"}}
-      ]
-    },
-    {
-      "id": "rcc.stirrup.detail",
-      "title": "Typical stirrup (shape with 135 degree hooks and dimensions)",
-      "description": "A closed stirrup of a beam or tie of a column: its shape, the 135 degree hook (at least 6 bar diameters or 75 mm) and the sizes.",
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "grips": [
-        {"param": "width", "at": ["width/2", 0], "axis": "x", "per": 2},
-        {"param": "depth", "at": [0, "depth/2"], "axis": "y", "per": 2}
-      ],
-      "params": [
-        {"name": "width", "label": "Member width", "unit": "mm", "default": 230, "min": 150, "max": 1500},
-        {"name": "depth", "label": "Member depth", "unit": "mm", "default": 450, "min": 150, "max": 2500},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 25, "min": 20, "max": 75},
-        {
-          "name": "stir",
-          "label": "Stirrup diameter",
-          "unit": "mm",
-          "default": 8,
-          "choices": [
-            {"label": "6", "value": 6},
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12}
-          ]
-        },
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "sw", "expr": "width - 2*cover"},
-        {"name": "sh", "expr": "depth - 2*cover"},
-        {"name": "hk", "expr": "max(6*stir, 75)"},
-        {"name": "hd", "expr": "hk*0.7071"}
-      ],
-      "items": [
-        {"crect": [0, 0, "sw", "sh"]},
-        {"line": ["-sw/2", "sh/2", "-sw/2 + hd", "sh/2 - hd"]},
-        {"line": ["-sw/2", "sh/2", "-sw/2 + hd*0.5", "sh/2"]},
-        {"when": "dims", "dim": {"from": ["-sw/2", "sh/2"], "to": ["sw/2", "sh/2"], "off": "1.6*txt", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-sw/2", "-sh/2"], "to": ["-sw/2", "sh/2"], "off": "-1.6*txt", "height": "txt"}},
-        {
-          "when": "label",
-          "leader": {"from": ["-sw/2 + hd*0.5", "sh/2 - hd*0.5"], "to": ["sw/2 + 2*txt", "sh/2 - 1.5*txt"], "height": "txt", "text": "135 deg hook {hk:len}"}
-        },
-        {"when": "label", "text": {"at": [0, "-sh/2 - 2.4*txt"], "height": "txt", "value": "Y{stir} stirrup {sw:len} x {sh:len}", "align": "c"}}
-      ]
-    },
-    {
-      "id": "rcc.footing.plan",
-      "title": "RCC isolated footing (plan with mesh, pedestal, dimensions)",
-      "grips": [
-        {"param": "length", "at": ["length/2", 0], "axis": "x", "per": 2},
-        {"param": "breadth", "at": [0, "breadth/2"], "axis": "y", "per": 2}
-      ],
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "params": [
-        {"name": "length", "label": "Footing length", "unit": "mm", "default": 1500, "min": 600, "max": 6000},
-        {"name": "breadth", "label": "Footing breadth", "unit": "mm", "default": 1500, "min": 600, "max": 6000},
-        {"name": "colw", "label": "Column width", "unit": "mm", "default": 230, "min": 150, "max": 2000},
-        {"name": "cold", "label": "Column depth", "unit": "mm", "default": 450, "min": 150, "max": 2000},
-        {"name": "sloped", "label": "Sloped top", "default": 0, "choices": [{"label": "Sloped", "value": 1}, {"label": "Flat", "value": 0}]},
-        {"name": "offset", "label": "Pedestal offset", "unit": "mm", "default": 40, "min": 0, "max": 300},
-        {"name": "pcc", "label": "PCC projection (0: none)", "unit": "mm", "default": 100, "min": 0, "max": 300},
-        {
-          "name": "bar",
-          "label": "Mesh bar diameter",
-          "unit": "mm",
-          "default": 12,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20}
-          ]
-        },
-        {"name": "spacing", "label": "Mesh spacing (c/c)", "unit": "mm", "default": 150, "min": 75, "max": 300},
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 60, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "pw", "expr": "colw + 2*offset"},
-        {"name": "pd", "expr": "cold + 2*offset"},
-        {"name": "hk", "expr": "min(150, length/8)"}
-      ],
-      "items": [
-        {"crect": [0, 0, "length", "breadth"]},
-        {"when": "pcc", "linetype": "HIDDEN", "crect": [0, 0, "length + 2*pcc", "breadth + 2*pcc"]},
-        {"crect": [0, 0, "colw", "cold"]},
-        {"hatch": {"pts": [["-colw/2", "-cold/2"], ["colw/2", "-cold/2"], ["colw/2", "cold/2"], ["-colw/2", "cold/2"]], "pattern": "ANSI31", "scale": 60}},
-        {"crect": [0, 0, "pw", "pd"]},
-        {"when": "sloped", "line": ["-length/2", "-breadth/2", "-pw/2", "-pd/2"]},
-        {"when": "sloped", "line": ["length/2", "-breadth/2", "pw/2", "-pd/2"]},
-        {"when": "sloped", "line": ["length/2", "breadth/2", "pw/2", "pd/2"]},
-        {"when": "sloped", "line": ["-length/2", "breadth/2", "-pw/2", "pd/2"]},
-        {
-          "color": 1,
-          "poly": {"pts": [["-length/2 + 60", "breadth/4 - hk"], ["-length/2 + 60", "breadth/4"], ["length/2 - 60", "breadth/4"], ["length/2 - 60", "breadth/4 - hk"]]}
-        },
-        {
-          "color": 5,
-          "poly": {"pts": [["-length/4 - hk", "-breadth/2 + 60"], ["-length/4", "-breadth/2 + 60"], ["-length/4", "breadth/2 - 60"], ["-length/4 - hk", "breadth/2 - 60"]]}
-        },
-        {"when": "dims", "dim": {"from": ["-length/2", "-breadth/2"], "to": ["length/2", "-breadth/2"], "off": "-(pcc + 1.6*txt)", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-length/2", "-breadth/2"], "to": ["-length/2", "breadth/2"], "off": "-(pcc + 1.6*txt)", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-pw/2", "pd/2"], "to": ["-colw/2", "pd/2"], "off": "1.2*txt", "height": "txt", "text": "{offset:len}"}},
-        {
-          "when": "label",
-          "leader": {"from": ["length/4", "breadth/4"], "to": ["length/2 + pcc + 2*txt", "breadth*0.38"], "height": "txt", "text": "R/F parallel to L: Y{bar}@{spacing:len}"}
-        },
-        {"when": "label", "leader": {"from": ["colw/2", "cold/4"], "to": ["length/2 + pcc + 2*txt", "breadth*0.14"], "height": "txt", "text": "Column"}},
-        {
-          "when": "label",
-          "leader": {"from": ["pw/2", "-pd/4"], "to": ["length/2 + pcc + 2*txt", "-breadth*0.1"], "height": "txt", "text": "Pedestal ({offset:len} offset)"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["-length/4", "-breadth/4"], "to": ["length/2 + pcc + 2*txt", "-breadth*0.34"], "height": "txt", "text": "R/F parallel to B: Y{bar}@{spacing:len}"}
-        }
-      ]
-    },
-    {
-      "id": "rcc.footing.section",
-      "title": "RCC isolated footing (section with mesh, PCC, soling, column bars, ties and dimensions)",
-      "grips": [
-        {"param": "length", "at": ["length/2", 0], "axis": "x", "per": 2},
-        {"param": "depth", "at": ["-pw/2", "depth"], "axis": "y"}
-      ],
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "params": [
-        {"name": "length", "label": "Footing width in section", "unit": "mm", "default": 1500, "min": 600, "max": 6000},
-        {"name": "depth", "label": "Depth at column", "unit": "mm", "default": 450, "min": 200, "max": 2000},
-        {"name": "edge", "label": "Depth at edge (sloped)", "unit": "mm", "default": 200, "min": 150, "max": 2000},
-        {"name": "sloped", "label": "Sloped top", "default": 1, "choices": [{"label": "Sloped", "value": 1}, {"label": "Flat", "value": 0}]},
-        {"name": "colw", "label": "Column width", "unit": "mm", "default": 230, "min": 150, "max": 2000},
-        {"name": "stub", "label": "Column stub shown", "unit": "mm", "default": 1000, "min": 100, "max": 3000},
-        {"name": "offset", "label": "Pedestal offset", "unit": "mm", "default": 40, "min": 0, "max": 200},
-        {"name": "pedh", "label": "Pedestal height", "unit": "mm", "default": 300, "min": 0, "max": 1500},
-        {"name": "gl", "label": "Ground level above the footing", "unit": "mm", "default": 600, "min": 0, "max": 3000},
-        {"name": "pcc", "label": "PCC thickness (0: none)", "unit": "mm", "default": 100, "min": 0, "max": 300},
-        {"name": "proj", "label": "PCC projection", "unit": "mm", "default": 100, "min": 0, "max": 300},
-        {"name": "soling", "label": "Boulder soling thickness (0: none)", "unit": "mm", "default": 100, "min": 0, "max": 300},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 50, "min": 40, "max": 100},
-        {
-          "name": "bar",
-          "label": "Mesh bar diameter",
-          "unit": "mm",
-          "default": 12,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20}
-          ]
-        },
-        {"name": "spacing", "label": "Mesh spacing", "unit": "mm", "default": 150, "min": 75, "max": 300},
-        {
-          "name": "colbar",
-          "label": "Column bar diameter",
-          "unit": "mm",
-          "default": 16,
-          "choices": [
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20},
-            {"label": "25", "value": 25}
-          ]
-        },
-        {
-          "name": "tie",
-          "label": "Column tie diameter",
-          "unit": "mm",
-          "default": 8,
-          "choices": [
-            {"label": "6", "value": 6},
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12}
-          ]
-        },
-        {"name": "tiesp", "label": "Column tie spacing (c/c)", "unit": "mm", "default": 100, "min": 50, "max": 300},
-        {
-          "name": "fck",
-          "label": "Concrete grade",
-          "default": 25,
-          "choices": [
-            {"label": "M20", "value": 20},
-            {"label": "M25", "value": 25},
-            {"label": "M30", "value": 30},
-            {"label": "M35", "value": 35},
-            {"label": "M40", "value": 40}
-          ]
-        },
-        {
-          "name": "fy",
-          "label": "Steel grade",
-          "default": 500,
-          "choices": [
-            {"label": "Fe250", "value": 250},
-            {"label": "Fe415", "value": 415},
-            {"label": "Fe500", "value": 500},
-            {"label": "Fe550", "value": 550}
-          ]
-        },
-        {
-          "name": "exposure",
-          "label": "Exposure (IS 456 Table 3)",
-          "default": 1,
-          "choices": [
-            {"label": "Mild", "value": 1},
-            {"label": "Moderate", "value": 2},
-            {"label": "Severe", "value": 3},
-            {"label": "Very severe", "value": 4},
-            {"label": "Extreme", "value": 5}
-          ]
-        },
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 50, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "pw", "expr": "colw + 2*offset"},
-        {"name": "ndots", "expr": "floor((length - 2*cover - bar)/spacing) + 1"},
-        {"name": "cx", "expr": "colw/2 - 40 - colbar/2"},
-        {"name": "foot", "expr": "min(300, length/2 - cover - cx)"},
-        {"name": "edgeh", "expr": "min(edge, depth)"},
-        {
-          "name": "tbd",
-          "expr": "1.2 + 0.2*max(0, min(1, (fck - 20)/5)) + 0.1*max(0, min(1, (fck - 25)/5)) + 0.2*max(0, min(1, (fck - 30)/5)) + 0.2*max(0, min(1, (fck - 35)/5))"
-        },
-        {"name": "ld", "expr": "ceil(0.87*fy*colbar/(4*1.6*1.25*tbd)/50)*50"},
-        {"name": "top", "expr": "depth + pedh"},
-        {"name": "colh", "expr": "depth + stub"},
-        {"name": "ntie", "expr": "max(0, floor((gl - 80)/tiesp) + 1)"}
-      ],
-      "items": [
-        {"when": "pcc", "rect": ["-length/2 - proj", "-pcc", "length + 2*proj", "pcc"]},
-        {
-          "when": "pcc",
-          "hatch": {"pts": [["-length/2 - proj", "-pcc"], ["length/2 + proj", "-pcc"], ["length/2 + proj", 0], ["-length/2 - proj", 0]], "pattern": "AR-SAND", "scale": 150}
-        },
-        {"when": "soling", "rect": ["-length/2 - proj - 100", "-pcc - soling", "length + 2*proj + 200", "soling"]},
-        {
-          "when": "soling",
-          "hatch": {"pts": [["-length/2 - proj - 100", "-pcc - soling"], ["length/2 + proj + 100", "-pcc - soling"], ["length/2 + proj + 100", "-pcc"], ["-length/2 - proj - 100", "-pcc"]], "pattern": "EARTH", "scale": 300}
-        },
-        {
-          "when": "sloped",
-          "poly": {"closed": true, "pts": [["-length/2", 0], ["length/2", 0], ["length/2", "edgeh"], ["pw/2", "depth"], ["-pw/2", "depth"], ["-length/2", "edgeh"]]}
-        },
-        {"when": "1 - sloped", "rect": ["-length/2", 0, "length", "depth"]},
-        {"when": "pedh", "poly": {"pts": [["-pw/2", "depth"], ["-pw/2", "top"], ["-colw/2", "top"]]}},
-        {"when": "pedh", "poly": {"pts": [["pw/2", "depth"], ["pw/2", "top"], ["colw/2", "top"]]}},
-        {"line": ["-colw/2", "top", "-colw/2", "colh"]},
-        {"line": ["colw/2", "top", "colw/2", "colh"]},
-        {"poly": {"pts": [["-colw/2 - 50", "colh - 40"], ["-colw/6", "colh + 30"], ["colw/6", "colh - 30"], ["colw/2 + 50", "colh + 40"]]}},
-        {"when": "gl", "linetype": "CENTER", "line": ["-length/2 - proj - 300", "depth + gl", "length/2 + proj + 300", "depth + gl"]},
-        {"repeat": {"var": "i", "count": "ndots", "items": [{"color": 1, "dot": ["-length/2 + cover + bar/2 + i*spacing", "cover + bar/2", "bar/2"]}]}},
-        {
-          "color": 5,
-          "poly": {"pts": [["-length/2 + cover", "edgeh - cover"], ["-length/2 + cover", "cover + 1.5*bar"], ["length/2 - cover", "cover + 1.5*bar"], ["length/2 - cover", "edgeh - cover"]]}
-        },
-        {"color": 6, "poly": {"pts": [["-cx - foot", "cover + 2.5*bar"], ["-cx", "cover + 2.5*bar"], ["-cx", "colh - 60"]]}},
-        {"color": 6, "poly": {"pts": [["cx + foot", "cover + 2.5*bar"], ["cx", "cover + 2.5*bar"], ["cx", "colh - 60"]]}},
-        {"repeat": {"var": "i", "count": "ntie", "items": [{"color": 3, "line": ["-colw/2 + 25", "depth + 40 + i*tiesp", "colw/2 - 25", "depth + 40 + i*tiesp"]}]}},
-        {
-          "when": "dims",
-          "dim": {"from": ["-length/2 - proj - 100", "-pcc - soling"], "to": ["length/2 + proj + 100", "-pcc - soling"], "off": "-1.6*txt", "height": "txt", "text": "{length:len}"}
-        },
-        {"when": "dims", "dim": {"from": ["-length/2", 0], "to": ["-length/2", "depth"], "off": "-(1.6*txt + proj + 100)", "height": "txt", "text": "T = {depth:len}"}},
-        {
-          "when": "dims",
-          "dim": {"from": ["colw/2 + offset", "depth"], "to": ["colw/2 + offset", "depth + ld"], "off": "1.2*txt + offset", "height": "txt", "text": "Ld = {ld:len}"}
-        },
-        {"when": "dims * offset", "dim": {"from": ["-pw/2", "top + 60"], "to": ["-colw/2", "top + 60"], "off": "0.8*txt", "height": "txt", "text": "{offset:len}"}},
-        {
-          "when": "label * pcc",
-          "leader": {"from": ["-length/2 + 300", "-pcc/2"], "to": ["-length/2 - proj - 100 - 1.5*txt", "-pcc*0.2 - txt"], "height": "txt", "text": "{pcc:len} 1:3:6 PCC"}
-        },
-        {
-          "when": "label * soling",
-          "leader": {"from": ["-length/2 + 300", "-pcc - soling/2"], "to": ["-length/2 - proj - 100 - 1.5*txt", "-pcc - soling - txt"], "height": "txt", "text": "{soling:len} Boulder soling"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["-length/4", "cover + bar/2"], "to": ["length/2 + proj + 100 + 1.5*txt", "depth*0.5"], "height": "txt", "text": "R/F parallel to B"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["0", "edgeh - cover"], "to": ["length/2 + proj + 100 + 1.5*txt", "depth*0.95"], "height": "txt", "text": "R/F parallel to L"}
-        },
-        {"when": "label", "leader": {"from": ["cx", "depth + gl*0.5"], "to": ["colw/2 + 5*txt", "depth + gl*0.9"], "height": "txt", "text": "Column R/F"}},
-        {
-          "when": "label * ntie",
-          "leader": {"from": ["colw/2 - 25", "depth + 40 + 3*tiesp"], "to": ["colw/2 + 5*txt", "depth + gl*0.4"], "height": "txt", "text": "Ties Y{tie}@{tiesp:len} till plinth"}
-        },
-        {
-          "when": "label * gl",
-          "leader": {"from": ["length/2 + proj", "depth + gl"], "to": ["length/2 + proj + 100 + 1.5*txt", "depth + gl + txt"], "height": "txt", "text": "Ground lvl"}
-        }
-      ]
-    },
-    {
-      "id": "rcc.footing.combined",
-      "title": "RCC combined footing (plan with two columns, top and bottom bars, dimensions)",
-      "description": "A combined footing under two columns: the plan with the columns offset from the edge, bars along and across, their notation and the sizes.",
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "grips": [
-        {"param": "length", "at": ["length/2", 0], "axis": "x", "per": 2},
-        {"param": "breadth", "at": [0, "breadth/2"], "axis": "y", "per": 2}
-      ],
-      "params": [
-        {"name": "length", "label": "Footing length", "unit": "mm", "default": 3505, "min": 1500, "max": 9000},
-        {"name": "breadth", "label": "Footing breadth", "unit": "mm", "default": 1753, "min": 900, "max": 6000},
-        {"name": "colw", "label": "Column width", "unit": "mm", "default": 230, "min": 150, "max": 2000},
-        {"name": "cold", "label": "Column depth", "unit": "mm", "default": 450, "min": 150, "max": 2000},
-        {"name": "offset", "label": "Edge to column (a)", "unit": "mm", "default": 838, "min": 0, "max": 3000},
-        {
-          "name": "bar",
-          "label": "Bar diameter",
-          "unit": "mm",
-          "default": 10,
-          "choices": [
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16},
-            {"label": "20", "value": 20}
-          ]
-        },
-        {"name": "spacing", "label": "Bar spacing (c/c)", "unit": "mm", "default": 125, "min": 75, "max": 300},
-        {"name": "pcc", "label": "PCC projection (0: none)", "unit": "mm", "default": 100, "min": 0, "max": 300},
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 55, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "cx", "expr": "length/2 - offset - colw/2"},
-        {"name": "hk", "expr": "min(150, breadth/8)"}
-      ],
-      "items": [
-        {"crect": [0, 0, "length", "breadth"]},
-        {"when": "pcc", "linetype": "HIDDEN", "crect": [0, 0, "length + 2*pcc", "breadth + 2*pcc"]},
-        {"rect": ["cx - colw/2", "-cold/2", "colw", "cold"]},
-        {"rect": ["-cx - colw/2", "-cold/2", "colw", "cold"]},
-        {"line": ["cx - colw/2", "0 - cold/2", "cx + colw/2", "0 + cold/2"]},
-        {"line": ["cx - colw/2", "0 + cold/2", "cx + colw/2", "0 - cold/2"]},
-        {"line": ["-cx - colw/2", "0 - cold/2", "-cx + colw/2", "0 + cold/2"]},
-        {"line": ["-cx - colw/2", "0 + cold/2", "-cx + colw/2", "0 - cold/2"]},
-        {
-          "color": 1,
-          "poly": {"pts": [["-length/2 + 60", "breadth/4 - hk"], ["-length/2 + 60", "breadth/4"], ["length/2 - 60", "breadth/4"], ["length/2 - 60", "breadth/4 - hk"]]}
-        },
-        {
-          "color": 5,
-          "linetype": "HIDDEN",
-          "poly": {"pts": [["-length/2 + 90", "-breadth/4 + hk"], ["-length/2 + 90", "-breadth/4"], ["length/2 - 90", "-breadth/4"], ["length/2 - 90", "-breadth/4 + hk"]]}
-        },
-        {
-          "color": 6,
-          "poly": {"pts": [["-length/4 - hk", "-breadth/2 + 60"], ["-length/4", "-breadth/2 + 60"], ["-length/4", "breadth/2 - 60"], ["-length/4 - hk", "breadth/2 - 60"]]}
-        },
-        {
-          "color": 3,
-          "linetype": "HIDDEN",
-          "poly": {"pts": [["length/4 + hk", "-breadth/2 + 90"], ["length/4", "-breadth/2 + 90"], ["length/4", "breadth/2 - 90"], ["length/4 + hk", "breadth/2 - 90"]]}
-        },
-        {"when": "dims", "dim": {"from": ["-length/2", "-breadth/2"], "to": ["length/2", "-breadth/2"], "off": "-(pcc + 1.6*txt)", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-length/2", "-breadth/2"], "to": ["-length/2", "breadth/2"], "off": "-(pcc + 1.6*txt)", "height": "txt"}},
-        {
-          "when": "dims",
-          "dim": {"from": ["length/2 - offset", "breadth/2"], "to": ["length/2", "breadth/2"], "off": "1.6*txt + pcc", "height": "txt", "text": "a = {offset:len}"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["0", "breadth/4"], "to": ["length/2 + pcc + 2*txt", "breadth*0.38"], "height": "txt", "text": "R/F-A: Y{bar}@{spacing:len}"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["0", "-breadth/4"], "to": ["length/2 + pcc + 2*txt", "breadth*0.12"], "height": "txt", "text": "R/F-B (top): Y{bar}@{spacing:len}"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["-length/4", "-breadth/3"], "to": ["length/2 + pcc + 2*txt", "-breadth*0.14"], "height": "txt", "text": "R/F-C: Y{bar}@{spacing:len}"}
-        },
-        {
-          "when": "label",
-          "leader": {"from": ["length/4", "-breadth/3"], "to": ["length/2 + pcc + 2*txt", "-breadth*0.38"], "height": "txt", "text": "R/F-D (top): Y{bar}@{spacing:len}"}
-        }
-      ]
-    },
-    {
-      "id": "rcc.raft.lift",
-      "title": "Lift raft (plan with the corner columns, tie beams, mesh and dimensions)",
-      "description": "A raft under a lift shaft: the raft, its PCC, the four corner columns joined by tie beams, the mesh in both directions and the sizes.",
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "grips": [
-        {"param": "length", "at": ["length/2", 0], "axis": "x", "per": 2},
-        {"param": "breadth", "at": [0, "breadth/2"], "axis": "y", "per": 2}
-      ],
-      "params": [
-        {"name": "length", "label": "Raft length", "unit": "mm", "default": 2819, "min": 1500, "max": 9000},
-        {"name": "breadth", "label": "Raft breadth", "unit": "mm", "default": 4343, "min": 1500, "max": 9000},
-        {"name": "shaftl", "label": "Columns centre to centre, along the length", "unit": "mm", "default": 1600, "min": 600, "max": 6000},
-        {"name": "shaftb", "label": "Columns centre to centre, along the breadth", "unit": "mm", "default": 2800, "min": 600, "max": 8000},
-        {"name": "colw", "label": "Column width", "unit": "mm", "default": 230, "min": 150, "max": 1000},
-        {"name": "cold", "label": "Column depth", "unit": "mm", "default": 457, "min": 150, "max": 1500},
-        {"name": "thick", "label": "Raft thickness", "unit": "mm", "default": 450, "min": 200, "max": 1500},
-        {"name": "pcc", "label": "PCC projection (0: none)", "unit": "mm", "default": 100, "min": 0, "max": 300},
-        {"name": "beamw", "label": "Tie beam width", "unit": "mm", "default": 230, "min": 150, "max": 600},
-        {
-          "name": "tie",
-          "label": "Bar diameter",
-          "unit": "mm",
-          "default": 10,
-          "choices": [
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16}
-          ]
-        },
-        {"name": "tiesp", "label": "Bar spacing along the length (c/c)", "unit": "mm", "default": 150, "min": 75, "max": 300},
-        {"name": "spacing2", "label": "Bar spacing along the breadth (c/c)", "unit": "mm", "default": 100, "min": 75, "max": 300},
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "dims", "label": "Dimensions", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "ftin", "label": "Dimensions in", "default": 1, "choices": [{"label": "ft-in", "value": 1}, {"label": "mm", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 50, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "sx", "expr": "shaftl/2"},
-        {"name": "sy", "expr": "shaftb/2"},
-        {"name": "hk", "expr": "min(150, length/8)"}
-      ],
-      "items": [
-        {"crect": [0, 0, "length", "breadth"]},
-        {"when": "pcc", "linetype": "HIDDEN", "crect": [0, 0, "length + 2*pcc", "breadth + 2*pcc"]},
-        {"crect": [0, 0, "shaftl + beamw", "shaftb + beamw"]},
-        {"crect": [0, 0, "shaftl - beamw", "shaftb - beamw"]},
-        {"rect": ["sx - colw/2", "sy - cold/2", "colw", "cold"]},
-        {"rect": ["-sx - colw/2", "sy - cold/2", "colw", "cold"]},
-        {"rect": ["sx - colw/2", "-sy - cold/2", "colw", "cold"]},
-        {"rect": ["-sx - colw/2", "-sy - cold/2", "colw", "cold"]},
-        {"line": ["sx - colw/2", "sy - cold/2", "sx + colw/2", "sy + cold/2"]},
-        {"line": ["sx - colw/2", "sy + cold/2", "sx + colw/2", "sy - cold/2"]},
-        {"line": ["-sx - colw/2", "sy - cold/2", "-sx + colw/2", "sy + cold/2"]},
-        {"line": ["-sx - colw/2", "sy + cold/2", "-sx + colw/2", "sy - cold/2"]},
-        {"line": ["sx - colw/2", "-sy - cold/2", "sx + colw/2", "-sy + cold/2"]},
-        {"line": ["sx - colw/2", "-sy + cold/2", "sx + colw/2", "-sy - cold/2"]},
-        {"line": ["-sx - colw/2", "-sy - cold/2", "-sx + colw/2", "-sy + cold/2"]},
-        {"line": ["-sx - colw/2", "-sy + cold/2", "-sx + colw/2", "-sy - cold/2"]},
-        {
-          "color": 1,
-          "poly": {"pts": [["-length/2 + 60", "breadth/6 - hk"], ["-length/2 + 60", "breadth/6"], ["length/2 - 60", "breadth/6"], ["length/2 - 60", "breadth/6 - hk"]]}
-        },
-        {
-          "color": 5,
-          "poly": {"pts": [["-length/6 - hk", "-breadth/2 + 60"], ["-length/6", "-breadth/2 + 60"], ["-length/6", "breadth/2 - 60"], ["-length/6 - hk", "breadth/2 - 60"]]}
-        },
-        {"when": "dims", "dim": {"from": ["-length/2", "-breadth/2"], "to": ["length/2", "-breadth/2"], "off": "-(pcc + 1.6*txt)", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-length/2", "-breadth/2"], "to": ["-length/2", "breadth/2"], "off": "-(pcc + 1.6*txt)", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-sx - colw/2", "sy + cold/2"], "to": ["-sx + colw/2", "sy + cold/2"], "off": "1.2*txt", "height": "txt"}},
-        {"when": "dims", "dim": {"from": ["-sx - colw/2", "sy - cold/2"], "to": ["-sx - colw/2", "sy + cold/2"], "off": "-1.2*txt", "height": "txt"}},
-        {"when": "label", "leader": {"from": ["length/6", "breadth/6"], "to": ["length/2 + pcc + 2*txt", "breadth*0.3"], "height": "txt", "text": "Y{tie}@{tiesp:len}"}},
-        {
-          "when": "label",
-          "leader": {"from": ["-length/6", "-breadth/6"], "to": ["length/2 + pcc + 2*txt", "-breadth*0.2"], "height": "txt", "text": "Y{tie}@{spacing2:len}"}
-        },
-        {"when": "label", "leader": {"from": ["sx", "sy"], "to": ["length/2 + pcc + 2*txt", "breadth*0.05"], "height": "txt", "text": "Column"}},
-        {"when": "label", "leader": {"from": ["0", "sy"], "to": ["length/2 + pcc + 2*txt", "breadth*0.42"], "height": "txt", "text": "Tie beam {beamw:len}"}}
-      ]
-    },
-    {
-      "id": "rcc.lintel.section",
-      "title": "RCC lintel over an opening (elevation with bars)",
-      "grips": [
-        {"param": "span", "at": ["span/2", 0], "axis": "x", "per": 2},
-        {"param": "depth", "at": [0, "depth"], "axis": "y"}
-      ],
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "params": [
-        {"name": "span", "label": "Clear opening", "unit": "mm", "default": 1000, "min": 450, "max": 4000},
-        {"name": "bearing", "label": "Bearing each side", "unit": "mm", "default": 150, "min": 100, "max": 450},
-        {"name": "depth", "label": "Lintel depth", "unit": "mm", "default": 150, "min": 100, "max": 600},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 25, "min": 15, "max": 50},
-        {"name": "jamb", "label": "Opening height shown", "unit": "mm", "default": 400, "min": 0, "max": 2400},
-        {
-          "name": "bar",
-          "label": "Main bar diameter",
-          "unit": "mm",
-          "default": 10,
-          "choices": [
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16}
-          ]
-        },
-        {
-          "name": "fck",
-          "label": "Concrete grade",
-          "default": 25,
-          "choices": [
-            {"label": "M20", "value": 20},
-            {"label": "M25", "value": 25},
-            {"label": "M30", "value": 30},
-            {"label": "M35", "value": 35},
-            {"label": "M40", "value": 40}
-          ]
-        },
-        {
-          "name": "fy",
-          "label": "Steel grade",
-          "default": 500,
-          "choices": [
-            {"label": "Fe250", "value": 250},
-            {"label": "Fe415", "value": 415},
-            {"label": "Fe500", "value": 500},
-            {"label": "Fe550", "value": 550}
-          ]
-        },
-        {
-          "name": "exposure",
-          "label": "Exposure (IS 456 Table 3)",
-          "default": 1,
-          "choices": [
-            {"label": "Mild", "value": 1},
-            {"label": "Moderate", "value": 2},
-            {"label": "Severe", "value": 3},
-            {"label": "Very severe", "value": 4},
-            {"label": "Extreme", "value": 5}
-          ]
-        },
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "full", "expr": "span + 2*bearing"}
-      ],
-      "items": [
-        {"rect": ["-full/2", 0, "full", "depth"]},
-        {"when": "jamb", "line": ["-span/2", 0, "-span/2", "-jamb"]},
-        {"when": "jamb", "line": ["span/2", 0, "span/2", "-jamb"]},
-        {"linetype": "HIDDEN", "line": ["-full/2 + cover", "cover + bar/2", "full/2 - cover", "cover + bar/2"]},
-        {"linetype": "HIDDEN", "line": ["-full/2 + cover", "depth - cover - bar/2", "full/2 - cover", "depth - cover - bar/2"]},
-        {"when": "label", "text": {"at": [0, "depth + txt"], "height": "txt", "value": "Lintel {full} x {depth}, {bar} dia bars; {fck}, {fy}", "align": "c"}}
-      ]
-    },
-    {
-      "id": "rcc.slab.section",
-      "title": "RCC slab section (main and distribution bars)",
-      "grips": [
-        {"param": "span", "at": ["span", "thick/2"], "axis": "x"},
-        {"param": "thick", "at": ["span/2", "thick"], "axis": "y"}
-      ],
-      "layer": "S-RCC",
-      "color": 1,
-      "lineweight": 35,
-      "params": [
-        {"name": "span", "label": "Length shown", "unit": "mm", "default": 3000, "min": 600, "max": 12000},
-        {"name": "thick", "label": "Slab thickness", "unit": "mm", "default": 125, "min": 75, "max": 400},
-        {"name": "cover", "label": "Clear cover", "unit": "mm", "default": 20, "min": 15, "max": 50},
-        {
-          "name": "bar",
-          "label": "Main bar diameter",
-          "unit": "mm",
-          "default": 10,
-          "choices": [
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10},
-            {"label": "12", "value": 12},
-            {"label": "16", "value": 16}
-          ]
-        },
-        {
-          "name": "dist",
-          "label": "Distribution bar diameter",
-          "unit": "mm",
-          "default": 8,
-          "choices": [
-            {"label": "6", "value": 6},
-            {"label": "8", "value": 8},
-            {"label": "10", "value": 10}
-          ]
-        },
-        {"name": "spacing", "label": "Distribution spacing", "unit": "mm", "default": 200, "min": 75, "max": 450},
-        {"name": "distsp", "label": "Distribution bar spacing (c/c)", "unit": "mm", "default": 250, "min": 75, "max": 450},
-        {
-          "name": "fck",
-          "label": "Concrete grade",
-          "default": 25,
-          "choices": [
-            {"label": "M20", "value": 20},
-            {"label": "M25", "value": 25},
-            {"label": "M30", "value": 30},
-            {"label": "M35", "value": 35},
-            {"label": "M40", "value": 40}
-          ]
-        },
-        {
-          "name": "fy",
-          "label": "Steel grade",
-          "default": 500,
-          "choices": [
-            {"label": "Fe250", "value": 250},
-            {"label": "Fe415", "value": 415},
-            {"label": "Fe500", "value": 500},
-            {"label": "Fe550", "value": 550}
-          ]
-        },
-        {
-          "name": "exposure",
-          "label": "Exposure (IS 456 Table 3)",
-          "default": 1,
-          "choices": [
-            {"label": "Mild", "value": 1},
-            {"label": "Moderate", "value": 2},
-            {"label": "Severe", "value": 3},
-            {"label": "Very severe", "value": 4},
-            {"label": "Extreme", "value": 5}
-          ]
-        },
-        {"name": "hatch", "label": "Concrete hatch", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "label", "label": "Label", "default": 1, "choices": [{"label": "Yes", "value": 1}, {"label": "No", "value": 0}]},
-        {"name": "txt", "label": "Text height", "unit": "mm", "default": 40, "min": 10, "max": 500}
-      ],
-      "vars": [
-        {"name": "ndots", "expr": "floor((span - 2*cover - dist)/spacing) + 1"}
-      ],
-      "items": [
-        {"rect": [0, 0, "span", "thick"]},
-        {"when": "hatch", "hatch": {"pts": [[0, 0], ["span", 0], ["span", "thick"], [0, "thick"]], "pattern": "AR-CONC", "scale": 80}},
-        {"line": ["cover", "cover + bar/2", "span - cover", "cover + bar/2"]},
-        {"repeat": {"var": "i", "count": "ndots", "items": [{"dot": ["cover + dist/2 + i*spacing", "cover + bar + dist/2", "dist/2"]}]}},
-        {
-          "when": "label",
-          "text": {"at": [0, "-1.8*txt"], "height": "txt", "value": "Slab {thick} thick: {bar} dia @ {spacing} main, {dist} dia @ {distsp} distribution; {fck}, {fy}", "align": "l"}
-        }
-      ]
+     "param": "depth",
+     "at": [
+      0,
+      "depth/2"
+     ],
+     "axis": "y",
+     "per": 2
     }
-  ]
+   ],
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "params": [
+    {
+     "name": "width",
+     "label": "Width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "depth",
+     "label": "Depth",
+     "unit": "mm",
+     "default": 450,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 40,
+     "min": 20,
+     "max": 75
+    },
+    {
+     "name": "nx",
+     "label": "Bars on width face (with corners)",
+     "default": 2,
+     "min": 2,
+     "max": 12,
+     "integer": true
+    },
+    {
+     "name": "ny",
+     "label": "Bars on depth face (with corners)",
+     "default": 3,
+     "min": 2,
+     "max": 12,
+     "integer": true
+    },
+    {
+     "name": "bar",
+     "label": "Corner bar diameter",
+     "unit": "mm",
+     "default": 16,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      },
+      {
+       "label": "32",
+       "value": 32
+      }
+     ]
+    },
+    {
+     "name": "bar2",
+     "label": "Intermediate bar diameter",
+     "unit": "mm",
+     "default": 0,
+     "choices": [
+      {
+       "label": "Same as corner",
+       "value": 0
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      },
+      {
+       "label": "32",
+       "value": 32
+      }
+     ]
+    },
+    {
+     "name": "tie",
+     "label": "Tie diameter",
+     "unit": "mm",
+     "default": 8,
+     "choices": [
+      {
+       "label": "6",
+       "value": 6
+      },
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      }
+     ]
+    },
+    {
+     "name": "tiesp",
+     "label": "Tie spacing (c/c)",
+     "unit": "mm",
+     "default": 150,
+     "min": 50,
+     "max": 300
+    },
+    {
+     "name": "fck",
+     "label": "Concrete grade",
+     "default": 25,
+     "choices": [
+      {
+       "label": "M20",
+       "value": 20
+      },
+      {
+       "label": "M25",
+       "value": 25
+      },
+      {
+       "label": "M30",
+       "value": 30
+      },
+      {
+       "label": "M35",
+       "value": 35
+      },
+      {
+       "label": "M40",
+       "value": 40
+      }
+     ]
+    },
+    {
+     "name": "fy",
+     "label": "Steel grade",
+     "default": 500,
+     "choices": [
+      {
+       "label": "Fe250",
+       "value": 250
+      },
+      {
+       "label": "Fe415",
+       "value": 415
+      },
+      {
+       "label": "Fe500",
+       "value": 500
+      },
+      {
+       "label": "Fe550",
+       "value": 550
+      }
+     ]
+    },
+    {
+     "name": "exposure",
+     "label": "Exposure (IS 456 Table 3)",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Mild",
+       "value": 1
+      },
+      {
+       "label": "Moderate",
+       "value": 2
+      },
+      {
+       "label": "Severe",
+       "value": 3
+      },
+      {
+       "label": "Very severe",
+       "value": 4
+      },
+      {
+       "label": "Extreme",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "name": "hatch",
+     "label": "Concrete hatch",
+     "default": 0,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 40,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "x0",
+     "expr": "-width/2"
+    },
+    {
+     "name": "y0",
+     "expr": "-depth/2"
+    },
+    {
+     "name": "ci",
+     "expr": "cover + tie + bar/2"
+    },
+    {
+     "name": "sx",
+     "expr": "(width - 2*ci)/(nx - 1)"
+    },
+    {
+     "name": "sy",
+     "expr": "(depth - 2*ci)/(ny - 1)"
+    },
+    {
+     "name": "nbars",
+     "expr": "2*nx + 2*(ny - 2)"
+    },
+    {
+     "name": "nmid",
+     "expr": "nbars - 4"
+    },
+    {
+     "name": "xt",
+     "expr": "width/2 - cover - tie/2"
+    },
+    {
+     "name": "yt",
+     "expr": "depth/2 - cover - tie/2"
+    },
+    {
+     "name": "hk",
+     "expr": "max(6*tie, 75)*0.7071"
+    },
+    {
+     "name": "b2",
+     "expr": "bar2 + (1 - min(1, bar2))*bar"
+    },
+    {
+     "name": "mixed",
+     "expr": "min(1, abs(b2 - bar))"
+    },
+    {
+     "name": "same",
+     "expr": "1 - mixed"
+    }
+   ],
+   "items": [
+    {
+     "crect": [
+      0,
+      0,
+      "width",
+      "depth"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "hatch",
+     "hatch": {
+      "pts": [
+       [
+        "x0",
+        "y0"
+       ],
+       [
+        "-x0",
+        "y0"
+       ],
+       [
+        "-x0",
+        "-y0"
+       ],
+       [
+        "x0",
+        "-y0"
+       ]
+      ],
+      "pattern": "AR-CONC",
+      "scale": 80
+     },
+     "layer": "S-CONC-HATCH"
+    },
+    {
+     "crect": [
+      0,
+      0,
+      "width - 2*cover - tie",
+      "depth - 2*cover - tie"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "line": [
+      "-xt",
+      "yt",
+      "-xt + hk",
+      "yt - hk"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "line": [
+      "-xt",
+      "yt",
+      "-xt + hk*0.5",
+      "yt"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "repeat": {
+      "var": "j",
+      "count": "ny - 2",
+      "items": [
+       {
+        "line": [
+         "-xt",
+         "y0 + ci + (j + 1)*sy",
+         "xt",
+         "y0 + ci + (j + 1)*sy"
+        ],
+        "layer": "S-REBR-LINK"
+       }
+      ]
+     }
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "nx - 2",
+      "items": [
+       {
+        "line": [
+         "x0 + ci + (i + 1)*sx",
+         "y0 + ci",
+         "x0 + ci + (i + 1)*sx",
+         "-y0 - ci"
+        ],
+        "layer": "S-REBR-XTRA"
+       }
+      ]
+     }
+    },
+    {
+     "dot": [
+      "x0 + ci",
+      "y0 + ci",
+      "bar/2"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "dot": [
+      "-x0 - ci",
+      "y0 + ci",
+      "bar/2"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "dot": [
+      "x0 + ci",
+      "-y0 - ci",
+      "bar/2"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "dot": [
+      "-x0 - ci",
+      "-y0 - ci",
+      "bar/2"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "nx - 2",
+      "items": [
+       {
+        "when": "same",
+        "dot": [
+         "x0 + ci + (i + 1)*sx",
+         "y0 + ci",
+         "b2/2"
+        ],
+        "layer": "S-REBR-MAIN"
+       },
+       {
+        "when": "same",
+        "dot": [
+         "x0 + ci + (i + 1)*sx",
+         "-y0 - ci",
+         "b2/2"
+        ],
+        "layer": "S-REBR-MAIN"
+       },
+       {
+        "when": "mixed",
+        "dot": [
+         "x0 + ci + (i + 1)*sx",
+         "y0 + ci",
+         "b2/2"
+        ],
+        "layer": "S-REBR-EXTR"
+       },
+       {
+        "when": "mixed",
+        "dot": [
+         "x0 + ci + (i + 1)*sx",
+         "-y0 - ci",
+         "b2/2"
+        ],
+        "layer": "S-REBR-EXTR"
+       }
+      ]
+     }
+    },
+    {
+     "repeat": {
+      "var": "j",
+      "count": "ny - 2",
+      "items": [
+       {
+        "when": "same",
+        "dot": [
+         "x0 + ci",
+         "y0 + ci + (j + 1)*sy",
+         "b2/2"
+        ],
+        "layer": "S-REBR-MAIN"
+       },
+       {
+        "when": "same",
+        "dot": [
+         "-x0 - ci",
+         "y0 + ci + (j + 1)*sy",
+         "b2/2"
+        ],
+        "layer": "S-REBR-MAIN"
+       },
+       {
+        "when": "mixed",
+        "dot": [
+         "x0 + ci",
+         "y0 + ci + (j + 1)*sy",
+         "b2/2"
+        ],
+        "layer": "S-REBR-EXTR"
+       },
+       {
+        "when": "mixed",
+        "dot": [
+         "-x0 - ci",
+         "y0 + ci + (j + 1)*sy",
+         "b2/2"
+        ],
+        "layer": "S-REBR-EXTR"
+       }
+      ]
+     }
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "x0",
+       "-y0"
+      ],
+      "to": [
+       "-x0",
+       "-y0"
+      ],
+      "off": "1.6*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "x0",
+       "y0"
+      ],
+      "to": [
+       "x0",
+       "-y0"
+      ],
+      "off": "-1.6*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label * same",
+     "leader": {
+      "from": [
+       "-x0 - ci",
+       "y0 + ci"
+      ],
+      "to": [
+       "-x0 + 2*txt",
+       "y0 - 1.6*txt"
+      ],
+      "height": "txt",
+      "text": "{nbars}Y{bar}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label * mixed",
+     "leader": {
+      "from": [
+       "-x0 - ci",
+       "y0 + ci"
+      ],
+      "to": [
+       "-x0 + 2*txt",
+       "y0 - 1.6*txt"
+      ],
+      "height": "txt",
+      "text": "4Y{bar} + {nmid}Y{b2}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "xt",
+       0
+      ],
+      "to": [
+       "-x0 + 2*txt",
+       0
+      ],
+      "height": "txt",
+      "text": "Ties-Y{tie}@{tiesp:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       0,
+       "y0 - 4.2*txt"
+      ],
+      "height": "txt",
+      "value": "{fck}, {fy}",
+      "align": "c"
+     },
+     "layer": "S-ANNO-TEXT"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-CONC-HATCH",
+     "color": 8,
+     "linetype": "Continuous",
+     "lineweight": 9,
+     "description": "Hatching of concrete and masonry"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-EXTR",
+     "color": 6,
+     "linetype": "Continuous",
+     "lineweight": 35,
+     "description": "Extra bars and bars of a second diameter, starter bars"
+    },
+    {
+     "name": "S-REBR-XTRA",
+     "color": 4,
+     "linetype": "Continuous",
+     "lineweight": 35,
+     "description": "Extra bottom bars and cross-ties"
+    },
+    {
+     "name": "S-REBR-LINK",
+     "color": 3,
+     "linetype": "Continuous",
+     "lineweight": 25,
+     "description": "Links: ties, stirrups, cross-ties"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    },
+    {
+     "name": "S-ANNO-TEXT",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Text"
+    }
+   ]
+  },
+  {
+   "id": "rcc.column.circular",
+   "title": "RCC circular column (section with bars and tie)",
+   "grips": [
+    {
+     "param": "dia",
+     "at": [
+      "dia/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    }
+   ],
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "params": [
+    {
+     "name": "dia",
+     "label": "Diameter",
+     "unit": "mm",
+     "default": 450,
+     "min": 200,
+     "max": 2500
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 40,
+     "min": 20,
+     "max": 75
+    },
+    {
+     "name": "bars",
+     "label": "Number of bars",
+     "default": 8,
+     "min": 6,
+     "max": 40,
+     "integer": true
+    },
+    {
+     "name": "bar",
+     "label": "Bar diameter",
+     "unit": "mm",
+     "default": 16,
+     "choices": [
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      },
+      {
+       "label": "32",
+       "value": 32
+      }
+     ]
+    },
+    {
+     "name": "tie",
+     "label": "Tie / spiral diameter",
+     "unit": "mm",
+     "default": 8,
+     "choices": [
+      {
+       "label": "6",
+       "value": 6
+      },
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      }
+     ]
+    },
+    {
+     "name": "tiesp",
+     "label": "Tie spacing (c/c)",
+     "unit": "mm",
+     "default": 150,
+     "min": 50,
+     "max": 300
+    },
+    {
+     "name": "fck",
+     "label": "Concrete grade",
+     "default": 25,
+     "choices": [
+      {
+       "label": "M20",
+       "value": 20
+      },
+      {
+       "label": "M25",
+       "value": 25
+      },
+      {
+       "label": "M30",
+       "value": 30
+      },
+      {
+       "label": "M35",
+       "value": 35
+      },
+      {
+       "label": "M40",
+       "value": 40
+      }
+     ]
+    },
+    {
+     "name": "fy",
+     "label": "Steel grade",
+     "default": 500,
+     "choices": [
+      {
+       "label": "Fe250",
+       "value": 250
+      },
+      {
+       "label": "Fe415",
+       "value": 415
+      },
+      {
+       "label": "Fe500",
+       "value": 500
+      },
+      {
+       "label": "Fe550",
+       "value": 550
+      }
+     ]
+    },
+    {
+     "name": "exposure",
+     "label": "Exposure (IS 456 Table 3)",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Mild",
+       "value": 1
+      },
+      {
+       "label": "Moderate",
+       "value": 2
+      },
+      {
+       "label": "Severe",
+       "value": 3
+      },
+      {
+       "label": "Very severe",
+       "value": 4
+      },
+      {
+       "label": "Extreme",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 40,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "items": [
+    {
+     "circle": [
+      0,
+      0,
+      "dia/2"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "circle": [
+      0,
+      0,
+      "dia/2 - cover - tie/2"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "ring": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "dia/2 - cover - tie - bar/2",
+      "count": "bars",
+      "dot": "bar/2"
+     },
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       0,
+       "-dia/2 - 1.8*txt"
+      ],
+      "height": "txt",
+      "value": "{dia} dia, {bars}-{bar} dia, {tie} dia ties @ {tiesp} c/c; {fck}, {fy}",
+      "align": "c"
+     },
+     "layer": "S-ANNO-TEXT"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-LINK",
+     "color": 3,
+     "linetype": "Continuous",
+     "lineweight": 25,
+     "description": "Links: ties, stirrups, cross-ties"
+    },
+    {
+     "name": "S-ANNO-TEXT",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Text"
+    }
+   ]
+  },
+  {
+   "id": "rcc.beam.section",
+   "title": "RCC beam cross-section (bars by diameter, hooked stirrup, dimensions, optional slab)",
+   "grips": [
+    {
+     "param": "width",
+     "at": [
+      "width/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "depth",
+     "at": [
+      0,
+      "depth/2"
+     ],
+     "axis": "y",
+     "per": 2
+    }
+   ],
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "params": [
+    {
+     "name": "width",
+     "label": "Width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 1500
+    },
+    {
+     "name": "depth",
+     "label": "Overall depth",
+     "unit": "mm",
+     "default": 450,
+     "min": 200,
+     "max": 2500
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 25,
+     "min": 20,
+     "max": 75
+    },
+    {
+     "name": "ntop",
+     "label": "Top bars",
+     "default": 2,
+     "min": 2,
+     "max": 10,
+     "integer": true
+    },
+    {
+     "name": "nbot",
+     "label": "Bottom bars",
+     "default": 3,
+     "min": 2,
+     "max": 10,
+     "integer": true
+    },
+    {
+     "name": "bartop",
+     "label": "Top bar diameter",
+     "unit": "mm",
+     "default": 12,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      }
+     ]
+    },
+    {
+     "name": "barbot",
+     "label": "Bottom bar diameter",
+     "unit": "mm",
+     "default": 16,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      },
+      {
+       "label": "32",
+       "value": 32
+      }
+     ]
+    },
+    {
+     "name": "stir",
+     "label": "Stirrup diameter",
+     "unit": "mm",
+     "default": 8,
+     "choices": [
+      {
+       "label": "6",
+       "value": 6
+      },
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      }
+     ]
+    },
+    {
+     "name": "slab",
+     "label": "Slab thickness (0: none)",
+     "unit": "mm",
+     "default": 0,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "stsp",
+     "label": "Stirrup spacing (c/c)",
+     "unit": "mm",
+     "default": 150,
+     "min": 50,
+     "max": 450
+    },
+    {
+     "name": "fck",
+     "label": "Concrete grade",
+     "default": 25,
+     "choices": [
+      {
+       "label": "M20",
+       "value": 20
+      },
+      {
+       "label": "M25",
+       "value": 25
+      },
+      {
+       "label": "M30",
+       "value": 30
+      },
+      {
+       "label": "M35",
+       "value": 35
+      },
+      {
+       "label": "M40",
+       "value": 40
+      }
+     ]
+    },
+    {
+     "name": "fy",
+     "label": "Steel grade",
+     "default": 500,
+     "choices": [
+      {
+       "label": "Fe250",
+       "value": 250
+      },
+      {
+       "label": "Fe415",
+       "value": 415
+      },
+      {
+       "label": "Fe500",
+       "value": 500
+      },
+      {
+       "label": "Fe550",
+       "value": 550
+      }
+     ]
+    },
+    {
+     "name": "exposure",
+     "label": "Exposure (IS 456 Table 3)",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Mild",
+       "value": 1
+      },
+      {
+       "label": "Moderate",
+       "value": 2
+      },
+      {
+       "label": "Severe",
+       "value": 3
+      },
+      {
+       "label": "Very severe",
+       "value": 4
+      },
+      {
+       "label": "Extreme",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "name": "hatch",
+     "label": "Concrete hatch",
+     "default": 0,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 40,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "x0",
+     "expr": "-width/2"
+    },
+    {
+     "name": "y0",
+     "expr": "-depth/2"
+    },
+    {
+     "name": "ct",
+     "expr": "cover + stir + bartop/2"
+    },
+    {
+     "name": "cb",
+     "expr": "cover + stir + barbot/2"
+    },
+    {
+     "name": "st",
+     "expr": "(width - 2*ct)/(ntop - 1)"
+    },
+    {
+     "name": "sb",
+     "expr": "(width - 2*cb)/(nbot - 1)"
+    },
+    {
+     "name": "wing",
+     "expr": "3*slab"
+    },
+    {
+     "name": "hk",
+     "expr": "max(6*stir, 75)*0.7071"
+    }
+   ],
+   "items": [
+    {
+     "crect": [
+      0,
+      0,
+      "width",
+      "depth"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "hatch",
+     "hatch": {
+      "pts": [
+       [
+        "x0",
+        "y0"
+       ],
+       [
+        "-x0",
+        "y0"
+       ],
+       [
+        "-x0",
+        "-y0"
+       ],
+       [
+        "x0",
+        "-y0"
+       ]
+      ],
+      "pattern": "AR-CONC",
+      "scale": 80
+     },
+     "layer": "S-CONC-HATCH"
+    },
+    {
+     "crect": [
+      0,
+      0,
+      "width - 2*cover - stir",
+      "depth - 2*cover - stir"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "line": [
+      "x0 + cover + stir/2",
+      "-y0 - cover - stir/2",
+      "x0 + cover + stir/2 + hk",
+      "-y0 - cover - stir/2 - hk"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "line": [
+      "x0 + cover + stir/2",
+      "-y0 - cover - stir/2",
+      "x0 + cover + stir/2 + hk*0.5",
+      "-y0 - cover - stir/2"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "ntop",
+      "items": [
+       {
+        "dot": [
+         "x0 + ct + i*st",
+         "-y0 - ct",
+         "bartop/2"
+        ],
+        "layer": "S-REBR-TOP"
+       }
+      ]
+     }
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "nbot",
+      "items": [
+       {
+        "dot": [
+         "x0 + cb + i*sb",
+         "y0 + cb",
+         "barbot/2"
+        ],
+        "layer": "S-REBR-MAIN"
+       }
+      ]
+     }
+    },
+    {
+     "when": "slab",
+     "poly": {
+      "pts": [
+       [
+        "x0",
+        "-y0 - slab"
+       ],
+       [
+        "x0 - wing",
+        "-y0 - slab"
+       ],
+       [
+        "x0 - wing",
+        "-y0"
+       ],
+       [
+        "x0",
+        "-y0"
+       ]
+      ]
+     },
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "slab",
+     "poly": {
+      "pts": [
+       [
+        "-x0",
+        "-y0 - slab"
+       ],
+       [
+        "-x0 + wing",
+        "-y0 - slab"
+       ],
+       [
+        "-x0 + wing",
+        "-y0"
+       ],
+       [
+        "-x0",
+        "-y0"
+       ]
+      ]
+     },
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "x0",
+       "-y0"
+      ],
+      "to": [
+       "-x0",
+       "-y0"
+      ],
+      "off": "1.6*txt + slab",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "x0",
+       "y0"
+      ],
+      "to": [
+       "x0",
+       "-y0"
+      ],
+      "off": "-1.6*txt - wing*0",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-x0 - ct",
+       "-y0 - ct"
+      ],
+      "to": [
+       "-x0 + 2*txt",
+       "-y0 + 0.4*txt"
+      ],
+      "height": "txt",
+      "text": "{ntop}Y{bartop}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-x0 - cb",
+       "y0 + cb"
+      ],
+      "to": [
+       "-x0 + 2*txt",
+       "y0 - 1.6*txt"
+      ],
+      "height": "txt",
+      "text": "{nbot}Y{barbot}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-x0 - cover - stir/2",
+       0
+      ],
+      "to": [
+       "-x0 + 2*txt",
+       0
+      ],
+      "height": "txt",
+      "text": "Y{stir}-Strp@{stsp:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       0,
+       "y0 - 4.2*txt"
+      ],
+      "height": "txt",
+      "value": "{fck}, {fy}",
+      "align": "c"
+     },
+     "layer": "S-ANNO-TEXT"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-CONC-HATCH",
+     "color": 8,
+     "linetype": "Continuous",
+     "lineweight": 9,
+     "description": "Hatching of concrete and masonry"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-TOP",
+     "color": 5,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Top reinforcement and top mesh"
+    },
+    {
+     "name": "S-REBR-LINK",
+     "color": 3,
+     "linetype": "Continuous",
+     "lineweight": 25,
+     "description": "Links: ties, stirrups, cross-ties"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    },
+    {
+     "name": "S-ANNO-TEXT",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Text"
+    }
+   ]
+  },
+  {
+   "id": "rcc.beam.elevation",
+   "title": "RCC beam longitudinal section (top and bottom bars with curtailment, stirrup zones, dimensions)",
+   "description": "A beam along its span between two supports: continuous and extra bars, stirrups by zone, curtailment lengths and bar callouts, checked to IS 456:2000.",
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "grips": [
+    {
+     "param": "span",
+     "at": [
+      "span/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "depth",
+     "at": [
+      0,
+      "depth/2"
+     ],
+     "axis": "y",
+     "per": 2
+    }
+   ],
+   "params": [
+    {
+     "name": "span",
+     "label": "Clear span",
+     "unit": "mm",
+     "default": 3600,
+     "min": 1500,
+     "max": 12000
+    },
+    {
+     "name": "sup",
+     "label": "Support width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 900
+    },
+    {
+     "name": "width",
+     "label": "Beam width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 1500
+    },
+    {
+     "name": "depth",
+     "label": "Overall depth",
+     "unit": "mm",
+     "default": 450,
+     "min": 200,
+     "max": 2500
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 25,
+     "min": 20,
+     "max": 75
+    },
+    {
+     "name": "ntop",
+     "label": "Continuous top bars",
+     "default": 2,
+     "min": 2,
+     "max": 10,
+     "integer": true
+    },
+    {
+     "name": "bartop",
+     "label": "Top bar diameter",
+     "unit": "mm",
+     "default": 12,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      }
+     ]
+    },
+    {
+     "name": "nxtop",
+     "label": "Extra top bars at the supports",
+     "default": 2,
+     "min": 0,
+     "max": 10,
+     "integer": true
+    },
+    {
+     "name": "barxtop",
+     "label": "Extra top bar diameter",
+     "unit": "mm",
+     "default": 12,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      }
+     ]
+    },
+    {
+     "name": "lx",
+     "label": "Extra top bar length from the support face",
+     "unit": "mm",
+     "default": 900,
+     "min": 300,
+     "max": 4000
+    },
+    {
+     "name": "nbot",
+     "label": "Continuous bottom bars",
+     "default": 2,
+     "min": 2,
+     "max": 10,
+     "integer": true
+    },
+    {
+     "name": "barbot",
+     "label": "Bottom bar diameter",
+     "unit": "mm",
+     "default": 12,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      },
+      {
+       "label": "32",
+       "value": 32
+      }
+     ]
+    },
+    {
+     "name": "nxbot",
+     "label": "Extra bottom bars at mid-span",
+     "default": 1,
+     "min": 0,
+     "max": 10,
+     "integer": true
+    },
+    {
+     "name": "barxbot",
+     "label": "Extra bottom bar diameter",
+     "unit": "mm",
+     "default": 16,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      },
+      {
+       "label": "32",
+       "value": 32
+      }
+     ]
+    },
+    {
+     "name": "stir",
+     "label": "Stirrup diameter",
+     "unit": "mm",
+     "default": 8,
+     "choices": [
+      {
+       "label": "6",
+       "value": 6
+      },
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      }
+     ]
+    },
+    {
+     "name": "endn",
+     "label": "Stirrups in each end zone",
+     "default": 5,
+     "min": 1,
+     "max": 30,
+     "integer": true
+    },
+    {
+     "name": "endsp",
+     "label": "End zone spacing (c/c)",
+     "unit": "mm",
+     "default": 150,
+     "min": 50,
+     "max": 300
+    },
+    {
+     "name": "midsp",
+     "label": "Mid zone spacing (c/c)",
+     "unit": "mm",
+     "default": 175,
+     "min": 50,
+     "max": 450
+    },
+    {
+     "name": "fck",
+     "label": "Concrete grade",
+     "default": 25,
+     "choices": [
+      {
+       "label": "M20",
+       "value": 20
+      },
+      {
+       "label": "M25",
+       "value": 25
+      },
+      {
+       "label": "M30",
+       "value": 30
+      },
+      {
+       "label": "M35",
+       "value": 35
+      },
+      {
+       "label": "M40",
+       "value": 40
+      }
+     ]
+    },
+    {
+     "name": "fy",
+     "label": "Steel grade",
+     "default": 500,
+     "choices": [
+      {
+       "label": "Fe250",
+       "value": 250
+      },
+      {
+       "label": "Fe415",
+       "value": 415
+      },
+      {
+       "label": "Fe500",
+       "value": 500
+      },
+      {
+       "label": "Fe550",
+       "value": 550
+      }
+     ]
+    },
+    {
+     "name": "exposure",
+     "label": "Exposure (IS 456 Table 3)",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Mild",
+       "value": 1
+      },
+      {
+       "label": "Moderate",
+       "value": 2
+      },
+      {
+       "label": "Severe",
+       "value": 3
+      },
+      {
+       "label": "Very severe",
+       "value": 4
+      },
+      {
+       "label": "Extreme",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 60,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "ct",
+     "expr": "cover + stir + bartop/2"
+    },
+    {
+     "name": "cb",
+     "expr": "cover + stir + barbot/2"
+    },
+    {
+     "name": "yt",
+     "expr": "depth/2 - ct"
+    },
+    {
+     "name": "yb",
+     "expr": "-depth/2 + cb"
+    },
+    {
+     "name": "full",
+     "expr": "span + 2*sup"
+    },
+    {
+     "name": "ez",
+     "expr": "50 + (endn - 1)*endsp"
+    },
+    {
+     "name": "nmid",
+     "expr": "max(0, ceil((span - 2*ez)/midsp - 0.3) - 1)"
+    },
+    {
+     "name": "xbl",
+     "expr": "span*0.15"
+    },
+    {
+     "name": "ys",
+     "expr": "-depth/2 - 2.4*txt"
+    }
+   ],
+   "items": [
+    {
+     "line": [
+      "-span/2",
+      "depth/2",
+      "span/2",
+      "depth/2"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "-span/2",
+      "-depth/2",
+      "span/2",
+      "-depth/2"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "rect": [
+      "-span/2 - sup",
+      "-depth/2 - 100",
+      "sup",
+      "depth + 200"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "rect": [
+      "span/2",
+      "-depth/2 - 100",
+      "sup",
+      "depth + 200"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "-span/2 - sup",
+      "-depth/2 - 100",
+      "-span/2",
+      "depth/2 + 100"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "-span/2 - sup",
+      "depth/2 + 100",
+      "-span/2",
+      "-depth/2 - 100"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "span/2",
+      "-depth/2 - 100",
+      "span/2 + sup",
+      "depth/2 + 100"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "span/2",
+      "depth/2 + 100",
+      "span/2 + sup",
+      "-depth/2 - 100"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "endn",
+      "items": [
+       {
+        "line": [
+         "-span/2 + 50 + i*endsp",
+         "-depth/2 + cover",
+         "-span/2 + 50 + i*endsp",
+         "depth/2 - cover"
+        ],
+        "layer": "S-REBR-LINK"
+       },
+       {
+        "line": [
+         "span/2 - 50 - i*endsp",
+         "-depth/2 + cover",
+         "span/2 - 50 - i*endsp",
+         "depth/2 - cover"
+        ],
+        "layer": "S-REBR-LINK"
+       }
+      ]
+     }
+    },
+    {
+     "repeat": {
+      "var": "k",
+      "count": "nmid",
+      "items": [
+       {
+        "line": [
+         "-span/2 + ez + (k + 1)*midsp",
+         "-depth/2 + cover",
+         "-span/2 + ez + (k + 1)*midsp",
+         "depth/2 - cover"
+        ],
+        "layer": "S-REBR-LINK"
+       }
+      ]
+     }
+    },
+    {
+     "line": [
+      "-span/2 - sup + cover",
+      "yt",
+      "span/2 + sup - cover",
+      "yt"
+     ],
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "when": "nxtop",
+     "poly": {
+      "pts": [
+       [
+        "-span/2 - sup + cover",
+        "yt - bartop - 15"
+       ],
+       [
+        "-span/2 + lx",
+        "yt - bartop - 15"
+       ]
+      ]
+     },
+     "layer": "S-REBR-EXTR"
+    },
+    {
+     "when": "nxtop",
+     "poly": {
+      "pts": [
+       [
+        "span/2 + sup - cover",
+        "yt - bartop - 15"
+       ],
+       [
+        "span/2 - lx",
+        "yt - bartop - 15"
+       ]
+      ]
+     },
+     "layer": "S-REBR-EXTR"
+    },
+    {
+     "line": [
+      "-span/2 - sup + cover",
+      "yb",
+      "span/2 + sup - cover",
+      "yb"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "when": "nxbot",
+     "line": [
+      "-span/2 + xbl",
+      "yb + barbot + 15",
+      "span/2 - xbl",
+      "yb + barbot + 15"
+     ],
+     "layer": "S-REBR-XTRA"
+    },
+    {
+     "line": [
+      "-span/2",
+      "ys",
+      "span/2",
+      "ys"
+     ],
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "dot": [
+      "-span/2 + ez",
+      "ys",
+      18
+     ],
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "dot": [
+      "span/2 - ez",
+      "ys",
+      18
+     ],
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       "-span/2 + 50",
+       "ys + 0.5*txt"
+      ],
+      "height": "txt",
+      "value": "{endn} nos @ {endsp:len}"
+     },
+     "layer": "S-ANNO-TEXT"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       0,
+       "ys + 0.5*txt"
+      ],
+      "height": "txt",
+      "value": "@ {midsp:len}",
+      "align": "c"
+     },
+     "layer": "S-ANNO-TEXT"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       "span/2 - 50 - 9*txt",
+       "ys + 0.5*txt"
+      ],
+      "height": "txt",
+      "value": "{endn} nos @ {endsp:len}"
+     },
+     "layer": "S-ANNO-TEXT"
+    },
+    {
+     "when": "dims * nxtop",
+     "dim": {
+      "from": [
+       "-span/2",
+       "depth/2"
+      ],
+      "to": [
+       "-span/2 + lx",
+       "depth/2"
+      ],
+      "off": "1.6*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims * nxtop",
+     "dim": {
+      "from": [
+       "span/2 - lx",
+       "depth/2"
+      ],
+      "to": [
+       "span/2",
+       "depth/2"
+      ],
+      "off": "1.6*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-span/2",
+       "-depth/2"
+      ],
+      "to": [
+       "span/2",
+       "-depth/2"
+      ],
+      "off": "-(3*txt + 2.4*txt)",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-span/2 + 0.4*lx",
+       "yt"
+      ],
+      "to": [
+       "-span/2 + 0.4*lx + 3*txt",
+       "depth/2 + 4.8*txt"
+      ],
+      "height": "txt",
+      "text": "{ntop}Y{bartop}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label * nxtop",
+     "leader": {
+      "from": [
+       "-span/2 + 0.2*lx",
+       "yt - bartop - 15"
+      ],
+      "to": [
+       "-span/2 - sup - 1*txt",
+       "depth/2 + 4.8*txt"
+      ],
+      "height": "txt",
+      "text": "{nxtop}Y{barxtop}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-span/2 + 0.8*xbl",
+       "yb"
+      ],
+      "to": [
+       "-span/2 - sup - 2*txt",
+       "-depth/2 - 0.8*txt"
+      ],
+      "height": "txt",
+      "text": "{nbot}Y{barbot}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label * nxbot",
+     "leader": {
+      "from": [
+       "0",
+       "yb + barbot + 15"
+      ],
+      "to": [
+       "span*0.12",
+       "depth/2 + 4.8*txt"
+      ],
+      "height": "txt",
+      "text": "{nxbot}Y{barxbot}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       "-span/2",
+       "depth/2 + 8*txt"
+      ],
+      "height": "txt",
+      "value": "Y{stir} stirrups, beam ({width:len} X {depth:len}); {fck}, {fy}"
+     },
+     "layer": "S-ANNO-TEXT"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-TOP",
+     "color": 5,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Top reinforcement and top mesh"
+    },
+    {
+     "name": "S-REBR-EXTR",
+     "color": 6,
+     "linetype": "Continuous",
+     "lineweight": 35,
+     "description": "Extra bars and bars of a second diameter, starter bars"
+    },
+    {
+     "name": "S-REBR-XTRA",
+     "color": 4,
+     "linetype": "Continuous",
+     "lineweight": 35,
+     "description": "Extra bottom bars and cross-ties"
+    },
+    {
+     "name": "S-REBR-LINK",
+     "color": 3,
+     "linetype": "Continuous",
+     "lineweight": 25,
+     "description": "Links: ties, stirrups, cross-ties"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    },
+    {
+     "name": "S-ANNO-TEXT",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Text"
+    }
+   ]
+  },
+  {
+   "id": "rcc.stirrup.detail",
+   "title": "Typical stirrup (shape with 135 degree hooks and dimensions)",
+   "description": "A closed stirrup of a beam or tie of a column: its shape, the 135 degree hook (at least 6 bar diameters or 75 mm) and the sizes.",
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "grips": [
+    {
+     "param": "width",
+     "at": [
+      "width/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "depth",
+     "at": [
+      0,
+      "depth/2"
+     ],
+     "axis": "y",
+     "per": 2
+    }
+   ],
+   "params": [
+    {
+     "name": "width",
+     "label": "Member width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 1500
+    },
+    {
+     "name": "depth",
+     "label": "Member depth",
+     "unit": "mm",
+     "default": 450,
+     "min": 150,
+     "max": 2500
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 25,
+     "min": 20,
+     "max": 75
+    },
+    {
+     "name": "stir",
+     "label": "Stirrup diameter",
+     "unit": "mm",
+     "default": 8,
+     "choices": [
+      {
+       "label": "6",
+       "value": 6
+      },
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 40,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "sw",
+     "expr": "width - 2*cover"
+    },
+    {
+     "name": "sh",
+     "expr": "depth - 2*cover"
+    },
+    {
+     "name": "hk",
+     "expr": "max(6*stir, 75)"
+    },
+    {
+     "name": "hd",
+     "expr": "hk*0.7071"
+    }
+   ],
+   "items": [
+    {
+     "crect": [
+      0,
+      0,
+      "sw",
+      "sh"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "line": [
+      "-sw/2",
+      "sh/2",
+      "-sw/2 + hd",
+      "sh/2 - hd"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "line": [
+      "-sw/2",
+      "sh/2",
+      "-sw/2 + hd*0.5",
+      "sh/2"
+     ],
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-sw/2",
+       "sh/2"
+      ],
+      "to": [
+       "sw/2",
+       "sh/2"
+      ],
+      "off": "1.6*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-sw/2",
+       "-sh/2"
+      ],
+      "to": [
+       "-sw/2",
+       "sh/2"
+      ],
+      "off": "-1.6*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-sw/2 + hd*0.5",
+       "sh/2 - hd*0.5"
+      ],
+      "to": [
+       "sw/2 + 2*txt",
+       "sh/2 - 1.5*txt"
+      ],
+      "height": "txt",
+      "text": "135 deg hook {hk:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       0,
+       "-sh/2 - 2.4*txt"
+      ],
+      "height": "txt",
+      "value": "Y{stir} stirrup {sw:len} x {sh:len}",
+      "align": "c"
+     },
+     "layer": "S-ANNO-TEXT"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-REBR-LINK",
+     "color": 3,
+     "linetype": "Continuous",
+     "lineweight": 25,
+     "description": "Links: ties, stirrups, cross-ties"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    },
+    {
+     "name": "S-ANNO-TEXT",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Text"
+    }
+   ]
+  },
+  {
+   "id": "rcc.footing.plan",
+   "title": "RCC isolated footing (plan with mesh, pedestal, dimensions)",
+   "grips": [
+    {
+     "param": "length",
+     "at": [
+      "length/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "breadth",
+     "at": [
+      0,
+      "breadth/2"
+     ],
+     "axis": "y",
+     "per": 2
+    }
+   ],
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "params": [
+    {
+     "name": "length",
+     "label": "Footing length",
+     "unit": "mm",
+     "default": 1500,
+     "min": 600,
+     "max": 6000
+    },
+    {
+     "name": "breadth",
+     "label": "Footing breadth",
+     "unit": "mm",
+     "default": 1500,
+     "min": 600,
+     "max": 6000
+    },
+    {
+     "name": "colw",
+     "label": "Column width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "cold",
+     "label": "Column depth",
+     "unit": "mm",
+     "default": 450,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "sloped",
+     "label": "Sloped top",
+     "default": 0,
+     "choices": [
+      {
+       "label": "Sloped",
+       "value": 1
+      },
+      {
+       "label": "Flat",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "offset",
+     "label": "Pedestal offset",
+     "unit": "mm",
+     "default": 40,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "pcc",
+     "label": "PCC projection (0: none)",
+     "unit": "mm",
+     "default": 100,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "bar",
+     "label": "Mesh bar diameter",
+     "unit": "mm",
+     "default": 12,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      }
+     ]
+    },
+    {
+     "name": "spacing",
+     "label": "Mesh spacing (c/c)",
+     "unit": "mm",
+     "default": 150,
+     "min": 75,
+     "max": 300
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 60,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "pw",
+     "expr": "colw + 2*offset"
+    },
+    {
+     "name": "pd",
+     "expr": "cold + 2*offset"
+    },
+    {
+     "name": "hk",
+     "expr": "min(150, length/8)"
+    }
+   ],
+   "items": [
+    {
+     "crect": [
+      0,
+      0,
+      "length",
+      "breadth"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "pcc",
+     "crect": [
+      0,
+      0,
+      "length + 2*pcc",
+      "breadth + 2*pcc"
+     ],
+     "layer": "S-CONC-HIDD"
+    },
+    {
+     "crect": [
+      0,
+      0,
+      "colw",
+      "cold"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "hatch": {
+      "pts": [
+       [
+        "-colw/2",
+        "-cold/2"
+       ],
+       [
+        "colw/2",
+        "-cold/2"
+       ],
+       [
+        "colw/2",
+        "cold/2"
+       ],
+       [
+        "-colw/2",
+        "cold/2"
+       ]
+      ],
+      "pattern": "ANSI31",
+      "scale": 60
+     },
+     "layer": "S-CONC-HATCH"
+    },
+    {
+     "crect": [
+      0,
+      0,
+      "pw",
+      "pd"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "sloped",
+     "line": [
+      "-length/2",
+      "-breadth/2",
+      "-pw/2",
+      "-pd/2"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "sloped",
+     "line": [
+      "length/2",
+      "-breadth/2",
+      "pw/2",
+      "-pd/2"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "sloped",
+     "line": [
+      "length/2",
+      "breadth/2",
+      "pw/2",
+      "pd/2"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "sloped",
+     "line": [
+      "-length/2",
+      "breadth/2",
+      "-pw/2",
+      "pd/2"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-length/2 + 60",
+        "breadth/4 - hk"
+       ],
+       [
+        "-length/2 + 60",
+        "breadth/4"
+       ],
+       [
+        "length/2 - 60",
+        "breadth/4"
+       ],
+       [
+        "length/2 - 60",
+        "breadth/4 - hk"
+       ]
+      ]
+     },
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-length/4 - hk",
+        "-breadth/2 + 60"
+       ],
+       [
+        "-length/4",
+        "-breadth/2 + 60"
+       ],
+       [
+        "-length/4",
+        "breadth/2 - 60"
+       ],
+       [
+        "-length/4 - hk",
+        "breadth/2 - 60"
+       ]
+      ]
+     },
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2",
+       "-breadth/2"
+      ],
+      "to": [
+       "length/2",
+       "-breadth/2"
+      ],
+      "off": "-(pcc + 1.6*txt)",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2",
+       "-breadth/2"
+      ],
+      "to": [
+       "-length/2",
+       "breadth/2"
+      ],
+      "off": "-(pcc + 1.6*txt)",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-pw/2",
+       "pd/2"
+      ],
+      "to": [
+       "-colw/2",
+       "pd/2"
+      ],
+      "off": "1.2*txt",
+      "height": "txt",
+      "text": "{offset:len}"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "length/4",
+       "breadth/4"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "breadth*0.38"
+      ],
+      "height": "txt",
+      "text": "R/F parallel to L: Y{bar}@{spacing:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "colw/2",
+       "cold/4"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "breadth*0.14"
+      ],
+      "height": "txt",
+      "text": "Column"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "pw/2",
+       "-pd/4"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "-breadth*0.1"
+      ],
+      "height": "txt",
+      "text": "Pedestal ({offset:len} offset)"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-length/4",
+       "-breadth/4"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "-breadth*0.34"
+      ],
+      "height": "txt",
+      "text": "R/F parallel to B: Y{bar}@{spacing:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-CONC-HIDD",
+     "color": 8,
+     "linetype": "HIDDEN",
+     "lineweight": 25,
+     "description": "Concealed concrete edges and PCC projection"
+    },
+    {
+     "name": "S-CONC-HATCH",
+     "color": 8,
+     "linetype": "Continuous",
+     "lineweight": 9,
+     "description": "Hatching of concrete and masonry"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-TOP",
+     "color": 5,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Top reinforcement and top mesh"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    }
+   ]
+  },
+  {
+   "id": "rcc.footing.section",
+   "title": "RCC isolated footing (section with mesh, PCC, soling, column bars, ties and dimensions)",
+   "grips": [
+    {
+     "param": "length",
+     "at": [
+      "length/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "depth",
+     "at": [
+      "-pw/2",
+      "depth"
+     ],
+     "axis": "y"
+    }
+   ],
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "params": [
+    {
+     "name": "length",
+     "label": "Footing width in section",
+     "unit": "mm",
+     "default": 1500,
+     "min": 600,
+     "max": 6000
+    },
+    {
+     "name": "depth",
+     "label": "Depth at column",
+     "unit": "mm",
+     "default": 450,
+     "min": 200,
+     "max": 2000
+    },
+    {
+     "name": "edge",
+     "label": "Depth at edge (sloped)",
+     "unit": "mm",
+     "default": 200,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "sloped",
+     "label": "Sloped top",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Sloped",
+       "value": 1
+      },
+      {
+       "label": "Flat",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "colw",
+     "label": "Column width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "stub",
+     "label": "Column stub shown",
+     "unit": "mm",
+     "default": 1000,
+     "min": 100,
+     "max": 3000
+    },
+    {
+     "name": "offset",
+     "label": "Pedestal offset",
+     "unit": "mm",
+     "default": 40,
+     "min": 0,
+     "max": 200
+    },
+    {
+     "name": "pedh",
+     "label": "Pedestal height",
+     "unit": "mm",
+     "default": 300,
+     "min": 0,
+     "max": 1500
+    },
+    {
+     "name": "gl",
+     "label": "Ground level above the footing",
+     "unit": "mm",
+     "default": 600,
+     "min": 0,
+     "max": 3000
+    },
+    {
+     "name": "pcc",
+     "label": "PCC thickness (0: none)",
+     "unit": "mm",
+     "default": 100,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "proj",
+     "label": "PCC projection",
+     "unit": "mm",
+     "default": 100,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "soling",
+     "label": "Boulder soling thickness (0: none)",
+     "unit": "mm",
+     "default": 100,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 50,
+     "min": 40,
+     "max": 100
+    },
+    {
+     "name": "bar",
+     "label": "Mesh bar diameter",
+     "unit": "mm",
+     "default": 12,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      }
+     ]
+    },
+    {
+     "name": "spacing",
+     "label": "Mesh spacing",
+     "unit": "mm",
+     "default": 150,
+     "min": 75,
+     "max": 300
+    },
+    {
+     "name": "colbar",
+     "label": "Column bar diameter",
+     "unit": "mm",
+     "default": 16,
+     "choices": [
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      },
+      {
+       "label": "25",
+       "value": 25
+      }
+     ]
+    },
+    {
+     "name": "tie",
+     "label": "Column tie diameter",
+     "unit": "mm",
+     "default": 8,
+     "choices": [
+      {
+       "label": "6",
+       "value": 6
+      },
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      }
+     ]
+    },
+    {
+     "name": "tiesp",
+     "label": "Column tie spacing (c/c)",
+     "unit": "mm",
+     "default": 100,
+     "min": 50,
+     "max": 300
+    },
+    {
+     "name": "fck",
+     "label": "Concrete grade",
+     "default": 25,
+     "choices": [
+      {
+       "label": "M20",
+       "value": 20
+      },
+      {
+       "label": "M25",
+       "value": 25
+      },
+      {
+       "label": "M30",
+       "value": 30
+      },
+      {
+       "label": "M35",
+       "value": 35
+      },
+      {
+       "label": "M40",
+       "value": 40
+      }
+     ]
+    },
+    {
+     "name": "fy",
+     "label": "Steel grade",
+     "default": 500,
+     "choices": [
+      {
+       "label": "Fe250",
+       "value": 250
+      },
+      {
+       "label": "Fe415",
+       "value": 415
+      },
+      {
+       "label": "Fe500",
+       "value": 500
+      },
+      {
+       "label": "Fe550",
+       "value": 550
+      }
+     ]
+    },
+    {
+     "name": "exposure",
+     "label": "Exposure (IS 456 Table 3)",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Mild",
+       "value": 1
+      },
+      {
+       "label": "Moderate",
+       "value": 2
+      },
+      {
+       "label": "Severe",
+       "value": 3
+      },
+      {
+       "label": "Very severe",
+       "value": 4
+      },
+      {
+       "label": "Extreme",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 50,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "pw",
+     "expr": "colw + 2*offset"
+    },
+    {
+     "name": "ndots",
+     "expr": "floor((length - 2*cover - bar)/spacing) + 1"
+    },
+    {
+     "name": "cx",
+     "expr": "colw/2 - 40 - colbar/2"
+    },
+    {
+     "name": "foot",
+     "expr": "min(300, length/2 - cover - cx)"
+    },
+    {
+     "name": "edgeh",
+     "expr": "min(edge, depth)"
+    },
+    {
+     "name": "tbd",
+     "expr": "1.2 + 0.2*max(0, min(1, (fck - 20)/5)) + 0.1*max(0, min(1, (fck - 25)/5)) + 0.2*max(0, min(1, (fck - 30)/5)) + 0.2*max(0, min(1, (fck - 35)/5))"
+    },
+    {
+     "name": "ld",
+     "expr": "ceil(0.87*fy*colbar/(4*1.6*1.25*tbd)/50)*50"
+    },
+    {
+     "name": "top",
+     "expr": "depth + pedh"
+    },
+    {
+     "name": "colh",
+     "expr": "depth + stub"
+    },
+    {
+     "name": "ntie",
+     "expr": "max(0, floor((gl - 80)/tiesp) + 1)"
+    }
+   ],
+   "items": [
+    {
+     "when": "pcc",
+     "rect": [
+      "-length/2 - proj",
+      "-pcc",
+      "length + 2*proj",
+      "pcc"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "when": "pcc",
+     "hatch": {
+      "pts": [
+       [
+        "-length/2 - proj",
+        "-pcc"
+       ],
+       [
+        "length/2 + proj",
+        "-pcc"
+       ],
+       [
+        "length/2 + proj",
+        0
+       ],
+       [
+        "-length/2 - proj",
+        0
+       ]
+      ],
+      "pattern": "AR-CONC",
+      "scale": 150
+     },
+     "layer": "S-SOIL-HATCH"
+    },
+    {
+     "when": "soling",
+     "rect": [
+      "-length/2 - proj - 100",
+      "-pcc - soling",
+      "length + 2*proj + 200",
+      "soling"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "when": "soling",
+     "hatch": {
+      "pts": [
+       [
+        "-length/2 - proj - 100",
+        "-pcc - soling"
+       ],
+       [
+        "length/2 + proj + 100",
+        "-pcc - soling"
+       ],
+       [
+        "length/2 + proj + 100",
+        "-pcc"
+       ],
+       [
+        "-length/2 - proj - 100",
+        "-pcc"
+       ]
+      ],
+      "pattern": "EARTH",
+      "scale": 300
+     },
+     "layer": "S-SOIL-HATCH"
+    },
+    {
+     "when": "sloped",
+     "poly": {
+      "closed": true,
+      "pts": [
+       [
+        "-length/2",
+        0
+       ],
+       [
+        "length/2",
+        0
+       ],
+       [
+        "length/2",
+        "edgeh"
+       ],
+       [
+        "pw/2",
+        "depth"
+       ],
+       [
+        "-pw/2",
+        "depth"
+       ],
+       [
+        "-length/2",
+        "edgeh"
+       ]
+      ]
+     },
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "1 - sloped",
+     "rect": [
+      "-length/2",
+      0,
+      "length",
+      "depth"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "pedh",
+     "poly": {
+      "pts": [
+       [
+        "-pw/2",
+        "depth"
+       ],
+       [
+        "-pw/2",
+        "top"
+       ],
+       [
+        "-colw/2",
+        "top"
+       ]
+      ]
+     },
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "pedh",
+     "poly": {
+      "pts": [
+       [
+        "pw/2",
+        "depth"
+       ],
+       [
+        "pw/2",
+        "top"
+       ],
+       [
+        "colw/2",
+        "top"
+       ]
+      ]
+     },
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "-colw/2",
+      "top",
+      "-colw/2",
+      "colh"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "colw/2",
+      "top",
+      "colw/2",
+      "colh"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-colw/2 - 50",
+        "colh - 40"
+       ],
+       [
+        "-colw/6",
+        "colh + 30"
+       ],
+       [
+        "colw/6",
+        "colh - 30"
+       ],
+       [
+        "colw/2 + 50",
+        "colh + 40"
+       ]
+      ]
+     },
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "when": "gl",
+     "line": [
+      "-length/2 - proj - 300",
+      "depth + gl",
+      "length/2 + proj + 300",
+      "depth + gl"
+     ],
+     "layer": "S-GRND"
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "ndots",
+      "items": [
+       {
+        "dot": [
+         "-length/2 + cover + bar/2 + i*spacing",
+         "cover + bar/2",
+         "bar/2"
+        ],
+        "layer": "S-REBR-MAIN"
+       }
+      ]
+     }
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-length/2 + cover",
+        "edgeh - cover"
+       ],
+       [
+        "-length/2 + cover",
+        "cover + 1.5*bar"
+       ],
+       [
+        "length/2 - cover",
+        "cover + 1.5*bar"
+       ],
+       [
+        "length/2 - cover",
+        "edgeh - cover"
+       ]
+      ]
+     },
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-cx - foot",
+        "cover + 2.5*bar"
+       ],
+       [
+        "-cx",
+        "cover + 2.5*bar"
+       ],
+       [
+        "-cx",
+        "colh - 60"
+       ]
+      ]
+     },
+     "layer": "S-REBR-EXTR"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "cx + foot",
+        "cover + 2.5*bar"
+       ],
+       [
+        "cx",
+        "cover + 2.5*bar"
+       ],
+       [
+        "cx",
+        "colh - 60"
+       ]
+      ]
+     },
+     "layer": "S-REBR-EXTR"
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "ntie",
+      "items": [
+       {
+        "line": [
+         "-colw/2 + 25",
+         "depth + 40 + i*tiesp",
+         "colw/2 - 25",
+         "depth + 40 + i*tiesp"
+        ],
+        "layer": "S-REBR-LINK"
+       }
+      ]
+     }
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2 - proj - 100",
+       "-pcc - soling"
+      ],
+      "to": [
+       "length/2 + proj + 100",
+       "-pcc - soling"
+      ],
+      "off": "-1.6*txt",
+      "height": "txt",
+      "text": "{length:len}"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2",
+       0
+      ],
+      "to": [
+       "-length/2",
+       "depth"
+      ],
+      "off": "-(1.6*txt + proj + 100)",
+      "height": "txt",
+      "text": "T = {depth:len}"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "colw/2 + offset",
+       "depth"
+      ],
+      "to": [
+       "colw/2 + offset",
+       "depth + ld"
+      ],
+      "off": "1.2*txt + offset",
+      "height": "txt",
+      "text": "Ld = {ld:len}"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims * offset",
+     "dim": {
+      "from": [
+       "-pw/2",
+       "top + 60"
+      ],
+      "to": [
+       "-colw/2",
+       "top + 60"
+      ],
+      "off": "0.8*txt",
+      "height": "txt",
+      "text": "{offset:len}"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label * pcc",
+     "leader": {
+      "from": [
+       "-length/2 + 300",
+       "-pcc/2"
+      ],
+      "to": [
+       "-length/2 - proj - 100 - 1.5*txt",
+       "-pcc*0.2 - txt"
+      ],
+      "height": "txt",
+      "text": "{pcc:len} 1:3:6 PCC"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label * soling",
+     "leader": {
+      "from": [
+       "-length/2 + 300",
+       "-pcc - soling/2"
+      ],
+      "to": [
+       "-length/2 - proj - 100 - 1.5*txt",
+       "-pcc - soling - txt"
+      ],
+      "height": "txt",
+      "text": "{soling:len} Boulder soling"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-length/4",
+       "cover + bar/2"
+      ],
+      "to": [
+       "length/2 + proj + 100 + 1.5*txt",
+       "depth*0.5"
+      ],
+      "height": "txt",
+      "text": "R/F parallel to B"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "0",
+       "edgeh - cover"
+      ],
+      "to": [
+       "length/2 + proj + 100 + 1.5*txt",
+       "depth*0.95"
+      ],
+      "height": "txt",
+      "text": "R/F parallel to L"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "cx",
+       "depth + gl*0.5"
+      ],
+      "to": [
+       "colw/2 + 5*txt",
+       "depth + gl*0.9"
+      ],
+      "height": "txt",
+      "text": "Column R/F"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label * ntie",
+     "leader": {
+      "from": [
+       "colw/2 - 25",
+       "depth + 40 + 3*tiesp"
+      ],
+      "to": [
+       "colw/2 + 5*txt",
+       "depth + gl*0.4"
+      ],
+      "height": "txt",
+      "text": "Ties Y{tie}@{tiesp:len} till plinth"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label * gl",
+     "leader": {
+      "from": [
+       "length/2 + proj",
+       "depth + gl"
+      ],
+      "to": [
+       "length/2 + proj + 100 + 1.5*txt",
+       "depth + gl + txt"
+      ],
+      "height": "txt",
+      "text": "Ground lvl"
+     },
+     "layer": "S-ANNO-NOTE"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-CONC-THIN",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Concrete, thin: column marks, breaks, PCC and soling outlines"
+    },
+    {
+     "name": "S-SOIL-HATCH",
+     "color": 8,
+     "linetype": "Continuous",
+     "lineweight": 9,
+     "description": "Hatching of PCC, soling and soil"
+    },
+    {
+     "name": "S-GRND",
+     "color": 8,
+     "linetype": "CENTER",
+     "lineweight": 18,
+     "description": "Ground and datum levels"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-TOP",
+     "color": 5,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Top reinforcement and top mesh"
+    },
+    {
+     "name": "S-REBR-EXTR",
+     "color": 6,
+     "linetype": "Continuous",
+     "lineweight": 35,
+     "description": "Extra bars and bars of a second diameter, starter bars"
+    },
+    {
+     "name": "S-REBR-LINK",
+     "color": 3,
+     "linetype": "Continuous",
+     "lineweight": 25,
+     "description": "Links: ties, stirrups, cross-ties"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    }
+   ]
+  },
+  {
+   "id": "rcc.footing.combined",
+   "title": "RCC combined footing (plan with two columns, top and bottom bars, dimensions)",
+   "description": "A combined footing under two columns: the plan with the columns offset from the edge, bars along and across, their notation and the sizes.",
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "grips": [
+    {
+     "param": "length",
+     "at": [
+      "length/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "breadth",
+     "at": [
+      0,
+      "breadth/2"
+     ],
+     "axis": "y",
+     "per": 2
+    }
+   ],
+   "params": [
+    {
+     "name": "length",
+     "label": "Footing length",
+     "unit": "mm",
+     "default": 3505,
+     "min": 1500,
+     "max": 9000
+    },
+    {
+     "name": "breadth",
+     "label": "Footing breadth",
+     "unit": "mm",
+     "default": 1753,
+     "min": 900,
+     "max": 6000
+    },
+    {
+     "name": "colw",
+     "label": "Column width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "cold",
+     "label": "Column depth",
+     "unit": "mm",
+     "default": 450,
+     "min": 150,
+     "max": 2000
+    },
+    {
+     "name": "offset",
+     "label": "Edge to column (a)",
+     "unit": "mm",
+     "default": 838,
+     "min": 0,
+     "max": 3000
+    },
+    {
+     "name": "bar",
+     "label": "Bar diameter",
+     "unit": "mm",
+     "default": 10,
+     "choices": [
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      },
+      {
+       "label": "20",
+       "value": 20
+      }
+     ]
+    },
+    {
+     "name": "spacing",
+     "label": "Bar spacing (c/c)",
+     "unit": "mm",
+     "default": 125,
+     "min": 75,
+     "max": 300
+    },
+    {
+     "name": "pcc",
+     "label": "PCC projection (0: none)",
+     "unit": "mm",
+     "default": 100,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 55,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "cx",
+     "expr": "length/2 - offset - colw/2"
+    },
+    {
+     "name": "hk",
+     "expr": "min(150, breadth/8)"
+    }
+   ],
+   "items": [
+    {
+     "crect": [
+      0,
+      0,
+      "length",
+      "breadth"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "pcc",
+     "crect": [
+      0,
+      0,
+      "length + 2*pcc",
+      "breadth + 2*pcc"
+     ],
+     "layer": "S-CONC-HIDD"
+    },
+    {
+     "rect": [
+      "cx - colw/2",
+      "-cold/2",
+      "colw",
+      "cold"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "rect": [
+      "-cx - colw/2",
+      "-cold/2",
+      "colw",
+      "cold"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "cx - colw/2",
+      "0 - cold/2",
+      "cx + colw/2",
+      "0 + cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "cx - colw/2",
+      "0 + cold/2",
+      "cx + colw/2",
+      "0 - cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "-cx - colw/2",
+      "0 - cold/2",
+      "-cx + colw/2",
+      "0 + cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "-cx - colw/2",
+      "0 + cold/2",
+      "-cx + colw/2",
+      "0 - cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-length/2 + 60",
+        "breadth/4 - hk"
+       ],
+       [
+        "-length/2 + 60",
+        "breadth/4"
+       ],
+       [
+        "length/2 - 60",
+        "breadth/4"
+       ],
+       [
+        "length/2 - 60",
+        "breadth/4 - hk"
+       ]
+      ]
+     },
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "linetype": "HIDDEN",
+     "poly": {
+      "pts": [
+       [
+        "-length/2 + 90",
+        "-breadth/4 + hk"
+       ],
+       [
+        "-length/2 + 90",
+        "-breadth/4"
+       ],
+       [
+        "length/2 - 90",
+        "-breadth/4"
+       ],
+       [
+        "length/2 - 90",
+        "-breadth/4 + hk"
+       ]
+      ]
+     },
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-length/4 - hk",
+        "-breadth/2 + 60"
+       ],
+       [
+        "-length/4",
+        "-breadth/2 + 60"
+       ],
+       [
+        "-length/4",
+        "breadth/2 - 60"
+       ],
+       [
+        "-length/4 - hk",
+        "breadth/2 - 60"
+       ]
+      ]
+     },
+     "layer": "S-REBR-EXTR"
+    },
+    {
+     "linetype": "HIDDEN",
+     "poly": {
+      "pts": [
+       [
+        "length/4 + hk",
+        "-breadth/2 + 90"
+       ],
+       [
+        "length/4",
+        "-breadth/2 + 90"
+       ],
+       [
+        "length/4",
+        "breadth/2 - 90"
+       ],
+       [
+        "length/4 + hk",
+        "breadth/2 - 90"
+       ]
+      ]
+     },
+     "layer": "S-REBR-LINK"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2",
+       "-breadth/2"
+      ],
+      "to": [
+       "length/2",
+       "-breadth/2"
+      ],
+      "off": "-(pcc + 1.6*txt)",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2",
+       "-breadth/2"
+      ],
+      "to": [
+       "-length/2",
+       "breadth/2"
+      ],
+      "off": "-(pcc + 1.6*txt)",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "length/2 - offset",
+       "breadth/2"
+      ],
+      "to": [
+       "length/2",
+       "breadth/2"
+      ],
+      "off": "1.6*txt + pcc",
+      "height": "txt",
+      "text": "a = {offset:len}"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "0",
+       "breadth/4"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "breadth*0.38"
+      ],
+      "height": "txt",
+      "text": "R/F-A: Y{bar}@{spacing:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "0",
+       "-breadth/4"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "breadth*0.12"
+      ],
+      "height": "txt",
+      "text": "R/F-B (top): Y{bar}@{spacing:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-length/4",
+       "-breadth/3"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "-breadth*0.14"
+      ],
+      "height": "txt",
+      "text": "R/F-C: Y{bar}@{spacing:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "length/4",
+       "-breadth/3"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "-breadth*0.38"
+      ],
+      "height": "txt",
+      "text": "R/F-D (top): Y{bar}@{spacing:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-CONC-THIN",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Concrete, thin: column marks, breaks, PCC and soling outlines"
+    },
+    {
+     "name": "S-CONC-HIDD",
+     "color": 8,
+     "linetype": "HIDDEN",
+     "lineweight": 25,
+     "description": "Concealed concrete edges and PCC projection"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-TOP",
+     "color": 5,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Top reinforcement and top mesh"
+    },
+    {
+     "name": "S-REBR-EXTR",
+     "color": 6,
+     "linetype": "Continuous",
+     "lineweight": 35,
+     "description": "Extra bars and bars of a second diameter, starter bars"
+    },
+    {
+     "name": "S-REBR-LINK",
+     "color": 3,
+     "linetype": "Continuous",
+     "lineweight": 25,
+     "description": "Links: ties, stirrups, cross-ties"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    }
+   ]
+  },
+  {
+   "id": "rcc.raft.lift",
+   "title": "Lift raft (plan with the corner columns, tie beams, mesh and dimensions)",
+   "description": "A raft under a lift shaft: the raft, its PCC, the four corner columns joined by tie beams, the mesh in both directions and the sizes.",
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "grips": [
+    {
+     "param": "length",
+     "at": [
+      "length/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "breadth",
+     "at": [
+      0,
+      "breadth/2"
+     ],
+     "axis": "y",
+     "per": 2
+    }
+   ],
+   "params": [
+    {
+     "name": "length",
+     "label": "Raft length",
+     "unit": "mm",
+     "default": 2819,
+     "min": 1500,
+     "max": 9000
+    },
+    {
+     "name": "breadth",
+     "label": "Raft breadth",
+     "unit": "mm",
+     "default": 4343,
+     "min": 1500,
+     "max": 9000
+    },
+    {
+     "name": "shaftl",
+     "label": "Columns centre to centre, along the length",
+     "unit": "mm",
+     "default": 1600,
+     "min": 600,
+     "max": 6000
+    },
+    {
+     "name": "shaftb",
+     "label": "Columns centre to centre, along the breadth",
+     "unit": "mm",
+     "default": 2800,
+     "min": 600,
+     "max": 8000
+    },
+    {
+     "name": "colw",
+     "label": "Column width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 1000
+    },
+    {
+     "name": "cold",
+     "label": "Column depth",
+     "unit": "mm",
+     "default": 457,
+     "min": 150,
+     "max": 1500
+    },
+    {
+     "name": "thick",
+     "label": "Raft thickness",
+     "unit": "mm",
+     "default": 450,
+     "min": 200,
+     "max": 1500
+    },
+    {
+     "name": "pcc",
+     "label": "PCC projection (0: none)",
+     "unit": "mm",
+     "default": 100,
+     "min": 0,
+     "max": 300
+    },
+    {
+     "name": "beamw",
+     "label": "Tie beam width",
+     "unit": "mm",
+     "default": 230,
+     "min": 150,
+     "max": 600
+    },
+    {
+     "name": "tie",
+     "label": "Bar diameter",
+     "unit": "mm",
+     "default": 10,
+     "choices": [
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      }
+     ]
+    },
+    {
+     "name": "tiesp",
+     "label": "Bar spacing along the length (c/c)",
+     "unit": "mm",
+     "default": 150,
+     "min": 75,
+     "max": 300
+    },
+    {
+     "name": "spacing2",
+     "label": "Bar spacing along the breadth (c/c)",
+     "unit": "mm",
+     "default": 100,
+     "min": 75,
+     "max": 300
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "dims",
+     "label": "Dimensions",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "ftin",
+     "label": "Dimensions in",
+     "default": 1,
+     "choices": [
+      {
+       "label": "ft-in",
+       "value": 1
+      },
+      {
+       "label": "mm",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 50,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "sx",
+     "expr": "shaftl/2"
+    },
+    {
+     "name": "sy",
+     "expr": "shaftb/2"
+    },
+    {
+     "name": "hk",
+     "expr": "min(150, length/8)"
+    }
+   ],
+   "items": [
+    {
+     "crect": [
+      0,
+      0,
+      "length",
+      "breadth"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "pcc",
+     "crect": [
+      0,
+      0,
+      "length + 2*pcc",
+      "breadth + 2*pcc"
+     ],
+     "layer": "S-CONC-HIDD"
+    },
+    {
+     "crect": [
+      0,
+      0,
+      "shaftl + beamw",
+      "shaftb + beamw"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "crect": [
+      0,
+      0,
+      "shaftl - beamw",
+      "shaftb - beamw"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "rect": [
+      "sx - colw/2",
+      "sy - cold/2",
+      "colw",
+      "cold"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "rect": [
+      "-sx - colw/2",
+      "sy - cold/2",
+      "colw",
+      "cold"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "rect": [
+      "sx - colw/2",
+      "-sy - cold/2",
+      "colw",
+      "cold"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "rect": [
+      "-sx - colw/2",
+      "-sy - cold/2",
+      "colw",
+      "cold"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "line": [
+      "sx - colw/2",
+      "sy - cold/2",
+      "sx + colw/2",
+      "sy + cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "sx - colw/2",
+      "sy + cold/2",
+      "sx + colw/2",
+      "sy - cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "-sx - colw/2",
+      "sy - cold/2",
+      "-sx + colw/2",
+      "sy + cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "-sx - colw/2",
+      "sy + cold/2",
+      "-sx + colw/2",
+      "sy - cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "sx - colw/2",
+      "-sy - cold/2",
+      "sx + colw/2",
+      "-sy + cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "sx - colw/2",
+      "-sy + cold/2",
+      "sx + colw/2",
+      "-sy - cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "-sx - colw/2",
+      "-sy - cold/2",
+      "-sx + colw/2",
+      "-sy + cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "line": [
+      "-sx - colw/2",
+      "-sy + cold/2",
+      "-sx + colw/2",
+      "-sy - cold/2"
+     ],
+     "layer": "S-CONC-THIN"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-length/2 + 60",
+        "breadth/6 - hk"
+       ],
+       [
+        "-length/2 + 60",
+        "breadth/6"
+       ],
+       [
+        "length/2 - 60",
+        "breadth/6"
+       ],
+       [
+        "length/2 - 60",
+        "breadth/6 - hk"
+       ]
+      ]
+     },
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "poly": {
+      "pts": [
+       [
+        "-length/6 - hk",
+        "-breadth/2 + 60"
+       ],
+       [
+        "-length/6",
+        "-breadth/2 + 60"
+       ],
+       [
+        "-length/6",
+        "breadth/2 - 60"
+       ],
+       [
+        "-length/6 - hk",
+        "breadth/2 - 60"
+       ]
+      ]
+     },
+     "layer": "S-REBR-TOP"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2",
+       "-breadth/2"
+      ],
+      "to": [
+       "length/2",
+       "-breadth/2"
+      ],
+      "off": "-(pcc + 1.6*txt)",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-length/2",
+       "-breadth/2"
+      ],
+      "to": [
+       "-length/2",
+       "breadth/2"
+      ],
+      "off": "-(pcc + 1.6*txt)",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-sx - colw/2",
+       "sy + cold/2"
+      ],
+      "to": [
+       "-sx + colw/2",
+       "sy + cold/2"
+      ],
+      "off": "1.2*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "dims",
+     "dim": {
+      "from": [
+       "-sx - colw/2",
+       "sy - cold/2"
+      ],
+      "to": [
+       "-sx - colw/2",
+       "sy + cold/2"
+      ],
+      "off": "-1.2*txt",
+      "height": "txt"
+     },
+     "layer": "S-ANNO-DIMS"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "length/6",
+       "breadth/6"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "breadth*0.3"
+      ],
+      "height": "txt",
+      "text": "Y{tie}@{tiesp:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "-length/6",
+       "-breadth/6"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "-breadth*0.2"
+      ],
+      "height": "txt",
+      "text": "Y{tie}@{spacing2:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "sx",
+       "sy"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "breadth*0.05"
+      ],
+      "height": "txt",
+      "text": "Column"
+     },
+     "layer": "S-ANNO-NOTE"
+    },
+    {
+     "when": "label",
+     "leader": {
+      "from": [
+       "0",
+       "sy"
+      ],
+      "to": [
+       "length/2 + pcc + 2*txt",
+       "breadth*0.42"
+      ],
+      "height": "txt",
+      "text": "Tie beam {beamw:len}"
+     },
+     "layer": "S-ANNO-NOTE"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-CONC-THIN",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Concrete, thin: column marks, breaks, PCC and soling outlines"
+    },
+    {
+     "name": "S-CONC-HIDD",
+     "color": 8,
+     "linetype": "HIDDEN",
+     "lineweight": 25,
+     "description": "Concealed concrete edges and PCC projection"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-TOP",
+     "color": 5,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Top reinforcement and top mesh"
+    },
+    {
+     "name": "S-ANNO-DIMS",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Dimensions"
+    },
+    {
+     "name": "S-ANNO-NOTE",
+     "color": 30,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Leaders and bar notation"
+    }
+   ]
+  },
+  {
+   "id": "rcc.lintel.section",
+   "title": "RCC lintel over an opening (elevation with bars)",
+   "grips": [
+    {
+     "param": "span",
+     "at": [
+      "span/2",
+      0
+     ],
+     "axis": "x",
+     "per": 2
+    },
+    {
+     "param": "depth",
+     "at": [
+      0,
+      "depth"
+     ],
+     "axis": "y"
+    }
+   ],
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "params": [
+    {
+     "name": "span",
+     "label": "Clear opening",
+     "unit": "mm",
+     "default": 1000,
+     "min": 450,
+     "max": 4000
+    },
+    {
+     "name": "bearing",
+     "label": "Bearing each side",
+     "unit": "mm",
+     "default": 150,
+     "min": 100,
+     "max": 450
+    },
+    {
+     "name": "depth",
+     "label": "Lintel depth",
+     "unit": "mm",
+     "default": 150,
+     "min": 100,
+     "max": 600
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 25,
+     "min": 15,
+     "max": 50
+    },
+    {
+     "name": "jamb",
+     "label": "Opening height shown",
+     "unit": "mm",
+     "default": 400,
+     "min": 0,
+     "max": 2400
+    },
+    {
+     "name": "bar",
+     "label": "Main bar diameter",
+     "unit": "mm",
+     "default": 10,
+     "choices": [
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      }
+     ]
+    },
+    {
+     "name": "fck",
+     "label": "Concrete grade",
+     "default": 25,
+     "choices": [
+      {
+       "label": "M20",
+       "value": 20
+      },
+      {
+       "label": "M25",
+       "value": 25
+      },
+      {
+       "label": "M30",
+       "value": 30
+      },
+      {
+       "label": "M35",
+       "value": 35
+      },
+      {
+       "label": "M40",
+       "value": 40
+      }
+     ]
+    },
+    {
+     "name": "fy",
+     "label": "Steel grade",
+     "default": 500,
+     "choices": [
+      {
+       "label": "Fe250",
+       "value": 250
+      },
+      {
+       "label": "Fe415",
+       "value": 415
+      },
+      {
+       "label": "Fe500",
+       "value": 500
+      },
+      {
+       "label": "Fe550",
+       "value": 550
+      }
+     ]
+    },
+    {
+     "name": "exposure",
+     "label": "Exposure (IS 456 Table 3)",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Mild",
+       "value": 1
+      },
+      {
+       "label": "Moderate",
+       "value": 2
+      },
+      {
+       "label": "Severe",
+       "value": 3
+      },
+      {
+       "label": "Very severe",
+       "value": 4
+      },
+      {
+       "label": "Extreme",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 40,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "full",
+     "expr": "span + 2*bearing"
+    }
+   ],
+   "items": [
+    {
+     "rect": [
+      "-full/2",
+      0,
+      "full",
+      "depth"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "jamb",
+     "line": [
+      "-span/2",
+      0,
+      "-span/2",
+      "-jamb"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "jamb",
+     "line": [
+      "span/2",
+      0,
+      "span/2",
+      "-jamb"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "linetype": "HIDDEN",
+     "line": [
+      "-full/2 + cover",
+      "cover + bar/2",
+      "full/2 - cover",
+      "cover + bar/2"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "linetype": "HIDDEN",
+     "line": [
+      "-full/2 + cover",
+      "depth - cover - bar/2",
+      "full/2 - cover",
+      "depth - cover - bar/2"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       0,
+       "depth + txt"
+      ],
+      "height": "txt",
+      "value": "Lintel {full} x {depth}, {bar} dia bars; {fck}, {fy}",
+      "align": "c"
+     },
+     "layer": "S-ANNO-TEXT"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-ANNO-TEXT",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Text"
+    }
+   ]
+  },
+  {
+   "id": "rcc.slab.section",
+   "title": "RCC slab section (main and distribution bars)",
+   "grips": [
+    {
+     "param": "span",
+     "at": [
+      "span",
+      "thick/2"
+     ],
+     "axis": "x"
+    },
+    {
+     "param": "thick",
+     "at": [
+      "span/2",
+      "thick"
+     ],
+     "axis": "y"
+    }
+   ],
+   "layer": "S-RCC",
+   "color": 1,
+   "lineweight": 35,
+   "params": [
+    {
+     "name": "span",
+     "label": "Length shown",
+     "unit": "mm",
+     "default": 3000,
+     "min": 600,
+     "max": 12000
+    },
+    {
+     "name": "thick",
+     "label": "Slab thickness",
+     "unit": "mm",
+     "default": 125,
+     "min": 75,
+     "max": 400
+    },
+    {
+     "name": "cover",
+     "label": "Clear cover",
+     "unit": "mm",
+     "default": 20,
+     "min": 15,
+     "max": 50
+    },
+    {
+     "name": "bar",
+     "label": "Main bar diameter",
+     "unit": "mm",
+     "default": 10,
+     "choices": [
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      },
+      {
+       "label": "12",
+       "value": 12
+      },
+      {
+       "label": "16",
+       "value": 16
+      }
+     ]
+    },
+    {
+     "name": "dist",
+     "label": "Distribution bar diameter",
+     "unit": "mm",
+     "default": 8,
+     "choices": [
+      {
+       "label": "6",
+       "value": 6
+      },
+      {
+       "label": "8",
+       "value": 8
+      },
+      {
+       "label": "10",
+       "value": 10
+      }
+     ]
+    },
+    {
+     "name": "spacing",
+     "label": "Distribution spacing",
+     "unit": "mm",
+     "default": 200,
+     "min": 75,
+     "max": 450
+    },
+    {
+     "name": "distsp",
+     "label": "Distribution bar spacing (c/c)",
+     "unit": "mm",
+     "default": 250,
+     "min": 75,
+     "max": 450
+    },
+    {
+     "name": "fck",
+     "label": "Concrete grade",
+     "default": 25,
+     "choices": [
+      {
+       "label": "M20",
+       "value": 20
+      },
+      {
+       "label": "M25",
+       "value": 25
+      },
+      {
+       "label": "M30",
+       "value": 30
+      },
+      {
+       "label": "M35",
+       "value": 35
+      },
+      {
+       "label": "M40",
+       "value": 40
+      }
+     ]
+    },
+    {
+     "name": "fy",
+     "label": "Steel grade",
+     "default": 500,
+     "choices": [
+      {
+       "label": "Fe250",
+       "value": 250
+      },
+      {
+       "label": "Fe415",
+       "value": 415
+      },
+      {
+       "label": "Fe500",
+       "value": 500
+      },
+      {
+       "label": "Fe550",
+       "value": 550
+      }
+     ]
+    },
+    {
+     "name": "exposure",
+     "label": "Exposure (IS 456 Table 3)",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Mild",
+       "value": 1
+      },
+      {
+       "label": "Moderate",
+       "value": 2
+      },
+      {
+       "label": "Severe",
+       "value": 3
+      },
+      {
+       "label": "Very severe",
+       "value": 4
+      },
+      {
+       "label": "Extreme",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "name": "hatch",
+     "label": "Concrete hatch",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "label",
+     "label": "Label",
+     "default": 1,
+     "choices": [
+      {
+       "label": "Yes",
+       "value": 1
+      },
+      {
+       "label": "No",
+       "value": 0
+      }
+     ]
+    },
+    {
+     "name": "txt",
+     "label": "Text height",
+     "unit": "mm",
+     "default": 40,
+     "min": 10,
+     "max": 500
+    }
+   ],
+   "vars": [
+    {
+     "name": "ndots",
+     "expr": "floor((span - 2*cover - dist)/spacing) + 1"
+    }
+   ],
+   "items": [
+    {
+     "rect": [
+      0,
+      0,
+      "span",
+      "thick"
+     ],
+     "layer": "S-CONC-OUTL"
+    },
+    {
+     "when": "hatch",
+     "hatch": {
+      "pts": [
+       [
+        0,
+        0
+       ],
+       [
+        "span",
+        0
+       ],
+       [
+        "span",
+        "thick"
+       ],
+       [
+        0,
+        "thick"
+       ]
+      ],
+      "pattern": "AR-CONC",
+      "scale": 80
+     },
+     "layer": "S-CONC-HATCH"
+    },
+    {
+     "line": [
+      "cover",
+      "cover + bar/2",
+      "span - cover",
+      "cover + bar/2"
+     ],
+     "layer": "S-REBR-MAIN"
+    },
+    {
+     "repeat": {
+      "var": "i",
+      "count": "ndots",
+      "items": [
+       {
+        "dot": [
+         "cover + dist/2 + i*spacing",
+         "cover + bar + dist/2",
+         "dist/2"
+        ],
+        "layer": "S-REBR-EXTR"
+       }
+      ]
+     }
+    },
+    {
+     "when": "label",
+     "text": {
+      "at": [
+       0,
+       "-1.8*txt"
+      ],
+      "height": "txt",
+      "value": "Slab {thick} thick: {bar} dia @ {spacing} main, {dist} dia @ {distsp} distribution; {fck}, {fy}",
+      "align": "l"
+     },
+     "layer": "S-ANNO-TEXT"
+    }
+   ],
+   "layers": [
+    {
+     "name": "S-CONC-OUTL",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Concrete outline (cut edges of the member)"
+    },
+    {
+     "name": "S-CONC-HATCH",
+     "color": 8,
+     "linetype": "Continuous",
+     "lineweight": 9,
+     "description": "Hatching of concrete and masonry"
+    },
+    {
+     "name": "S-REBR-MAIN",
+     "color": 1,
+     "linetype": "Continuous",
+     "lineweight": 50,
+     "description": "Main reinforcement (bottom, corner and continuous bars)"
+    },
+    {
+     "name": "S-REBR-EXTR",
+     "color": 6,
+     "linetype": "Continuous",
+     "lineweight": 35,
+     "description": "Extra bars and bars of a second diameter, starter bars"
+    },
+    {
+     "name": "S-ANNO-TEXT",
+     "color": 7,
+     "linetype": "Continuous",
+     "lineweight": 18,
+     "description": "Text"
+    }
+   ]
+  }
+ ]
 }

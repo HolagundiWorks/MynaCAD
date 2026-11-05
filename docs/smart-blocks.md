@@ -89,6 +89,33 @@ soling under a footing with the development length Ld of the column bars (IS 456
 `rcc.stirrup.detail` the stirrup and its hook; `rcc.footing.combined` and `rcc.raft.lift` the plans of a combined footing and a lift raft. A column can have
 corner bars of one diameter and the others of another (`bar`, `bar2`). The switches `label` (leaders and notes), `dims` and `ftin` are parameters of each.
 
+### Layers, linetypes and lineweights
+
+Every part of a reinforced concrete detail is on a layer of its own kind, made in the drawing with the block (the drawing's layer manager owns them afterwards, so
+colours, linetypes and pen widths can be changed there and plotted by layer). The scheme follows ISO 128 pen widths and the standard linetypes
+(continuous, dashed for concealed edges, chain for datum lines):
+
+| Layer | Colour | Linetype | Pen (mm) | Holds |
+|---|---|---|---|---|
+| `S-CONC-OUTL` | 7 | Continuous | 0.50 | concrete outline, cut edges, supports |
+| `S-CONC-THIN` | 7 | Continuous | 0.18 | column marks, breaks, PCC and soling outlines |
+| `S-CONC-HIDD` | 8 | HIDDEN | 0.25 | concealed edges, PCC projection |
+| `S-CONC-HATCH` | 8 | Continuous | 0.09 | hatching of concrete (`AR-CONC`) and the column in plan (`ANSI31`) |
+| `S-SOIL-HATCH` | 8 | Continuous | 0.09 | PCC (`AR-CONC`) and boulder soling (`EARTH`) |
+| `S-GRND` | 8 | CENTER | 0.18 | ground level and datum lines |
+| `S-REBR-MAIN` | 1 | Continuous | 0.50 | main, corner and continuous bars |
+| `S-REBR-TOP` | 5 | Continuous | 0.50 | top bars and top mesh |
+| `S-REBR-EXTR` | 6 | Continuous | 0.35 | extra bars, bars of a second diameter, starter bars |
+| `S-REBR-XTRA` | 4 | Continuous | 0.35 | extra bottom bars |
+| `S-REBR-LINK` | 3 | Continuous | 0.25 | ties, stirrups, cross-ties and their hooks |
+| `S-ANNO-DIMS` | 30 | Continuous | 0.18 | dimensions |
+| `S-ANNO-NOTE` | 30 | Continuous | 0.18 | leaders and bar notation |
+| `S-ANNO-TEXT` | 7 | Continuous | 0.18 | text |
+
+A definition lists the layers it uses (`layers`: name, colour, linetype, lineweight in hundredths of a millimetre, description) and each item names one (`layer`);
+an item's own `color` or `linetype` still overrides its layer. Colour is therefore ByLayer, and a drawing's layer colours, linetypes and lineweights apply to a
+placed detail. O-CoreOp reads the same table from its copy of `rcc.json` and draws each part with its layer's colour, dashes and pen width.
+
 ### In O-CoreOp
 
 O-CoreOp draws the RCC blocks too, read only. When O-Draft saves a drawing into a project file (`.osp`) it records every RCC block in the model, with the

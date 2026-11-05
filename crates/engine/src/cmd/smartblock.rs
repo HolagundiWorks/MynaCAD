@@ -195,7 +195,31 @@ pub(crate) struct Def {
     vars: Vec<VarDef>,
     #[serde(default)]
     grips: Vec<GripDef>,
+    /// The layers the items are drawn on, each with its colour, linetype and lineweight (an ISO-style layer scheme: concrete outline, bars by
+    /// kind, ties, dimensions, notes, hatches). They are created in the drawing when the block is made, so the drawing's layer manager owns them.
+    #[serde(default)]
+    layers: Vec<LayerSpec>,
     items: Vec<Item>,
+}
+
+/// A layer a definition draws on.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LayerSpec {
+    name: String,
+    #[serde(default = "seven")]
+    color: i16,
+    #[serde(default = "continuous")]
+    linetype: String,
+    /// Hundredths of a millimetre (ISO 128 pen widths: 9, 13, 18, 25, 35, 50, 70, 100).
+    #[serde(default = "lw_default")]
+    lineweight: u16,
+    #[serde(default)]
+    description: String,
+}
+
+fn continuous() -> String {
+    "Continuous".into()
 }
 
 /// A grip that sets parameter `param`: drawn at `at`; dragging it by `d` along `axis` changes the
@@ -463,6 +487,11 @@ fn check_def(d: &Def) -> std::result::Result<(), String> {
     if d.title.trim().is_empty() || d.title.len() > 120 {
         return Err("`title` must be 1 to 120 characters".into());
     }
+    for l in &d.layers {
+        if !valid_layer(&l.name) {
+            return Err(format!("layer `{}` is not a valid name", l.name));
+        }
+    }
     if !d.layer.is_empty() && !valid_layer(&d.layer) {
         return Err(format!("layer `{}` is not a valid name", d.layer));
     }
@@ -655,7 +684,9 @@ impl Ctx<'_> {
         if self.out.len() >= MAX_OBJECTS {
             return Err(err(format!("`{}` makes more than {MAX_OBJECTS} objects", self.def.id)));
         }
-        self.out.push((it.layer.clone(), it.linetype.clone(), it.color.or(Some(color)), k));
+        // On a layer the colour is the layer's; the default colour is for an item with no layer.
+        let color = it.color.or(if it.layer.is_some() { None } else { Some(color) });
+        self.out.push((it.layer.clone(), it.linetype.clone(), color, k));
         Ok(())
     }
     /// Whether lengths are shown in feet and inches (the `ftin` parameter above zero) rather than millimetres.
@@ -955,7 +986,9 @@ pub(super) fn default_entities(d: &aad_doc::Drawing, id: &str) -> Result<Vec<Ent
             if let Some(l) = layer {
                 e.common.layer = l;
             }
-            if let Some(c) = color {
+            let layer_color = e.common.layer.as_str();
+            let from_layer = found.def.layers.iter().find(|l| l.name == layer_color).map(|l| l.color);
+            if let Some(c) = color.or(from_layer) {
                 e.common.color = aad_color::Color::from_aci(c);
             }
             e
@@ -993,6 +1026,9 @@ fn build(s: &mut Session, d: &Def, vals: &BTreeMap<String, f64>, stored: Option<
     let objs = evaluate(d, vals)?;
     let style = s.doc()?.header.str("TEXTSTYLE", "Standard");
     let doc = s.doc_mut()?;
+    for ls in &d.layers {
+        super::hcw::ensure_layer(doc, &ls.name, ls.color, &ls.linetype, ls.lineweight, &ls.description);
+    }
     let mut b = Block::new(&name);
     b.description = json!({ TAG: 1, "id": d.id, "params": params_json(vals) }).to_string();
     for (layer, lt, color, mut kind) in objs {
