@@ -17,6 +17,9 @@ use serde_json::Value;
 
 use crate::{IoError, Result};
 
+/// Most one-page plots joined into one file.
+const MAX_MERGE: usize = 256;
+
 /// PDF points per millimetre.
 const PT_PER_MM: f64 = 72.0 / 25.4;
 /// Largest sheet side we accept, in millimetres (PDF viewers cap pages at 200 inches anyway).
@@ -511,6 +514,65 @@ fn assemble(media: Vec2, content: &[u8], compress: bool, title: &str, layers: &[
     out
 }
 
+/// Join one-page plot PDFs into one file, in order. Each part must be a PDF this plotter
+/// (or any reader lopdf accepts) can open. Page parents are rewritten onto the first file's page tree.
+pub fn merge(parts: &[Vec<u8>]) -> Result<Vec<u8>> {
+    if parts.is_empty() {
+        return Err(IoError::Format("nothing to merge".into()));
+    }
+    if parts.len() > MAX_MERGE {
+        return Err(IoError::Format(format!("at most {MAX_MERGE} pages can be joined")));
+    }
+    if parts.len() == 1 {
+        return Ok(parts[0].clone());
+    }
+    let mut base = lopdf::Document::load_mem(&parts[0]).map_err(|e| IoError::Format(format!("not a readable PDF: {e}")))?;
+    for part in parts.iter().skip(1) {
+        append_pdf(&mut base, part)?;
+    }
+    let mut buf = Vec::new();
+    base.save_to(&mut buf).map_err(|e| IoError::Format(format!("could not write the joined PDF: {e}")))?;
+    Ok(buf)
+}
+
+fn append_pdf(base: &mut lopdf::Document, bytes: &[u8]) -> Result<()> {
+    let mut extra = lopdf::Document::load_mem(bytes).map_err(|e| IoError::Format(format!("not a readable PDF: {e}")))?;
+    let start = base.max_id.saturating_add(1);
+    extra.renumber_objects_with(start);
+    let pages: Vec<lopdf::ObjectId> = extra.get_pages().into_values().collect();
+    if pages.is_empty() {
+        return Err(IoError::Format("a plot PDF has no pages".into()));
+    }
+    base.max_id = base.max_id.max(extra.max_id);
+    for (id, object) in extra.objects {
+        base.objects.insert(id, object);
+    }
+    let tree = page_tree_id(base)?;
+    {
+        let dict = base.get_object_mut(tree).and_then(|o| o.as_dict_mut()).map_err(|e| IoError::Format(e.to_string()))?;
+        let kids = dict.get_mut(b"Kids").and_then(|o| o.as_array_mut()).map_err(|e| IoError::Format(format!("page tree has no Kids array: {e}")))?;
+        for id in &pages {
+            kids.push(lopdf::Object::Reference(*id));
+        }
+    }
+    {
+        let dict = base.get_object_mut(tree).and_then(|o| o.as_dict_mut()).map_err(|e| IoError::Format(e.to_string()))?;
+        let count = dict.get(b"Count").ok().and_then(|o| o.as_i64().ok()).unwrap_or(0);
+        dict.set("Count", count.saturating_add(pages.len() as i64));
+    }
+    for id in pages {
+        if let Ok(page) = base.get_object_mut(id).and_then(|o| o.as_dict_mut()) {
+            page.set("Parent", lopdf::Object::Reference(tree));
+        }
+    }
+    Ok(())
+}
+
+fn page_tree_id(doc: &lopdf::Document) -> Result<lopdf::ObjectId> {
+    let catalog = doc.catalog().map_err(|e| IoError::Format(e.to_string()))?;
+    catalog.get(b"Pages").and_then(lopdf::Object::as_reference).map_err(|e| IoError::Format(format!("PDF has no page tree: {e}")))
+}
+
 /// `window: [x0, y0, x1, y1]` as a rectangle (any corner order); `None` when absent or not four
 /// finite numbers with an area.
 fn window_from_json(v: &Value) -> Option<Bounds2> {
@@ -520,5 +582,24 @@ fn window_from_json(v: &Value) -> Option<Bounds2> {
             Some(Bounds2::new(Vec2::new(x0.min(x1), y0.min(y1)), Vec2::new(x0.max(x1), y0.max(y1))))
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use aad_doc::{Drawing, Space};
+
+    use super::*;
+
+    #[test]
+    fn two_plots_join_into_one_pdf_with_two_pages() {
+        let drawing = Drawing::new_metric();
+        let first = pdf(&drawing, &Space::Model, &PdfOptions::default()).unwrap();
+        let second = pdf(&drawing, &Space::Model, &PdfOptions::default()).unwrap();
+        let joined = merge(&[first, second]).unwrap();
+        let doc = lopdf::Document::load_mem(&joined).unwrap();
+        assert_eq!(doc.get_pages().len(), 2);
+        assert!(merge(&[]).is_err());
+        assert!(merge(&vec![vec![b'x'; 8]; 257]).is_err());
     }
 }

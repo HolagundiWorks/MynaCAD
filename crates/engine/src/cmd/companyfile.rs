@@ -8,8 +8,10 @@
 //! When the drawing holds company-file identity, those fields are refresh-only: `project` / `project.wizard` refuse to
 //! overwrite them. Change company (and linked project) identity in Studio, then `companyfile {refresh: true}`.
 //!
-//! This command does no input or output of its own. It only reads the JSON it is given, so the engine stays free of the company
-//! file's library, and anything that can reach the engine (the control channel, MCP, a script) can supply the same answer.
+//! `companyfile` does no file input of its own. It only reads the JSON it is given, so the engine stays free of the company
+//! file's library. `company.pack.import` / `company.pack.export` read and write an `osas-company-pack` JSON file (firm fields
+//! only). That pack is how O-Draft receives company details for title blocks. O-Draft does not open the company file and does
+//! not call O-Studio or the launcher.
 
 use serde_json::{Map, Value, json};
 
@@ -32,6 +34,11 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("companyfile", "Company File Details", run_companyfile)
             .menu(&["Architecture", "Project", "Company File Details"])
             .params("{context?: a `document_context` answer, open?: true (open the company file OSAS gave this start), projects?: true, project_id?: n (read that project), refresh?: true (read the drawing's project again)} → {connected, linked, company, details, projects?, suite?}"),
+        CommandSpec::new("company.pack.import", "Import Company Details", run_pack_import)
+            .menu(&["Architecture", "Project", "Import Company Details"])
+            .params("{path: an osas-company-pack JSON exported from O-Studio} → {company, details}. Fills title-block fields from the file. Does not open the company file or talk to O-Studio."),
+        CommandSpec::new("company.pack.export", "Export Company Details", run_pack_export)
+            .params("{path} → {path, bytes}. Writes the company details already stored in this drawing."),
     ]
 }
 
@@ -144,6 +151,49 @@ fn run_companyfile(s: &mut Session, p: &Value) -> Result<Value> {
         "projects": projects,
         "suite": suite,
     }))
+}
+
+const PACK_FORMAT: &str = "osas-company-pack";
+const MAX_PACK: u64 = 1_000_000;
+
+fn run_pack_import(s: &mut Session, p: &Value) -> Result<Value> {
+    let path = str_param(p, "path").ok_or_else(|| bad("company.pack.import", "`path` is required"))?;
+    let bytes = std::fs::read(path).map_err(|e| bad("company.pack.import", format!("{path}: {e}")))?;
+    if bytes.len() as u64 > MAX_PACK {
+        return Err(bad("company.pack.import", "the company pack is too large"));
+    }
+    let pack: Value = serde_json::from_slice(&bytes).map_err(|e| bad("company.pack.import", e.to_string()))?;
+    if pack.get("format").and_then(Value::as_str) != Some(PACK_FORMAT) {
+        return Err(bad("company.pack.import", "this file is not an O-Studio company pack"));
+    }
+    let firm = pack.get("company").filter(|c| c.is_object()).ok_or_else(|| bad("company.pack.import", "`company` is missing"))?;
+    // Firm identity only: no project link, so O-Draft does not call O-Studio.
+    let ctx = json!({ "v": 1, "prepared_on": pack.get("exported_utc").and_then(Value::as_str).unwrap_or(""), "company": firm });
+    apply(s, &ctx)?;
+    let d = s.doc()?;
+    Ok(json!({ "company": company(d), "details": get(d, "details") }))
+}
+
+fn run_pack_export(s: &mut Session, p: &Value) -> Result<Value> {
+    let path = str_param(p, "path").ok_or_else(|| bad("company.pack.export", "`path` is required"))?;
+    let held = company(s.doc()?);
+    if !held.is_object() {
+        return Err(bad("company.pack.export", "this drawing has no company details to export"));
+    }
+    let pack = json!({
+        "format": PACK_FORMAT,
+        "version": 1,
+        "exported_utc": "",
+        "company": held,
+    });
+    let text = serde_json::to_string_pretty(&pack).map_err(|e| bad("company.pack.export", e.to_string()))?;
+    if let Some(parent) = std::path::Path::new(path).parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent).map_err(|e| bad("company.pack.export", e.to_string()))?;
+    }
+    std::fs::write(path, &text).map_err(|e| bad("company.pack.export", e.to_string()))?;
+    Ok(json!({ "path": path, "bytes": text.len() }))
 }
 
 fn apply(s: &mut Session, ctx: &Value) -> Result<()> {
@@ -345,5 +395,39 @@ mod tests {
         }
         let shown = s.execute("companyfile", &json!({})).unwrap();
         assert_eq!(shown["connected"], false);
+    }
+
+    #[test]
+    fn a_company_pack_fills_title_block_fields_without_a_project_link() {
+        let dir = std::env::temp_dir().join(format!("aad-company-pack-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("firm.json");
+        let pack = json!({
+            "format": "osas-company-pack",
+            "version": 1,
+            "exported_utc": "2026-11-06",
+            "company": { "name": "Studio One", "address": "12 MG Road", "phone": "1", "email": "a@b.in",
+                         "pan": "ABCDE1234F", "gstin": "29ABCDE1234F1Z5", "coa_registration": "CA/1", "architect_name": "Aditi Rao" }
+        });
+        std::fs::write(&path, serde_json::to_vec_pretty(&pack).unwrap()).unwrap();
+        let mut s = Session::new();
+        let path_str = path.to_string_lossy();
+        let imported = s.execute("company.pack.import", &json!({ "path": path_str })).unwrap();
+        assert_eq!(imported["company"]["name"], "Studio One");
+        assert_eq!(imported["details"]["architect"], "Aditi Rao");
+        assert_eq!(imported["details"]["date"], "2026-11-06");
+        assert!(imported["company"].get("project_ref").is_none_or(Value::is_null));
+        let out = dir.join("out.json");
+        s.execute("company.pack.export", &json!({ "path": out.to_string_lossy() })).unwrap();
+        let written: Value = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+        assert_eq!(written["format"], "osas-company-pack");
+        assert_eq!(written["company"]["architect_name"], "Aditi Rao");
+        assert!(s.execute("company.pack.import", &json!({ "path": dir.join("missing.json").to_string_lossy() })).is_err());
+        std::fs::write(dir.join("bad.json"), b"{\"format\":\"other\",\"company\":{}}").unwrap();
+        assert!(s.execute("company.pack.import", &json!({ "path": dir.join("bad.json").to_string_lossy() })).is_err());
+        let huge = dir.join("huge.json");
+        std::fs::write(&huge, vec![b'x'; 1_000_001]).unwrap();
+        assert!(s.execute("company.pack.import", &json!({ "path": huge.to_string_lossy() })).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

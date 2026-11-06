@@ -1,6 +1,6 @@
 # O-Studio suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the O-Studio repository, `docs/SUITE.md`. Each app repository carries an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called, what their toolbars hold and how they connect. If you change one, change all four. Updated 2026-11-04.
+**Canonical copy:** the O-Studio repository, `docs/SUITE.md`. Each app repository carries an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called, what their toolbars hold and how they connect. If you change one, change all four. Updated 2026-11-06.
 
 ## 1. Names
 
@@ -20,12 +20,12 @@ Other names:
 
 | Term | Meaning |
 |---|---|
-| **Company file** | One file per practice, `.osas` (earlier `.adms` opens too). SQLite, optionally encrypted (`AOSENC1`). Chosen and created only in **O-Studio**; opened read-write by O-Studio, read-only for details by O-CoreOp and O-Draft |
+| **Company file** | One file per practice, `.osas` (earlier `.adms` opens too). SQLite, optionally encrypted (`AOSENC1`). Chosen and created in **O-Studio**. **O-CoreOp** signs in as an O-Studio user and pushes project items into it. **O-Draft** does not open it |
 | **Project file** | `.osp`. One SQLite file per project holding the drawing, the take-off and the project record. Format name `osp`, version 1. (`.odp` was the working name and clashed with LibreOffice Impress; it is not used) |
 | **Take-off** | Quantities measured from a drawing. Recorded by O-Draft into the project file; read by O-CoreOp |
 | **Revision** | The counter inside a project file (`meta.revision`). Every save by any program is one revision. Apps compare revisions to know someone else wrote |
 | **Active-project pointer** | `%LOCALAPPDATA%\O-Studio\active-project.json`, written by O-Draft: which project file is open there, so O-CoreOp can open the same one |
-| **Locked project** | The project chosen in the **launcher** (or O-Studio) for this PC: `%LOCALAPPDATA%\O-Studio\selected-project.json` (company, project id, code, name, project file, who locked it). O-CoreOp and O-Draft open it directly and have no New, Open or Save as project. It cannot be changed while O-CoreOp or O-Draft is running |
+| **Shared project file** | One `.osp` opened in **O-Draft** and **O-CoreOp**. Double-click opens it in O-Draft; **Open in O-CoreOp** is a separate verb. Neither verb starts the launcher. O-Draft writes the drawing and take-off; O-CoreOp writes quantities, the estimate, bills, and the project maps and layouts |
 | **Ticket** | One-time sign-in token **O-Studio** gives an app it starts: 32 random bytes, two minutes, one use. The password is never passed on (`OSTUDIO_TICKET` in the environment) |
 | **Persona** | In O-CoreOp, Project Manager/PMC or Contractor: each has its own letterhead and numbering |
 | **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). the **launcher** hosts **Olmo 3 7B** for as long as it runs; **O-Studio**, **O-CoreOp** and **O-Draft** are clients only |
@@ -65,7 +65,7 @@ Users belong to the company, so they are the same in every app. Roles are in `of
 | **Document editor** | View and edit documents |
 | **Auditor** | View, and view the audit trail (read only) |
 
-Users are added, re-roled and re-passworded in **O-Studio** (Office > Users or company sign-in flows), each change asking for the owner's password again; the last active owner cannot be removed. In O-CoreOp the company file is read-only details (name, address, GSTIN, letterhead); the project's persona (PM/PMC or Contractor) is separate from the user's role.
+Users are added, re-roled and re-passworded in **O-Studio** (Office > Users or company sign-in flows), each change asking for the owner's password again; the last active owner cannot be removed. O-CoreOp signs in as one of those users and pushes project items; it does not edit users. Firm details for O-Draft title blocks are an exported pack, not a live company-file session. The project's persona (PM/PMC or Contractor) is separate from the user's role.
 
 ## 4. What each app has on screen
 
@@ -78,7 +78,7 @@ Users are added, re-roled and re-passworded in **O-Studio** (Office > Users or c
 | Take-off strip (row 2) | **Take-off tools only** (Ext wall, Int wall, Beam, … Record, Map layers, phase pickers) while **Take-off** is on in Classic workspace |
 | Right | Layers / Properties / Blocks tabbed stack |
 | Bottom bar | Snap/ortho/polar toggles, coordinates, units, **Take-off toggle** (next to Nameplate) |
-| File | Save, Close, Export, Print/Plot, History. No New, Open or Save as: the project is chosen and locked in the **launcher**, and O-Draft opens its project file (made on first open). Drawing setup (floors, layer sets, tabs) stays in O-Draft |
+| File | New, Open, Save, Save as, Close, Export, Print/Plot, History, and **Import company details** (`company.pack.import`). The project file is the `.osp` shared with O-CoreOp. Company details for title blocks are a JSON pack exported from O-Studio (Firm settings, **Export for O-Draft**). O-Draft does not call O-Studio or the launcher |
 | Command line | Every tool is also a typed command, e.g. `takeoff.record` |
 
 Details: `docs/UI_UX.md`.
@@ -90,7 +90,8 @@ Details: `docs/UI_UX.md`.
 | Main ribbon | One text tab per section: Project, RCC steel, Civil BOQ, Schedule, Contracts, Stores, Outputs (Ctrl+1 to Ctrl+7). Office, Accounts and HR live in O-Studio |
 | Sub ribbon | One text tab per page of the open section |
 | Take-off page | Reads the take-off from the open `.osp`; shows "O-Draft updated the take-off" when O-Draft writes; Import brings it into the estimate |
-| File | Save, Take-off, Import from CAD, Export. No New, Open or Save as project: the project is chosen and locked in the **launcher**, and O-CoreOp opens it. No company menu: the company comes from **O-Studio** (launch from the launcher or Studio, which redeems a ticket) |
+| Layout page | Outputs > Layout. The left side is the project map and its layouts (for example Ground floor working drawing). The right side lists print blocks saved in the open `.osp` by O-Draft. Insert places the related print block, Update nameplate stores the title fields in the project document, and Export PDF writes a sheet record. The PDF does not redraw the model |
+| File | Open project (the shared `.osp`), Save, **Sign in to O-Studio**, **Push to O-Studio**, Take-off, Import from CAD, Export. Sign-in uses the O-Studio user and the company file. Push writes this project's items (`aqc.project`, and an estimate draft when one has been calculated) |
 | Bottom shell | Full-bleed status row + floating Ask pill (`O.Ui` `SuiteBottomStatusBar`, `SuiteAskBar`) — O-Draft layout is canonical |
 | Assistant (Olmo) | Hosted by the launcher on `:8742`; O-CoreOp and O-Draft are clients |
 
@@ -113,8 +114,9 @@ Details: `docs/WINUI-SHELL.md`.
 | O-Studio -> apps | Starts the app with `OSTUDIO_COMPANY` + one-time `OSTUDIO_TICKET` (and Olmo client env when applicable) | on launch |
 | Company -> apps | `office.dll` (C ABI from `office-ffi`), read by the app | on open |
 | O-Draft -> O-CoreOp | Both open the **same `.osp`**. O-Draft's `takeoff.record` writes headers/rows/annotated PDF in one revision; O-CoreOp polls `meta.revision` every 2 s and notifies | about 2 s, no server |
-| Launcher -> apps (which project) | The launcher locks one project (`selected-project.json`) and starts O-CoreOp and O-Draft with `OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`, and `OSTUDIO_PROJECT_NAME`; an app started alone, or a double-clicked `.osp`, asks the launcher (`O-Studio.Launcher.exe --launch <app>` / `--open <file>`), which signs in, locks the project and starts the app | on launch |
-| O-Draft -> O-CoreOp (which file) | Active-project pointer (kept for one release; the lock decides now): `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
+| O-CoreOp -> company file | File > **Sign in to O-Studio** (`auth.login` on the `.osas`), then **Push to O-Studio**. If the open `.osp` is not linked, O-CoreOp asks which O-Studio project receives the items | on push |
+| O-Studio -> O-Draft (company details) | Firm settings > **Export for O-Draft** writes `osas-company-pack` v1 JSON (name, address, phone, email, PAN, GSTIN, COA registration, architect). O-Draft **Import company details** applies it to title blocks. No live session and no launcher | on import |
+| O-Draft -> O-CoreOp (which file) | The same `.osp`, opened in each app. Active-project pointer remains: `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
 | Two programs, one file | SQLite WAL, immediate write transactions, 5 s busy timeout: writers take turns, every commit is exactly one revision, readers never block (tested with 4 writers x 40 commits) | immediate |
 | Machine -> machine | O-Studio syncs `.osp` with **Neon** by revision (connector MVP; see `docs/CLOUD-NEON.md`); a viewer on tablet/phone reads what O-Studio pushed and sends markups back | Postgres revision + Object Storage |
 

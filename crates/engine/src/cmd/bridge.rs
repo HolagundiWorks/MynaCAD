@@ -351,6 +351,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
     for r in &rooms {
         let mut row = r.row.clone();
         row["level"] = json!(level_of(r.outline.or(Some(r.handle))));
+        super::classify::stamp_building_on_row(d, r.outline.or(Some(r.handle)), &mut row);
         match r.outline {
             Some(h) => match rectangle_spans_mm(d, h, unit_mm) {
                 Some((length, breadth)) => {
@@ -613,6 +614,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
                 let mut row = json!({ "ref": col_ref, "mark": mark, "level": level_of(handle), "width_mm": mm(w), "depth_mm": mm(dep) });
                 if let Some(h) = handle {
                     super::takeoffphase::stamp_row(d, Some(h), &mut row);
+                    super::classify::stamp_building_on_row(d, Some(h), &mut row);
                     items.push(Item { kind: KIND_COLUMN, n: number_of(h), row: row.clone() });
                 } else {
                     unstable += 1;
@@ -647,6 +649,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
                 });
                 if let Some(h) = handle {
                     super::takeoffphase::stamp_row(d, Some(h), &mut row);
+                    super::classify::stamp_building_on_row(d, Some(h), &mut row);
                     items.push(Item { kind: KIND_LINTEL, n: number_of(h), row: row.clone() });
                 } else {
                     unstable += 1;
@@ -682,6 +685,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
                 }
                 if let Some(h) = handle {
                     super::takeoffphase::stamp_row(d, Some(h), &mut row);
+                    super::classify::stamp_building_on_row(d, Some(h), &mut row);
                     items.push(Item { kind: KIND_SLAB, n: number_of(h), row: row.clone() });
                 } else {
                     unstable += 1;

@@ -249,76 +249,19 @@ pub fn file_tabs(app: &mut CadApp, ui: &mut egui::Ui) {
     });
 }
 
-/// Status bar: layout tabs on the left, coordinates and drafting toggles on the right.
+/// Status bar: coordinates and drafting toggles. Paper layouts are not tabs; a print block names a region of the model.
 pub fn status_bar(app: &mut CadApp, ui: &mut egui::Ui) {
     let t = Tokens::get();
     egui::Panel::bottom("cc_status").exact_size(26.0).frame(egui::Frame::NONE.fill(t.chrome)).show(ui, |ui| {
         let r = ui.max_rect();
         let p = ui.painter().clone();
-        let mut x = r.left() + 8.0;
+        let x = r.left() + 8.0;
         // Clear the status message on time even when no input arrives (the app only repaints on input).
         if let Some((_, at)) = &app.status
             && crate::now_ms() - at < 5000.0
         {
             let left = std::time::Duration::try_from_secs_f64((5000.0 - (crate::now_ms() - at)) / 1000.0).unwrap_or_default();
             ui.ctx().request_repaint_after(left);
-        }
-        for (icon, tip) in [(Icon::Plus, "New layout"), (Icon::Menu, "Layout list")] {
-            let br = Rect::from_min_size(pos2(x, r.top() + 4.0), vec2(18.0, 18.0));
-            let resp = ui.interact(br, ui.id().with(("sb", tip)), Sense::click());
-            icons::paint(&p, br.shrink(2.0), icon, false);
-            icons::describe_control(ui, &resp, tip, None, false);
-            if resp.on_hover_text(crate::i18n::t(tip)).clicked() && icon == Icon::Plus {
-                let _ = app.run("layout.new", json!({}));
-            }
-            x += 22.0;
-        }
-        x = x.max(r.left() + 60.0);
-        // Layout tabs.
-        let mut tabs: Vec<String> = vec!["Model".into()];
-        let cur = app.session.state().map(|s| match &s.space {
-            aad_doc::Space::Model => "Model".to_string(),
-            aad_doc::Space::Paper(n) => n.clone(),
-        });
-        if let Ok(st) = app.session.state() {
-            let mut ls: Vec<_> = st.doc.layouts.iter().collect();
-            ls.sort_by_key(|l| l.tab_order);
-            tabs.extend(ls.iter().map(|l| l.name.clone()));
-        }
-        let mut switch = None;
-        for (i, name) in tabs.iter().enumerate() {
-            let g = p.layout_no_wrap(if i == 0 { crate::tl!("Model").to_string() } else { name.clone() }, crate::theme::body(), t.text);
-            let w = g.size().x + 26.0;
-            let tr = Rect::from_min_size(pos2(x, r.top() + 1.0), vec2(w, r.height() - 2.0));
-            let active = cur.as_deref().is_ok_and(|c| c == name);
-            let resp = ui.interact(tr, ui.id().with(("lt", i)), Sense::click());
-            if active {
-                p.rect_filled(tr, 2.0, t.tab_active);
-            } else if resp.hovered() {
-                p.rect_filled(tr, 2.0, t.control.gamma_multiply(0.5));
-            }
-            p.galley(pos2(tr.left() + 13.0, tr.center().y - g.size().y / 2.0), g, if active { t.text } else { t.text_dim });
-            icons::describe_control(ui, &resp, name, Some(active), true);
-            if resp.clicked() {
-                switch = Some(name.clone());
-            }
-            x += w + 2.0;
-            if i == 0 {
-                let pr = Rect::from_min_size(pos2(x, r.top() + 5.0), vec2(16.0, 16.0));
-                let presp = ui.interact(pr, ui.id().with("layout_plus"), Sense::click());
-                icons::paint(&p, pr.shrink(2.0), Icon::Plus, false);
-                icons::describe_control(ui, &presp, "New layout", None, false);
-                if presp.on_hover_text(crate::tl!("New layout")).clicked()
-                    && let Ok(v) = app.run("layout.new", json!({}))
-                    && let Some(n) = v.get("name").and_then(serde_json::Value::as_str)
-                {
-                    switch = Some(n.to_string());
-                }
-                x += 22.0;
-            }
-        }
-        if let Some(n) = switch {
-            let _ = app.run("layout.set", json!({ "name": n }));
         }
         // Right side: toggles, right-aligned.
         let s = app.session.settings.clone();
@@ -496,7 +439,7 @@ pub fn status_bar(app: &mut CadApp, ui: &mut egui::Ui) {
             coord_right = br.left() - 10.0;
         }
         // A transient message occupies the same bounded readout slot as coordinates.
-        // Ellipsis and a tooltip keep either value readable without covering layout tabs.
+        // Ellipsis and a tooltip keep either value readable in the status readout.
         let message = app.status.as_ref().filter(|(_, at)| crate::now_ms() - at < 5000.0).map(|(message, _)| message);
         let readout = message.cloned().or(coord);
         if let Some(text) = readout {

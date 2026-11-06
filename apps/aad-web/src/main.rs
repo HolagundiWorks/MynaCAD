@@ -60,6 +60,7 @@ mod web {
             write: |d, name| aad_io::write(d, name).map_err(|e| e.to_string()),
             plot: Some(|d, space, opts| aad_io::plot(d, space, opts).map_err(|e| e.to_string())),
         });
+        aad_engine::cmd::file::set_pdf_merge(|parts| aad_io::pdf::merge(parts).map_err(|e| e.to_string()));
         // No file system here: saved files reach the user as browser downloads.
         aad_engine::cmd::file::set_deliver(crate::download::download);
         wasm_bindgen_futures::spawn_local(async {

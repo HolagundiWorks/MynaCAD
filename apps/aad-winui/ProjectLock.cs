@@ -4,19 +4,15 @@ using Microsoft.Win32;
 namespace Aad.WinUi;
 
 /// <summary>
-/// The project is chosen and locked in the launcher (or O-Studio), never in this app. The launcher starts O-Draft with
-/// <c>OSTUDIO_PROJECT_OSP</c> (the project file) and <c>OSTUDIO_PROJECT_ID</c>; the drawing opens from it and the commands that open or create a
-/// project file are not offered. An app started any other way asks the launcher to start it once a company is signed in and a project is locked.
-/// <c>OSTUDIO_STANDALONE=1</c>, a control port, <c>--sample</c> or a file on the command line skip the check (development, automation, tests).
+/// O-Draft opens its own drawing and the shared project file (<c>.osp</c>) with O-CoreOp. It does not ask the launcher or O-Studio.
+/// A start that still carries <c>OSTUDIO_PROJECT_OSP</c> opens that file. Company details for title blocks come from an imported pack
+/// (<c>company.pack.import</c>), not from a live company-file session.
 /// </summary>
 internal static class ProjectLock
 {
     internal const string EnvOsp = "OSTUDIO_PROJECT_OSP";
     internal const string EnvStandalone = "OSTUDIO_STANDALONE";
     internal const string EnvLauncher = "OSTUDIO_LAUNCHER";
-
-    /// <summary>The commands that make or open a project or drawing file. The launcher does that now.</summary>
-    private static readonly HashSet<string> Hidden = new(StringComparer.OrdinalIgnoreCase) { "new", "open", "saveas", "project.setup", "project.open" };
 
     internal static string? Path
     {
@@ -29,17 +25,22 @@ internal static class ProjectLock
 
     internal static bool Active => Path != null;
 
-    internal static bool IsHidden(string? commandId) => Active && commandId != null && Hidden.Contains(commandId);
+    /// <summary>O-Draft keeps New, Open and Save as. A leftover launcher lock does not hide them.</summary>
+    internal static bool IsHidden(string? commandId)
+    {
+        _ = commandId;
+        return false;
+    }
 
     internal static bool IsLockedFile(string path) =>
         Path is { } locked && string.Equals(System.IO.Path.GetFullPath(locked), System.IO.Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase);
 
-    internal static bool NeedsLauncher(LaunchArgs launch) =>
-        !Active
-        && Environment.GetEnvironmentVariable(EnvStandalone) != "1"
-        && launch.ControlPort is null
-        && !launch.Sample
-        && launch.Files.Count == 0;
+    /// <summary>O-Draft does not hand off to the launcher.</summary>
+    internal static bool NeedsLauncher(LaunchArgs launch)
+    {
+        _ = launch;
+        return false;
+    }
 
     internal static string? LauncherPath()
     {

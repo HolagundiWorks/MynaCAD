@@ -34,7 +34,7 @@ Curated open index: [`assets/specs/indian-index.json`](../assets/specs/indian-in
 | Concept | O-Draft |
 |---|---|
 | Group | Named set of entities; optional nested `childGroups` (depth capped at 16). `group.explode` promotes one level of nesting. Nesting survives DXF via `groupNest`. |
-| Component | Block definition + INSERT, optionally classified. `component.make` / `place` / `makeunique` / `edit` (edit opens `bedit` / `refedit`). |
+| Component | Block definition + INSERT, optionally classified. `component.make` / `place` / `makeunique` / `edit` (edit opens `bedit` / `refedit`). Quick Properties shows **Building kind** and **IFC type** and writes them through `properties.set` → `classify.set`. |
 
 ## Bridge / take-off
 

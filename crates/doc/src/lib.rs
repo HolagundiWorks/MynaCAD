@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 
 mod building;
+mod compose;
 mod entity;
 mod extents;
 mod header;
@@ -22,6 +23,7 @@ use std::collections::BTreeMap;
 pub use aad_color as color;
 pub use aad_geom as geom;
 pub use building::*;
+pub use compose::*;
 pub use entity::*;
 pub use extents::{MAX_BLOCK_DEPTH, entity_bounds};
 pub use header::{HVal, Header};
@@ -81,6 +83,16 @@ pub struct Drawing {
     pub views: Vec<NamedView>,
     pub ucss: Vec<Ucs>,
     pub layer_states: Vec<LayerState>,
+    /// Named display recipes for paper (ArchiCAD View Map analogue); see [`ComposeView`].
+    pub compose_views: Vec<ComposeView>,
+    /// Last compose-view id handed out (ids are never reused).
+    pub compose_view_seed: u32,
+    /// Shared paper + title-block templates; see [`MasterLayout`].
+    pub master_layouts: Vec<MasterLayout>,
+    /// Last master-layout id handed out (ids are never reused).
+    pub master_layout_seed: u32,
+    /// Named publish jobs; see [`PublisherSet`].
+    pub publisher_sets: Vec<PublisherSet>,
     /// Project data kept with the drawing: floors, schedules, take-off results (key to JSON text).
     pub project: BTreeMap<String, String>,
     pub groups: Vec<Group>,
@@ -137,6 +149,11 @@ impl Drawing {
             views: Vec::new(),
             ucss: Vec::new(),
             layer_states: Vec::new(),
+            compose_views: Vec::new(),
+            compose_view_seed: 0,
+            master_layouts: Vec::new(),
+            master_layout_seed: 0,
+            publisher_sets: Vec::new(),
             project: BTreeMap::new(),
             groups: Vec::new(),
             plot_style_tables: Vec::new(),

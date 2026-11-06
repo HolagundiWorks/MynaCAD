@@ -451,6 +451,7 @@ fn entity(kind: &str, tags: &[Tag]) -> Option<(Common, EntityKind)> {
                 level,
                 sheet_set,
                 traces,
+                compose_view: None,
             })
         }
         "WIPEOUT" => {

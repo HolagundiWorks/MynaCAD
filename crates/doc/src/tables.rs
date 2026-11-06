@@ -578,11 +578,21 @@ pub struct Layout {
     /// Saved paper-space view (centre, height).
     #[serde(default)]
     pub view: Option<(Vec2, f64)>,
+    /// Optional master layout (paper + title-block chrome).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub master: Option<crate::MasterLayoutId>,
 }
 
 impl Layout {
     pub fn new(name: &str, tab_order: u32) -> Self {
-        Layout { name: name.into(), tab_order, page: PageSetup::default(), entities: EntityStore::new(), view: None }
+        Layout {
+            name: name.into(),
+            tab_order,
+            page: PageSetup::default(),
+            entities: EntityStore::new(),
+            view: None,
+            master: None,
+        }
     }
 }
 

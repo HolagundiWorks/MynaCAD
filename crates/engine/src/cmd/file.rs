@@ -75,6 +75,19 @@ pub fn set_pdf_reader(h: PdfReadHook) {
     let _ = PDF_READ.set(h);
 }
 
+/// Join one-page plot PDFs into one file, in order. Optional, like the plotter.
+pub type PdfMergeHook = fn(&[Vec<u8>]) -> std::result::Result<Vec<u8>, String>;
+
+static PDF_MERGE: OnceLock<PdfMergeHook> = OnceLock::new();
+
+pub fn set_pdf_merge(h: PdfMergeHook) {
+    let _ = PDF_MERGE.set(h);
+}
+
+pub fn pdf_merge() -> Option<PdfMergeHook> {
+    PDF_MERGE.get().copied()
+}
+
 pub fn pdf_reader() -> Option<PdfReadHook> {
     PDF_READ.get().copied()
 }

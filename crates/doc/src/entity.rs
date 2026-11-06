@@ -765,6 +765,10 @@ pub struct Viewport {
     /// Other levels shown faded under or over this viewport's level (at most [`crate::MAX_TRACES`]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traces: Vec<crate::Trace>,
+    /// Optional named compose view this viewport follows; when set, level / sheet set / traces /
+    /// scale are taken from that view when applied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compose_view: Option<crate::ComposeViewId>,
 }
 impl Default for Viewport {
     fn default() -> Self {
@@ -782,6 +786,7 @@ impl Default for Viewport {
             level: None,
             sheet_set: None,
             traces: Vec::new(),
+            compose_view: None,
         }
     }
 }

@@ -113,6 +113,11 @@ public sealed partial class MainWindow
         await PickFileCore("open");
     }
 
+    private void OnWelcomeCompanyPack(object sender, RoutedEventArgs e)
+    {
+        _ = ImportCompanyPackAsync();
+    }
+
     private void OnWelcomeWizard(object sender, RoutedEventArgs e)
     {
         HideWelcome();

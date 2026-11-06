@@ -208,7 +208,7 @@ public sealed partial class MainWindow : Window
                 var folder = System.IO.Path.GetDirectoryName(path);
                 if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
                 {
-                    History.Text = "The folder of the locked project was not found: " + folder + ". Choose the project again in the launcher.";
+                    History.Text = "The folder of the project was not found: " + folder + ".";
                     continue;
                 }
                 Native.Execute(_host, "new", "{}");
@@ -577,6 +577,11 @@ public sealed partial class MainWindow : Window
             _ = PickFile(id);
             return;
         }
+        if (id == "company.pack.import")
+        {
+            _ = ImportCompanyPackAsync();
+            return;
+        }
         if (id == "import")
         {
             _ = ImportFile();
@@ -596,6 +601,12 @@ public sealed partial class MainWindow : Window
         if (id == "page.manager")
         {
             OpenPageLayoutManager();
+            return;
+        }
+        if (id is "compose.view.list" or "compose.view.save" or "compose.view.apply" or "master.list" or "master.new" or "master.apply"
+            or "publisher.list" or "publisher.new" or "publisher.publish" or "publisher")
+        {
+            OpenComposeNavigator();
             return;
         }
         if (id == "notes.manager")
@@ -1050,6 +1061,11 @@ public sealed partial class MainWindow : Window
         if (id is "open" or "qsave" or "saveas")
         {
             _ = PickFile(id);
+            return;
+        }
+        if (id == "company.pack.import")
+        {
+            _ = ImportCompanyPackAsync();
             return;
         }
         if (id == "import")
@@ -1892,6 +1908,33 @@ public sealed partial class MainWindow : Window
             return;
         }
         Native.Execute(_host, "layout.set", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = "Model" }));
+    }
+
+    /// <summary>Import an O-Studio company pack into the drawing for title blocks. Does not open the company file.</summary>
+    private async Task ImportCompanyPackAsync()
+    {
+        if (_host == IntPtr.Zero)
+        {
+            return;
+        }
+        var picker = new FileOpenPicker();
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+        picker.FileTypeFilter.Add(".json");
+        var file = await picker.PickSingleFileAsync();
+        if (file == null)
+        {
+            return;
+        }
+        var args = JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = file.Path });
+        if (Native.Execute(_host, "company.pack.import", args) == 0)
+        {
+            History.Text = "Company details imported for title blocks and documentation.";
+        }
+        else
+        {
+            History.Text = Native.LastError(_host);
+        }
+        AfterCommand();
     }
 
     private async Task<bool> PickFile(string id)
@@ -2772,7 +2815,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        // Locked to a project by the launcher: no commands that make or open a project or drawing file.
+        // Open, New and Save as stay available. O-Draft does not hand the file to the launcher.
         foreach (var menu in menus)
         {
             PruneLocked(menu);

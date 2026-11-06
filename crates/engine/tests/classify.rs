@@ -70,6 +70,17 @@ fn classify_set_get_clear_on_entity_and_block() {
 }
 
 #[test]
+fn properties_set_stamps_building_kind() {
+    let mut s = Session::new();
+    s.execute("line", &json!({ "points": [[0, 0], [4, 0]] })).unwrap();
+    let h = s.doc().unwrap().model.iter().next().unwrap().handle.hex();
+    s.execute("properties.set", &json!({ "handles": [h], "buildingKind": "column", "ifcType": "IfcColumn" })).unwrap();
+    let g = s.execute("classify.get", &json!({ "handles": [h] })).unwrap();
+    assert_eq!(g["items"][0]["building"]["kind"], "column");
+    assert_eq!(g["items"][0]["building"]["ifcType"], "IfcColumn");
+}
+
+#[test]
 fn classify_unknown_spec_id_warns() {
     let mut s = Session::new();
     s.execute("line", &json!({ "points": [[0, 0], [5, 0]] })).unwrap();

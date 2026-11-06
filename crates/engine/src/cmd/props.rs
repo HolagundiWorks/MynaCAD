@@ -13,7 +13,7 @@ use crate::{Result, Session};
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("properties", "Properties", run_get).menu(&["Modify", "Properties"]).alias(&["pr", "props", "ch"]).params("{handles?} → properties of the selection").noundo(),
-        CommandSpec::new("properties.set", "Set Properties", run_set).params("{handles?, layer?, color?, linetype?, lineweight?, ltscale?, transparency?: \"ByLayer\" | \"ByBlock\" | 0..90, visible?, <geometry fields: radius, center, start, end, text, height | textSize: small|medium|large, rotation…>, smart block: sb:<parameter>?, door/window: openingType?, openingWidth?, openingHeight? (drawing units), sill? (drawing units), lintelMode?: standard|custom, head? (drawing units)}"),
+        CommandSpec::new("properties.set", "Set Properties", run_set).params("{handles?, layer?, color?, linetype?, lineweight?, ltscale?, transparency?: \"ByLayer\" | \"ByBlock\" | 0..90, visible?, <geometry fields: radius, center, start, end, text, height | textSize: small|medium|large, rotation…>, smart block: sb:<parameter>?, door/window: openingType?, openingWidth?, openingHeight? (drawing units), sill? (drawing units), lintelMode?: standard|custom, head? (drawing units), buildingKind?, ifcType?}"),
         CommandSpec::new("matchprop", "Match Properties", run_matchprop)
             .menu(&["Modify", "Match Properties"])
             .alias(&["ma", "painter"])
@@ -181,6 +181,20 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
     const OPENING_KEYS: &[&str] = &["openingType", "openingWidth", "openingHeight", "sill", "lintelMode", "head"];
     if OPENING_KEYS.iter().any(|k| p.get(*k).is_some()) {
         return super::walls::edit_openings(s, &hs, p);
+    }
+    if p.get("buildingKind").is_some() || p.get("ifcType").is_some() {
+        let mut body = serde_json::Map::new();
+        body.insert("handles".into(), json!(hs.iter().map(|h| h.hex()).collect::<Vec<_>>()));
+        let kind = str_param(p, "buildingKind").map(str::to_string).or_else(|| {
+            s.doc().ok().and_then(|d| {
+                hs.first().and_then(|h| d.entity(*h)).and_then(|e| e.common.building.as_ref()).map(|b| b.kind.as_str().to_string())
+            })
+        });
+        body.insert("kind".into(), json!(kind.unwrap_or_else(|| "other".into())));
+        if let Some(t) = str_param(p, "ifcType") {
+            body.insert("ifcType".into(), json!(t));
+        }
+        return s.execute("classify.set", &Value::Object(body));
     }
     // Smart block parameters (`sb:<name>`, the Properties panel rows of a smart block).
     if let Some(m) = p.as_object()

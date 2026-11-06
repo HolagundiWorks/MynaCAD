@@ -204,6 +204,24 @@ fn default_page(d: &Drawing) -> PageSetup {
 }
 
 /// Fit scale of a layout's paper-space contents (paper units per drawing unit) and nearest label.
+/// Whether a layout's paper-space contents sit inside the printable area.
+/// `fits` is false when the contents are larger than the sheet (scale below 1).
+pub(crate) fn sheet_fit(d: &Drawing, layout: &str) -> Value {
+    let info = layout_fit_info(d, layout);
+    if info.is_null() {
+        return json!({ "layout": layout, "fits": false, "scale": Value::Null, "nearest": Value::Null, "reason": "no such layout" });
+    }
+    let scale = info.get("scale").and_then(Value::as_f64).unwrap_or(1.0);
+    let fits = scale.is_finite() && scale + 1e-6 >= 1.0;
+    json!({
+        "layout": layout,
+        "fits": fits,
+        "scale": info.get("scale").cloned().unwrap_or(Value::Null),
+        "nearest": info.get("nearest").cloned().unwrap_or(Value::Null),
+        "reason": if fits { "" } else { "paper contents are larger than the printable area" },
+    })
+}
+
 fn layout_fit_info(d: &Drawing, layout: &str) -> Value {
     let Some(sheet) = aad_render::sheet(d, layout) else {
         return Value::Null;
@@ -325,7 +343,14 @@ fn run_copy(s: &mut Session, p: &Value) -> Result<Value> {
         let h = d.new_handle();
         store.push(Entity { handle: h, ..Entity::clone(e) });
     }
-    d.layouts.push(Layout { name: to.clone(), tab_order: order, page: src.page, entities: store, view: src.view });
+    d.layouts.push(Layout {
+        name: to.clone(),
+        tab_order: order,
+        page: src.page,
+        entities: store,
+        view: src.view,
+        master: src.master,
+    });
     Ok(json!({ "name": to }))
 }
 

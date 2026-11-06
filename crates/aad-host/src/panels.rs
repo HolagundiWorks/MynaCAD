@@ -236,6 +236,34 @@ fn quick(doc: &aad_engine::doc::Drawing, selection: &[Handle]) -> Value {
         }
     }
     let mut fields = Vec::new();
+    let kind = shared_owned(ents.iter().map(|entity| {
+        entity
+            .common
+            .building
+            .as_ref()
+            .map(|b| b.kind.as_str().to_string())
+            .or_else(|| match &entity.kind {
+                EntityKind::Insert(insert) => doc.blocks.get(&insert.block).and_then(|b| b.building.as_ref()).map(|b| b.kind.as_str().to_string()),
+                _ => None,
+            })
+            .unwrap_or_default()
+    }));
+    let ifc = shared_owned(ents.iter().map(|entity| {
+        entity
+            .common
+            .building
+            .as_ref()
+            .and_then(|b| b.ifc_type.clone())
+            .or_else(|| match &entity.kind {
+                EntityKind::Insert(insert) => doc.blocks.get(&insert.block).and_then(|b| b.building.as_ref()).and_then(|b| b.ifc_type.clone()),
+                _ => None,
+            })
+            .unwrap_or_default()
+    }));
+    if !kind.is_empty() || count == 1 {
+        text_field(&mut fields, "buildingKind", "Building kind", &kind);
+        text_field(&mut fields, "ifcType", "IFC type", &ifc);
+    }
     let openings: Vec<_> = ents
         .iter()
         .filter_map(|entity| match &entity.kind {

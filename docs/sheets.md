@@ -7,7 +7,7 @@ already has other sheets, or anything drawn on Layout1 or Layout2, is left uncha
 `landscape: true|false` (default true) and `open: true` to switch to the chosen plate. An older
 drawing that still has a single **Title plate** is migrated to Nameplate L once.
 
-A layout tab is a sheet. The commands are in `crates/engine/src/cmd/sheet.rs` (and `projfile.rs`
+Paper layouts are sheets, and they are not shown as tabs. A region of the model is named with `printblock` (a boundary, a name, and a description taken from the level and the tab). Listing a print block stores that description in the drawing so O-CoreOp can read it. The sheet is composed in O-CoreOp (Outputs > Layout): a project map, a layout, the print block, the nameplate, and a sheet PDF. That PDF records the sheet. It does not redraw the model. The commands are in `crates/engine/src/cmd/sheet.rs` (and `projfile.rs`
 for the project-aware ones); the Plot window only calls them. There is no separate Layout panel: it
 was removed, and a saved panel layout that still names it is read as unusable and the default panel
 arrangement is used (other preferences are kept). Sheet setup is done with the commands below.

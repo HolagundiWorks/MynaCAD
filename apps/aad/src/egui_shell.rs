@@ -73,6 +73,7 @@ pub fn install_io() {
         plot: Some(|d, space, opts| aad_io::plot(d, space, opts).map_err(|e| e.to_string())),
     });
     aad_engine::cmd::file::set_pdf_reader(|bytes, page| aad_io::pdfread::read_page(bytes, page).map_err(|e| e.to_string()));
+    aad_engine::cmd::file::set_pdf_merge(|parts| aad_io::pdf::merge(parts).map_err(|e| e.to_string()));
     aad_engine::cmd::file::set_raster_reader(|bytes| {
         aad_io::raster::read_gray(bytes).map(|g| aad_engine::cmd::file::Raster { width: g.width, height: g.height, gray: g.gray })
     });

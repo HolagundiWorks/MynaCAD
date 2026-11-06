@@ -98,10 +98,19 @@ fn park(w: &mut Drawing, name: String, store: EntityStore) {
     w.model.push(Entity { handle, common, kind: EntityKind::Insert(Insert { block: name, ..Insert::default() }) });
 }
 
-/// The drawing as it is written: unchanged unless it has two or more levels or any sheet set.
+/// The drawing as it is written: unchanged unless it has two or more levels, any sheet set, or
+/// compose / master / publisher data.
 pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
-    if d.levels.len() < 2 && d.sheet_sets.is_empty() {
+    let needs_levels = d.levels.len() >= 2 || !d.sheet_sets.is_empty();
+    let needs_compose = !d.compose_views.is_empty() || !d.master_layouts.is_empty() || !d.publisher_sets.is_empty()
+        || d.layouts.iter().any(|l| l.master.is_some() || l.entities.iter().any(|e| matches!(&e.kind, EntityKind::Viewport(v) if v.compose_view.is_some())));
+    if !needs_levels && !needs_compose {
         return Cow::Borrowed(d);
+    }
+    if !needs_levels {
+        let mut w = d.clone();
+        w.sync_compose_to_project();
+        return Cow::Owned(w);
     }
     let mut w = d.clone();
     let stores: Vec<(LevelId, EntityStore)> = d.levels.iter().map(|l| (l.id, d.level_store(l.id).cloned().unwrap_or_default())).collect();
@@ -182,6 +191,7 @@ pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
     if let Ok(json) = serde_json::to_string(&meta) {
         w.project.insert(KEY.into(), json);
     }
+    w.sync_compose_to_project();
     Cow::Owned(w)
 }
 
@@ -240,6 +250,7 @@ fn valid(meta: &Meta) -> bool {
 /// Rebuild the levels and sheet sets of a drawing read from a file. A file without valid
 /// `levels2` data is returned unchanged.
 pub(crate) fn from_file(mut d: Drawing) -> Drawing {
+    d.load_compose_from_project();
     let Some(text) = d.project.get(KEY).cloned() else { return d };
     d.project.remove(KEY);
     let damaged = "This file has level data that could not be read, so it opened as a single level; the other levels stay in the file as blocks named ODRAFT$LVL$.";

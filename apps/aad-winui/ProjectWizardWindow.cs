@@ -4,6 +4,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace Aad.WinUi;
 
@@ -76,9 +78,9 @@ internal static class ProjectWizardWindow
         var engineer = Density.DialogField("", "Engineer");
         var company = Density.Secondary("No company details read yet.", TextWrapping.Wrap);
         var suiteHint = Density.Secondary(
-            "Company identity (name, address, contacts, registration, architect) is owned by Studio. When this drawing is linked, those fields are refresh-only — change them in Studio, then Read company file.",
+            "Company details for title blocks come from a file exported in O-Studio. Import that file here. O-Draft does not open the company file.",
             TextWrapping.Wrap);
-        var readCompany = Density.DialogAction("Read company file");
+        var readCompany = Density.DialogAction("Import company details…");
         var page2 = new StackPanel { Spacing = Density.SpaceSm };
         page2.Children.Add(DialogLayout.Heading("Team and company"));
         page2.Children.Add(DialogLayout.Labeled("Architect", architect));
@@ -116,11 +118,9 @@ internal static class ProjectWizardWindow
                 && suite2.TryGetProperty("refresh_only", out var ro)
                 && ro.ValueKind == JsonValueKind.True;
             suiteHint.Text = refreshOnly
-                ? "This drawing holds company details from Studio. Locked fields above are refresh-only — edit them in Studio, then Read company file. Engineer and other local fields stay editable."
-                : "Company identity (name, address, contacts, registration, architect) is owned by Studio. When this drawing is linked, those fields are refresh-only — change them in Studio, then Read company file.";
-            ToolTipService.SetToolTip(readCompany, refreshOnly
-                ? "Refresh company and linked project details from Studio (company file)"
-                : "Read company details from O-Studio's company file (needs OSTUDIO_COMPANY and a ticket)");
+                ? "This drawing holds imported company details. Locked fields stay as imported. Export a new file from O-Studio and import it again to change them. Engineer and other local fields stay editable."
+                : "Company details for title blocks come from a file exported in O-Studio. Import that file here. O-Draft does not open the company file.";
+            ToolTipService.SetToolTip(readCompany, "Import an O-Studio company-details file into this drawing");
         }
 
         // ---- page 3: the building
@@ -457,9 +457,18 @@ internal static class ProjectWizardWindow
             status.Text = "";
         }
 
-        readCompany.Click += (_, _) =>
+        readCompany.Click += async (_, _) =>
         {
-            if (Native.Execute(host, "companyfile", "{\"refresh\":true}") != 0)
+            var picker = new FileOpenPicker();
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(owner));
+            picker.FileTypeFilter.Add(".json");
+            var file = await picker.PickSingleFileAsync();
+            if (file is null)
+            {
+                return;
+            }
+            var args = JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = file.Path });
+            if (Native.Execute(host, "company.pack.import", args) != 0)
             {
                 status.Text = Native.LastError(host);
                 return;
@@ -506,12 +515,12 @@ internal static class ProjectWizardWindow
                         }
                     }
                 }
-                company.Text = lines.Count == 0 ? "The company file gave no company details." : string.Join("\n", lines);
+                company.Text = lines.Count == 0 ? "The file had no company details." : string.Join("\n", lines);
                 ApplySuiteLocks(doc.RootElement);
             }
             catch (JsonException)
             {
-                status.Text = "The company file's answer could not be read.";
+                status.Text = "The imported company details could not be read.";
             }
         };
 

@@ -1,9 +1,10 @@
 # Levels and sheet sets
 
-**Status: the engine side of all five phases is done. The WinUI shell has level tabs and a sheet-set
-rail and a Trace settings form (see "WinUI shell status"); the annotation tool strip, a viewport Level /
+**Status: the engine side of all five phases is done. The WinUI shell has level tabs, a sheet-set
+rail, a Trace settings form, and a Navigator for Compose Views, Master Layouts and Publisher Sets
+(see "WinUI shell status" and "Compose and publish").** The annotation tool strip, a viewport Level /
 Sheet set / Traces editor, a Show-for dropdown in the Layer manager, the new-drawing option, the
-take-off level ids and the egui tabs are not built.** Only what the "Phase N status" sections list is
+take-off level ids and the egui tabs are not built. Only what the "Phase N status" sections list is
 implemented and tested.
 Sections and elevations (Phase 6) are a design only and are not built: see "Sections and elevations".
 
@@ -34,7 +35,23 @@ levels read-only). Every phase is useful and testable alone, starting with level
 | Sheet view | (sheet set, level): that level's geometry (locked, filtered by the set's layer visibility) plus the set's annotation for it |
 | Design mode | No sheet set picked. The default; where drafting happens |
 | View space | A section or elevation: its own store, tied to a marker on a level, drafted by hand, with projection guides (Phase 6, planned) |
-| Layout | Paper, unchanged. A viewport names a level or view space, an optional sheet set and optional traces |
+| Compose View | Named display recipe for paper (ArchiCAD View Map analogue): level, optional sheet set, scale, plot style, traces and optional model window. Not a DXF `VIEW` and not a Phase-6 view space. Commands `compose.view.*` |
+| Master Layout | Shared paper size, orientation and title-block / sheet-template chrome applied to many layouts. Commands `master.*` |
+| Publisher Set | Named list of layouts with output format (`pdf` or `dwg`), a one-file switch and a folder. `publisher.check` reports whether each sheet's paper contents fit the printable area. `publisher.publish` plots or writes the set and, by default, records the take-off into the open `.osp` |
+| Layout | Paper. Optional `master`; each viewport may name a level / sheet set / traces and/or a Compose View |
+
+## Compose and publish (engine)
+
+ArchiCAD separates Stories → Views → Layout Book → Publisher. O-Draft maps that as Levels → Compose Views → Layouts (with Masters) → Publisher Sets. The WinUI **Navigator** window (File > Publish, or Architecture > Sheets) shows the three trees and the one-button **Publish and record take-off**.
+
+| Command family | Purpose |
+|---|---|
+| `compose.view.save/list/set/delete/apply` | Save a display recipe; apply it to a viewport (`viewport.set` + stamp `compose_view`). `compose.view.set` writes the same recipe back onto every viewport that already uses that view |
+| `master.new/list/set/delete/apply` | Create A0–A4 masters; apply copies page setup onto a layout and runs `sheet.titleblock` (and optional `sheet.template.apply`) |
+| `publisher.check` | For each layout in the set: `fits` is false when paper-space contents are larger than the printable area. Nothing is written |
+| `publisher.new/list/set/delete/publish` | Named sets. PDF writes one file per layout, or one multipage PDF when `singleFile` is set. DWG writes one file per layout, or one DWG of those layouts when `singleFile` is set. `takeoff` (default true) calls `takeoff.record` with `annotate: false`; a drawing that is not an `.osp` still publishes and reports that the take-off was not recorded |
+
+Persistence: project key `compose1` (synced on DXF/DWG write in `levels_file::to_file`, restored in `from_file`). Layout→master and viewport→compose-view links ride in the same JSON. Limits: 256 compose views, 32 masters, 32 publisher sets, 256 layouts per set. Verified by `aad-doc` compose unit tests and `aad-engine` `cmd::compose` tests.
 
 Annotation lives in its own store, not on layers, so two disciplines never collide, take-off never
 counts annotation, and deleting a sheet set never touches the design.
@@ -166,7 +183,7 @@ the referenced level through snaps; programmatic calls never open dialogs.
 
 ## UI (WinUI shell stays thin)
 
-- **Bottom tabs:** level tabs in tab order, a `+` (`level.new`), a divider, then layout tabs. Right
+- **Bottom tabs:** level tabs in tab order, a `+` (`level.new`), then the level tools. Paper layouts are not tabs. A print block (`printblock`) names a region by a boundary drawn on the model, the way a block is named. Its description is the level and the tab (the sheet set, or Design) and follows those names when they are renamed. The description is stored on the print block when it is listed. The boundary determines which objects are covered. Nothing is frozen and the objects are not converted into a block. The project map, the layout, the nameplate and the sheet PDF are composed in O-CoreOp. Right
   click on a level: Rename, Elevation and height, Copy level, Delete, Trace over current level. A
   **Trace** flyout lists the other levels (tick, fade slider, grey/true colour, below/above, snap).
 - **Left sheet-set rail** (about 32 DIP): Design, then the sheet sets, then `+`. Choosing one keeps the
@@ -461,8 +478,10 @@ Not built, and why:
 
 ## WinUI shell status: level tabs and sheet-set rail
 
-Built (`apps/aad-winui/LevelBars.cs`, `MainWindow.xaml`; the chrome JSON from `aad-host` already
+Built (`apps/aad-winui/LevelBars.cs`, `ComposeNavigator.cs`, `MainWindow.xaml`; the chrome JSON from `aad-host` already
 carried `levels`, `sheetSets` and `designMode`):
+
+- **Navigator** (`ComposeNavigator.cs`), opened from File > Publish or Architecture > Sheets. Three trees: Views, Masters, Publisher. Check fit calls `publisher.check`. **Publish and record take-off** calls `publisher.publish` with `takeoff: true`. Not exercised in the running window in this change; the commands it calls are covered by engine tests.
 
 - **Level tabs** in a bar under the drawing (a row of its own, because the canvas is a native child
   window that XAML cannot overlay). One tab per level, the active one selected, a half-filled circle

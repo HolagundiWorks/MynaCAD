@@ -456,7 +456,7 @@
                         <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="O-Draft" />
                     </Border>
                     <TextBlock
-                        Text="Start a drawing, open one, or let the Project Wizard set one up. Projects are chosen in the O-Studio launcher; O-Draft opens on the one it locked."
+                        Text="Start a drawing or open the project file (.osp) shared with O-CoreOp. Company details for title blocks come from a file exported in O-Studio."
                         TextWrapping="WrapWholeWords"
                         FontSize="{StaticResource FontSizeBody}"
                         Foreground="{ThemeResource TextPrimaryBrush}" />
@@ -480,6 +480,13 @@
                             Click="OnWelcomeOpen"
                             AutomationProperties.Name="Open drawing"
                             AutomationProperties.AutomationId="welcome.open" />
+                        <Button
+                            Content="Import company details…"
+                            HorizontalAlignment="Stretch"
+                            MinHeight="{StaticResource DialogButtonHeight}"
+                            Click="OnWelcomeCompanyPack"
+                            AutomationProperties.Name="Import company details"
+                            AutomationProperties.AutomationId="welcome.company" />
                         <Button
                             Content="Project Wizard…"
                             HorizontalAlignment="Stretch"

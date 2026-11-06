@@ -4,7 +4,7 @@
 //! commands (`app.run(id, params)`) or the command line (`app.cmdline(text)`). Nothing here owns
 //! drawing data. The layout follows the familiar CAD desktop: title and tool bar, file tabs,
 //! Tool Sets on the left, the drawing area with its command line, Layers and Properties on the
-//! right, layout tabs and drafting toggles in the status bar.
+//! right, and drafting toggles in the status bar. Paper layouts are not tabs.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
