@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 194 194" width="194" height="194">
-  <title>O-Draft</title>
+  <title>Tren</title>
   <rect width="194" height="194" rx="42" fill="#102C80"/>
-  <g fill="none" stroke="#FFFFFF">
-    <path d="M107 27A69 69 0 0 0 107 165" stroke-width="18"/>
-    <path d="M57 96A50 50 0 0 0 157 96" stroke-width="12"/>
-    <circle cx="107" cy="96" r="18.5" stroke-width="5"/>
+  <g fill="#FFFFFF">
+    <path d="M16 118C12 52 70 22 124 42C158 54 172 78 154 100C126 76 80 80 30 128C16 138 12 128 16 118Z"/>
+    <path d="M148 82L186 104L146 120Z"/>
   </g>
+  <ellipse cx="138" cy="70" rx="6" ry="6" fill="#102C80"/>
 </svg>

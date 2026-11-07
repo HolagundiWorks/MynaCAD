@@ -1,11 +1,9 @@
-//! `cargo xtask logo`: draw the O-Draft logo and write every icon the project ships.
+//! `cargo xtask logo`: draw the Tren bird and write every icon the project ships.
 //!
-//! The mark is Human Centric Works' own artwork, the OSAS suite logo drawn in O-Draft's black: a
-//! half ring open to the right, a smaller half ring below the centre and a small ring at the
-//! centre, all white on a black plate. It is made of arcs, so it is drawn here directly (no image
-//! tools, no fonts): a pixel is white when its distance from the centre lies in a stroke's band
-//! and, for the half rings, its side of the centre is the drawn one. Everything under
-//! `assets/app-icon/` is generated:
+//! The mark is Human Centric Works' own artwork: Tren's bird, white on a Midnight plate
+//! (`#102C80`). The curves are the same ones `o-ui` `tools/Brand` draws. A pixel is white when it
+//! falls inside the crown or the beak and outside the eye. Everything under `assets/app-icon/`
+//! is generated:
 //!
 //! - `aad-logo.svg`: the vector source (the file names keep the project's code name)
 //! - `aad-1024.png`, `-256.png`, `-64.png`: the square icons
@@ -20,40 +18,80 @@ use std::path::Path;
 
 /// The side of the artwork's box.
 const ART: f64 = 194.0;
-/// The plate, `#17181B`.
-const PLATE: [f64; 3] = [23.0, 24.0, 27.0];
+/// Midnight, `#102C80`.
+const PLATE: [f64; 3] = [16.0, 44.0, 128.0];
 const WHITE: [f64; 3] = [255.0, 255.0, 255.0];
-/// The centre of the rings.
-const CENTRE: (f64, f64) = (107.0, 96.0);
-/// The C: the left half of a ring of radius 69 and stroke 18, from the top round the left.
-const C_BAND: (f64, f64) = (60.0, 78.0);
-/// The lower arc: the lower half of a ring of radius 50 and stroke 12.
-const ARC_BAND: (f64, f64) = (44.0, 56.0);
-/// The small ring: radius 18.5, stroke 5.
-const RING_BAND: (f64, f64) = (16.0, 21.0);
 
-pub const SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 194 194" width="1254" height="1254">
-  <title>O-Draft</title>
-  <rect width="194" height="194" fill="#17181B"/>
-  <g fill="none" stroke="#fff">
-    <path d="M107 27A69 69 0 0 0 107 165" stroke-width="18"/>
-    <path d="M57 96A50 50 0 0 0 157 96" stroke-width="12"/>
-    <circle cx="107" cy="96" r="18.5" stroke-width="5"/>
+pub const SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 194 194" width="194" height="194">
+  <title>Tren</title>
+  <rect width="194" height="194" rx="42" fill="#102C80"/>
+  <g fill="#FFFFFF">
+    <path d="M16 118C12 52 70 22 124 42C158 54 172 78 154 100C126 76 80 80 30 128C16 138 12 128 16 118Z"/>
+    <path d="M148 82L186 104L146 120Z"/>
   </g>
+  <ellipse cx="138" cy="70" rx="6" ry="6" fill="#102C80"/>
 </svg>
 "##;
 
-/// Whether the artwork point (x, y) is part of the white mark.
-fn in_mark(x: f64, y: f64) -> bool {
-    let (dx, dy) = (x - CENTRE.0, y - CENTRE.1);
-    let r = dx.hypot(dy);
-    let in_band = |band: (f64, f64)| r >= band.0 && r <= band.1;
-    (in_band(C_BAND) && dx <= 0.0) || (in_band(ARC_BAND) && dy >= 0.0) || in_band(RING_BAND)
+/// Cubic from `p0` through controls `p1`, `p2` to `p3`, appended as line samples.
+fn cubic(out: &mut Vec<(f64, f64)>, p0: (f64, f64), p1: (f64, f64), p2: (f64, f64), p3: (f64, f64)) {
+    const N: i32 = 16;
+    for i in 1..=N {
+        let t = f64::from(i) / f64::from(N);
+        let u = 1.0 - t;
+        let x = u * u * u * p0.0 + 3.0 * u * u * t * p1.0 + 3.0 * u * t * t * p2.0 + t * t * t * p3.0;
+        let y = u * u * u * p0.1 + 3.0 * u * u * t * p1.1 + 3.0 * u * t * t * p2.1 + t * t * t * p3.1;
+        out.push((x, y));
+    }
 }
 
-/// The colour of artwork point (x, y): the black plate or the white mark.
+fn crown() -> Vec<(f64, f64)> {
+    let mut p = vec![(16.0, 118.0)];
+    cubic(&mut p, (16.0, 118.0), (12.0, 52.0), (70.0, 22.0), (124.0, 42.0));
+    cubic(&mut p, (124.0, 42.0), (158.0, 54.0), (172.0, 78.0), (154.0, 100.0));
+    cubic(&mut p, (154.0, 100.0), (126.0, 76.0), (80.0, 80.0), (30.0, 128.0));
+    cubic(&mut p, (30.0, 128.0), (16.0, 138.0), (12.0, 128.0), (16.0, 118.0));
+    p
+}
+
+fn beak() -> Vec<(f64, f64)> {
+    vec![(148.0, 82.0), (186.0, 104.0), (146.0, 120.0)]
+}
+
+/// Even-odd test against a closed polygon.
+fn inside(poly: &[(f64, f64)], x: f64, y: f64) -> bool {
+    let mut hit = false;
+    let mut j = poly.len() - 1;
+    for i in 0..poly.len() {
+        let (xi, yi) = poly[i];
+        let (xj, yj) = poly[j];
+        if (yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi {
+            hit = !hit;
+        }
+        j = i;
+    }
+    hit
+}
+
+fn in_eye(x: f64, y: f64) -> bool {
+    let dx = (x - 138.0) / 6.0;
+    let dy = (y - 70.0) / 6.0;
+    dx * dx + dy * dy <= 1.0
+}
+
+fn bird() -> &'static (Vec<(f64, f64)>, Vec<(f64, f64)>) {
+    use std::sync::OnceLock;
+    static BIRD: OnceLock<(Vec<(f64, f64)>, Vec<(f64, f64)>)> = OnceLock::new();
+    BIRD.get_or_init(|| (crown(), beak()))
+}
+
+/// The colour of artwork point (x, y): the Midnight plate or the white bird.
 fn art(x: f64, y: f64) -> [f64; 3] {
-    if in_mark(x, y) { WHITE } else { PLATE }
+    let (crown, beak) = bird();
+    if in_eye(x, y) {
+        return PLATE;
+    }
+    if inside(crown, x, y) || inside(beak, x, y) { WHITE } else { PLATE }
 }
 
 /// One icon as RGBA. `mac`: the artwork sits in a rounded square with a margin on a transparent
@@ -62,7 +100,7 @@ fn render(size: u32, mac: bool) -> Vec<u8> {
     const SS: u32 = 4;
     let s = f64::from(size);
     let (inner, off) = if mac { (s * 0.8125, s * 0.09375) } else { (s, 0.0) };
-    let radius = if mac { inner * 0.2237 } else { 0.0 };
+    let radius = if mac { inner * 0.2237 } else { inner * 42.0 / ART };
     let mut out = Vec::with_capacity((size * size * 4) as usize);
     for py in 0..size {
         for px in 0..size {
@@ -322,42 +360,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_mark_is_two_half_rings_and_a_small_ring_on_a_black_plate() {
-        // The C: the left half of the big ring, from the top (107, 27) round the left.
-        assert!(in_mark(107.0 - 69.0, 96.0), "left of the C");
-        assert!(in_mark(107.0, 27.0 + 1.0), "the top end of the C");
-        assert!(!in_mark(107.0 + 69.0, 96.0), "the big ring is open to the right");
-        // The lower arc: the lower half of the middle ring, from (57, 96) round the bottom to (157, 96).
-        assert!(in_mark(107.0, 96.0 + 50.0), "bottom of the lower arc");
-        assert!(in_mark(157.0 - 1.0, 96.0 + 1.0) && in_mark(57.0 + 1.0, 96.0 + 1.0), "its two ends");
-        assert!(!in_mark(107.0, 96.0 - 50.0), "no upper half");
-        // The small ring at the centre, hollow.
-        assert!(in_mark(107.0 + 18.5, 96.0) && in_mark(107.0, 96.0 - 18.5));
-        assert!(!in_mark(107.0, 96.0), "the middle of the small ring is empty");
-        assert!(!in_mark(5.0, 5.0), "the corner of the plate");
-        assert_eq!(art(5.0, 5.0), PLATE);
-        assert_eq!(art(107.0 - 69.0, 96.0), WHITE);
+    fn the_mark_is_the_tren_bird_on_a_midnight_plate() {
+        assert_eq!(art(40.0, 20.0), PLATE, "above the crown");
+        assert_eq!(art(80.0, 70.0), WHITE, "inside the crown");
+        assert_eq!(art(170.0, 104.0), WHITE, "inside the beak");
+        assert_eq!(art(138.0, 70.0), PLATE, "the eye is a hole");
     }
 
     #[test]
-    fn the_plate_is_the_o_draft_black_and_the_svg_names_the_product() {
-        assert_eq!(PLATE, [23.0, 24.0, 27.0]);
-        assert!(SVG.contains("#17181B") && SVG.contains("<title>O-Draft</title>"));
-        assert!(!SVG.contains("Accelerated") && !SVG.contains("0066ff"));
+    fn the_plate_is_midnight_and_the_svg_names_tren() {
+        assert_eq!(PLATE, [16.0, 44.0, 128.0]);
+        assert!(SVG.contains("#102C80") && SVG.contains("<title>Tren</title>"));
+        assert!(!SVG.contains("O-Draft") && !SVG.contains("0066ff"));
     }
 
     #[test]
-    fn an_icon_is_black_with_a_white_mark_and_the_mac_icon_has_a_transparent_margin() {
+    fn an_icon_is_midnight_with_a_white_bird_and_the_mac_icon_has_a_transparent_margin() {
         let px = |rgba: &[u8], size: u32, x: u32, y: u32| {
             let i = ((y * size + x) * 4) as usize;
             [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]]
         };
-        let sq = render(256, false);
-        assert_eq!(px(&sq, 256, 3, 3), [23, 24, 27, 255], "plate");
-        assert_eq!(px(&sq, 256, 50, 127), [255, 255, 255, 255], "inside the C stroke");
-        let mac = render(256, true);
-        assert_eq!(px(&mac, 256, 2, 2)[3], 0, "margin");
-        assert_eq!(px(&mac, 256, 128, 128 + 5)[3], 255, "inside");
+        let sq = render(64, false);
+        assert_eq!(px(&sq, 64, 1, 1)[3], 0, "rounded corner");
+        assert_eq!(px(&sq, 64, 32, 8), [16, 44, 128, 255], "plate");
+        let mac = render(64, true);
+        assert_eq!(px(&mac, 64, 1, 1)[3], 0, "margin");
+        assert_eq!(px(&mac, 64, 32, 32)[3], 255, "inside");
     }
 
     #[test]

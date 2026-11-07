@@ -3,7 +3,7 @@
 **Canonical copy:** Kivo `docs/BRANDING.md`. Falcon and Tren keep an identical copy; **O-UI** (`o-ui`) holds the artwork, the colour files and the tool that draws them.
 **Names and terms:** [SUITE.md](SUITE.md). **Written 2026-11-01.**
 
-The idea: **one mark, four colours.** Every app wears the same mark. Each app has one colour of the palette. The **AI agent** wears **gold**.
+The idea: **one bird for each app, on that app's colour.** Kivo and Myna share Ember; the birds are different. The **AI agent** wears **gold**.
 
 ## 1. The palette
 
@@ -32,32 +32,25 @@ All four Light Conditions accents are dark enough for **white** text and glyphs.
 
 ## 2. The mark
 
-The same in every app: three strokes round one centre on a 194 x 194 grid, centred at (107, 96):
+Each app has its own bird, white on a rounded tile in that app's colour (corner radius 42 of 194, about 21.5 %). A second tone is the colour washed toward white. The eye is a hole in the tile colour. Drawn by `o-ui` `tools/Brand` (`Birds.cs`); Tren's `xtask` logo command uses the same Tren curves.
 
-| Stroke | Radius | Width |
+| App | Bird | Tile |
 |---|---|---|
-| The big C: a half ring open to the right | 69 | 18 |
-| The smaller bowl below the centre | 50 | 12 |
-| The ring at the centre | 18.5 | 5 |
-
-On a rounded tile (corner radius 42 of 194, about 21.5 %).
-
-| App | Tile | Strokes |
-|---|---|---|
-| Kivo | Ember | white |
-| Tren | Midnight | white |
-| Finch | Grove | white |
-| Falcon | Dusk | white |
+| Kivo | long beak, chest under it | Ember |
+| Tren | long crown, short beak | Midnight |
+| Finch | cap over a pale cheek | Grove |
+| Falcon | domed head, hooked beak | Dusk |
+| Myna | cap, eye band, pointed beak | Ember |
 
 Rules
-- The mark is never redrawn, rotated, outlined or recoloured outside the table. All four Light Conditions accents are dark enough for white strokes.
+- A bird is not redrawn, rotated or given a colour outside its row. White on these tiles meets the contrast table above.
 - Clear space round a tile: a quarter of its width. Smallest size: 16 px (the ICO has 16, 24, 32, 48, 64, 128 and 256 px).
-- On a plain ground without a tile (a wide splash), use the strokes alone in white.
+- On a plain ground without a tile (a wide splash), the bird is white on a field of the same colour.
 - Never put a second logo, a shadow or a gradient on the tile.
 
 ### Files
 
-`o-ui/brand/<app>/` for `studio`, `draft`, `form`, `coreop`: `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: Kivo `native/Adms.Desktop/Assets` (marks of all apps for Myna), Falcon `BBSDesktop/BBSApp/Assets`, Tren `assets/app-icon`.
+`o-ui/brand/<app>/` for `studio` (Kivo), `draft` (Tren), `form` (Finch), `coreop` (Falcon), `launcher` (Myna): `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: Kivo `native/Adms.Desktop/Assets` (every bird, plus `myna.ico` for the launcher), Falcon `BBSDesktop/BBSApp/Assets`, Tren `assets/app-icon`, Finch `scripts/startup/bl_app_templates_system/oform`.
 
 ## 3. The AI agent
 
