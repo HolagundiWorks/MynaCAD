@@ -587,6 +587,37 @@ pub static FORMS: &[Form] = &[
         fields: &[field("mode", "Schedule", Kind::Choice(&["matrix", "point"])).def("matrix")],
     },
     Form {
+        id: "plumbing.pipe",
+        title: "Draw Pipe",
+        wrap: None,
+        fields: &[
+            field("service", "Service", Kind::Choice(&["supply", "drain"])).def("supply"),
+            field("dia", "Pipe diameter (mm; blank: 20 supply, 100 drain)", Kind::Number).mm(),
+            field("points", "Pipe run: pick points, Enter to finish", Kind::Points).req(),
+        ],
+    },
+    Form {
+        id: "plumbing.connect",
+        title: "Check Piping",
+        wrap: None,
+        fields: &[
+            field("snap", "Pipe end snap distance (drawing units; blank: 20 mm)", Kind::Number).drawing(),
+            field("flag", "Flag fixtures that are not connected", Kind::Bool).def("true"),
+        ],
+    },
+    Form {
+        id: "plumbing.number",
+        title: "Number Plumbing Blocks",
+        wrap: None,
+        fields: &[field("renumber", "Renumber ids already given", Kind::Bool)],
+    },
+    Form {
+        id: "plumbing.schedule",
+        title: "Plumbing Schedule",
+        wrap: None,
+        fields: &[field("mode", "Schedule", Kind::Choice(&["matrix", "fixture", "pipes"])).def("matrix")],
+    },
+    Form {
         id: "bridge.export",
         title: "Export for AQC",
         wrap: None,

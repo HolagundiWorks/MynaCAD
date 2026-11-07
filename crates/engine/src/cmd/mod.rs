@@ -50,6 +50,7 @@ mod package;
 mod param;
 mod pdfimport;
 mod pline_opts;
+mod plumbing;
 mod printblock;
 pub(crate) mod project;
 mod projfile;
@@ -260,6 +261,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(notes::specs());
         v.extend(legend::specs());
         v.extend(electrical::specs());
+        v.extend(plumbing::specs());
         v.extend(walls::specs());
         v.extend(param::specs());
         v.extend(smartblock::specs());
