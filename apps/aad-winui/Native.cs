@@ -518,6 +518,9 @@ internal static class Native
 
     public static string LastError(IntPtr host) => ReadBuffer(aad_host_last_error, host);
 
+    /// <summary>What the last completed save could not write ("164 MULTILEADER, 2 MLINE"); empty when the file keeps everything.</summary>
+    public static string SaveNotice(IntPtr host) => ReadBuffer(aad_host_save_notice, host);
+
     [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     private static extern IntPtr aad_host_create(int sample);
 
@@ -631,6 +634,9 @@ internal static class Native
 
     [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     private static extern int aad_host_last_error(IntPtr host, IntPtr buffer, uint length);
+
+    [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    private static extern int aad_host_save_notice(IntPtr host, IntPtr buffer, uint length);
 
     /// The character this key would type, using the active keyboard layout. Empty for keys that do not type.
     public static string Character(Windows.System.VirtualKey key)

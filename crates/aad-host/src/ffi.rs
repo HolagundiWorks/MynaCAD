@@ -697,6 +697,19 @@ pub unsafe extern "C" fn aad_host_save_poll(host: *mut Host) -> i32 {
     }
 }
 
+/// What the last completed save could not write, as `164 MULTILEADER, 2 MLINE` (empty when the file keeps everything).
+/// `buf` receives UTF-8 without a terminator. Returns the byte length, or a negative length when `buf` is too small.
+///
+/// # Safety
+/// `host` is live. `buf` is writable for `len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aad_host_save_notice(host: *mut Host, buf: *mut u8, len: u32) -> i32 {
+    let Some(host) = (unsafe { host.as_ref() }) else {
+        return 0;
+    };
+    copy_bytes(host.save_notice().as_bytes(), buf, len)
+}
+
 /// Start a plot (`plot` or `exportpdf`) on a worker thread. `params` is the JSON of the command,
 /// including `path`. Returns at once; poll with [`aad_host_plot_poll`].
 ///

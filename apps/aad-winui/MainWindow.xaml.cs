@@ -1990,6 +1990,8 @@ public sealed partial class MainWindow : Window
             ? "Current drawing"
             : (System.IO.Path.GetFileName(path) ?? path);
         ShowBusy("Saving?", detail);
+        var saved = false;
+        var notice = "";
         try
         {
             if (!Native.SaveStart(_host, path))
@@ -2005,12 +2007,46 @@ public sealed partial class MainWindow : Window
             {
                 RememberDrawing(path);
             }
-            return state == 2;
+            saved = state == 2;
+            if (saved)
+            {
+                notice = Native.SaveNotice(_host);
+            }
         }
         finally
         {
             HideBusy();
         }
+        // The file is written, but the engine left some objects out: say so here, because the command history that
+        // also carries the message is not on screen when the user saves from the menu.
+        if (notice.Length > 0)
+        {
+            await ShowSaveNoticeAsync(notice);
+        }
+        return saved;
+    }
+
+    private async Task ShowSaveNoticeAsync(string notice)
+    {
+        var body = new StackPanel { Spacing = Density.SpaceSm, MaxWidth = 420 };
+        body.Children.Add(new TextBlock
+        {
+            Text = "Tren cannot write these object types to a DXF or DWG file yet, so the saved file leaves them out: " + notice + ".",
+            TextWrapping = TextWrapping.WrapWholeWords,
+            FontSize = Density.FontBody,
+        });
+        body.Children.Add(Density.Secondary(
+            "They are still in the open drawing. Keep the original file if you need them: saving over it removes them from the file.",
+            TextWrapping.WrapWholeWords));
+        var dlg = new ContentDialog
+        {
+            Title = "Saved, but not everything was written",
+            Content = body,
+            CloseButtonText = "OK",
+            XamlRoot = Content.XamlRoot,
+            DefaultButton = ContentDialogButton.Close,
+        };
+        await dlg.ShowAsync();
     }
 
     // The saved file behind each open drawing, by the name its tab shows, so the active one can be published to O-CoreOp.

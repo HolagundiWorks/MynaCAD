@@ -243,6 +243,12 @@ mod perf {
 
 /// The display list of `space`; model space of a level with traces is built with its traces,
 /// faded towards `background`.
+/// The object types a save left out, from the save result's `notSaved` map (`{"MULTILEADER": 164}`), as `164 MULTILEADER`.
+fn not_saved_list(result: &Value) -> String {
+    let Some(map) = result.get("notSaved").and_then(Value::as_object) else { return String::new() };
+    map.iter().filter_map(|(kind, n)| Some(format!("{} {kind}", n.as_u64()?))).collect::<Vec<_>>().join(", ")
+}
+
 fn build_list(doc: &Drawing, space: &Space, opts: &aad_render::Options, background: Rgb) -> DisplayList {
     build_list_and_scene(doc, space, opts, background).0
 }
@@ -454,6 +460,8 @@ pub struct Host {
     width: u32,
     height: u32,
     error: String,
+    /// What the last completed save could not write, as `164 MULTILEADER, 2 MLINE`; empty when the file keeps everything.
+    save_notice: String,
     result: String,
     /// Shortcut or snap menu requested by a right-click, as JSON. Empty when none is waiting.
     menu_request: String,
@@ -634,6 +642,7 @@ impl Host {
             width: 1200,
             height: 800,
             error: String::new(),
+            save_notice: String::new(),
             result: String::new(),
             menu_request: String::new(),
             #[cfg(windows)]
@@ -745,6 +754,7 @@ impl Host {
         if path.is_some_and(|p| p.is_empty() || p.len() > 4096) {
             return Err("missing path".into());
         }
+        self.save_notice.clear();
         let job = Arc::new(aad_engine::cmd::file::begin_save(&mut self.session, path).map_err(|e| e.to_string())?);
         let (tx, rx) = std::sync::mpsc::channel();
         let worker = job.clone();
@@ -776,12 +786,22 @@ impl Host {
         };
         let done = written.and_then(|bytes| aad_engine::cmd::file::finish_save(&mut self.session, &job, bytes).map_err(|e| e.to_string()));
         match done {
-            Ok(_) => Ok(2),
+            Ok(result) => {
+                self.save_notice = not_saved_list(&result);
+                Ok(2)
+            }
             Err(e) => {
                 self.session.echo(e.clone());
                 Err(e)
             }
         }
+    }
+
+    /// What the last completed save could not write, as `164 MULTILEADER, 2 MLINE`, or empty when the file keeps everything.
+    /// The engine also echoes this to the command history, which a user who saved from the menu never sees, so the shell
+    /// shows it after the save.
+    pub fn save_notice(&self) -> &str {
+        &self.save_notice
     }
 
     /// Start a plot (`plot` or `exportpdf` with its parameters, `path` included) on a worker
@@ -3969,5 +3989,44 @@ mod tests {
             total += d;
         }
         println!("12 zoom steps: worst {worst:.1} ms, mean {:.1} ms", total / 12.0);
+    }
+    /// A save that leaves objects out says which, where the shell can show it (the command history is not enough: a user
+    /// who saves from the menu never sees it).
+    #[test]
+    fn a_save_reports_what_the_file_could_not_keep() {
+        use aad_engine::doc::{Common, Drawing, EntityKind, RawTag, Space, Unknown};
+        let unknown = |kind: &str| EntityKind::Unknown(Unknown { dxf_type: kind.into(), tags: vec![RawTag { code: 8, value: "0".into() }] });
+        let save = |host: &mut Host, name: &str| {
+            let path = std::env::temp_dir().join(format!("aad-save-notice-{}-{name}.dxf", std::process::id()));
+            host.save_start(Some(path.to_str().unwrap())).unwrap();
+            let state = loop {
+                let state = host.save_poll().unwrap();
+                if state != 1 {
+                    break state;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            };
+            let _ = std::fs::remove_file(&path);
+            state
+        };
+        let mut host = Host::create(false);
+        let mut d = Drawing::new_metric();
+        for kind in ["MULTILEADER", "MLINE", "MULTILEADER", "MULTILEADER"] {
+            d.add(&Space::Model, Common::default(), unknown(kind)).unwrap();
+        }
+        host.session.open_drawing(d, "foreign.dxf", None);
+        assert_eq!(save(&mut host, "a"), 2);
+        assert_eq!(host.save_notice(), "1 MLINE, 3 MULTILEADER");
+        // The same text reaches the shell through the FFI.
+        let mut buf = [0u8; 128];
+        let n = unsafe { ffi::aad_host_save_notice(&mut host as *mut Host, buf.as_mut_ptr(), buf.len() as u32) };
+        assert_eq!(std::str::from_utf8(&buf[..usize::try_from(n).unwrap()]).unwrap(), "1 MLINE, 3 MULTILEADER");
+        // A buffer that is too small is reported, not truncated.
+        let mut tiny = [0u8; 4];
+        assert!(unsafe { ffi::aad_host_save_notice(&mut host as *mut Host, tiny.as_mut_ptr(), tiny.len() as u32) } < 0);
+        // A drawing the file keeps completely clears the notice, and so does starting the next save.
+        host.session.open_drawing(Drawing::new_metric(), "plain.dxf", None);
+        assert_eq!(save(&mut host, "b"), 2);
+        assert_eq!(host.save_notice(), "");
     }
 }
