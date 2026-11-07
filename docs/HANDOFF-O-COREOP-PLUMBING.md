@@ -5,8 +5,8 @@ tables (`takeoff.record`, also after a drawing save that has plumbing data). Two
 
 | Kind | Falcon section | One row per | Columns |
 |---|---|---|---|
-| **12** | `plumbing` | source and service (a tank on supply, a chamber on drain, a riser on either) | `ref` (`PS<handle>-SUP` or `-DRN`), `handle`, `source` (`TK-01`), `kind` (`TK`, `IC`, `RS`), `service` (`SUP`, `DRN`), `european_wc`, `indian_wc`, `basin`, `sink`, `shower`, `floor_trap` (counts the source serves), `pipe_m` (metres of pipe it feeds), `level` |
-| **13** | `plumbing_fixtures` | fixture | `ref` (`PF<handle>`), `handle`, `fixture` (`WC-01`), `kind` (`WC`, `IWC`, `WB`, `KS`, `SH`, `FT`), `supply` and `drain` (the source ids, empty when none), `level` |
+| **12** | `plumbing` | source and service (a tank on cold water, a heater on hot, a chamber on drain, a riser on any) | `ref` (`PS<handle>-CW`, `-HW` or `-DRN`), `handle`, `source` (`TK-01`), `kind` (`TK`, `WH`, `IC`, `RS`), `service` (`CW`, `HW`, `DRN`), `european_wc`, `indian_wc`, `basin`, `sink`, `shower`, `floor_trap` (counts the source serves), `pipe_m` (metres of pipe it feeds), `level` |
+| **13** | `plumbing_fixtures` | fixture | `ref` (`PF<handle>`), `handle`, `fixture` (`WC-01`), `kind` (`WC`, `IWC`, `WB`, `KS`, `SH`, `FT`), `cold`, `hot` and `drain` (the source ids, empty when none), `level` |
 
 The rows come from `plumbing.connect` (or `plumbing.update`), which stores them in the drawing's
 `plumbing` project data; run it after changing the pipes. A fixture that reaches two sources of one service
