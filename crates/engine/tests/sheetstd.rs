@@ -266,5 +266,8 @@ fn smart_blocks_belong_to_the_tab_whose_layers_they_use() {
     assert!(s.execute("smartblock.list", &json!({"sheetSet": 5})).is_err());
     // Its blocks land on a layer the tab maps, so they are not moved to the annotation layer.
     s.execute("smartblock.insert", &json!({"id": "plumb.basin", "at": [10.0, 10.0]})).unwrap();
-    assert_eq!(s.doc().unwrap().model.iter().last().map(|e| e.common.layer.clone()).as_deref(), Some("P-FIXT"));
+    // The new label (the block is numbered when it is inserted) goes on the annotation layer, so look at the block itself.
+    let block =
+        s.doc().unwrap().model.iter().filter(|e| matches!(e.kind, aad_engine::doc::EntityKind::Insert(_))).last().map(|e| e.common.layer.clone());
+    assert_eq!(block.as_deref(), Some("P-FIXT"));
 }

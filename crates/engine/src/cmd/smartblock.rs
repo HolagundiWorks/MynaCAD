@@ -1087,6 +1087,16 @@ fn evaluate(d: &Def, vals: &BTreeMap<String, f64>) -> Result<Vec<Made>> {
     Ok(cx.out)
 }
 
+/// The smart block id inside a block name made by [`block_name`], in its upper-case form with every
+/// non-alphanumeric character as `_` (`SB_PLUMB_WC_EUROPEAN_ABA05C95` gives `PLUMB_WC_EUROPEAN`), or `None`
+/// for a block that was not made from a smart block. Lets a discipline module recognise its own symbols
+/// exactly instead of guessing from the `SB_` prefix.
+pub(crate) fn smart_key(block: &str) -> Option<&str> {
+    let rest = block.strip_prefix("SB_")?;
+    let (key, hash) = rest.rsplit_once('_')?;
+    (hash.len() == 8 && hash.bytes().all(|b| b.is_ascii_hexdigit()) && !key.is_empty()).then_some(key)
+}
+
 fn block_name(d: &Def, vals: &BTreeMap<String, f64>, stored: Option<&Value>) -> String {
     let mut key = json!({ "id": d.id, "params": params_json(vals) });
     if let Some(v) = stored {
@@ -1399,10 +1409,20 @@ fn run_insert(s: &mut Session, p: &Value) -> Result<Value> {
             stored.insert(def.id.clone(), v.clone());
         }
         project::set(s.doc_mut()?, DEFS_KEY, &Value::Object(stored));
-        return place(s, def, &name, at, scale, rot, layer, &vals);
+        let placed = place(s, def, &name, at, scale, rot, layer, &vals)?;
+        number_new_symbols(s)?;
+        return Ok(placed);
     }
     let name = build(s, def, &vals, found.stored.as_ref())?;
-    place(s, def, &name, at, scale, rot, layer, &vals)
+    let placed = place(s, def, &name, at, scale, rot, layer, &vals)?;
+    number_new_symbols(s)?;
+    Ok(placed)
+}
+
+/// A placed electrical or plumbing symbol takes the next ID (`LP-03`, `WC-01`) like a block inserted by name.
+fn number_new_symbols(s: &mut Session) -> Result<()> {
+    super::electrical::on_insert(s)?;
+    super::plumbing::on_insert(s)
 }
 
 /// Insert block `name` and put the reference on `layer` (the definition's layer is created with its look).

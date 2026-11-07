@@ -23,6 +23,7 @@ use serde_json::{Map, Value, json};
 use super::draw::make_text;
 use super::hcw::{add_on, ensure_layer};
 use super::qselect::wildcard;
+use super::smartblock::smart_key;
 use super::takeoff::{segments_of, table, table_ctx};
 use super::*;
 use crate::annot::{self as ua};
@@ -143,16 +144,35 @@ struct Item {
     at: Vec2,
 }
 
+/// The kind of an electrical toolbar symbol, by its smart block id (see [`smart_key`]). The socket's amperage
+/// is a parameter the block name does not carry, so a socket counts as a 5 amp socket here; map blocks
+/// by name with `electrical.blocks` to count 15 amp sockets.
+fn smart_code(key: &str) -> Option<&'static str> {
+    Some(match key {
+        "ELEC_SWITCHBOARD" | "ELEC_DB" => "SB",
+        "ELEC_LIGHT" | "ELEC_DOWNLIGHT" => "LP",
+        "ELEC_FAN_CEILING" => "FP",
+        "ELEC_SOCKET" => "P5",
+        _ => return None,
+    })
+}
+
 fn items(d: &Drawing, space: &Space, o: &Map<String, Value>) -> Vec<Item> {
     let mut out = Vec::new();
     let pats: Vec<(&'static str, Vec<String>)> = KINDS.iter().map(|(c, _, _)| (*c, patterns(o, c))).collect();
     if let Some(store) = d.space(space) {
         for e in store.iter().filter(|e| d.is_visible(e)) {
             let EntityKind::Insert(i) = &e.kind else { continue };
-            let Some((code, _)) = pats.iter().find(|(_, ps)| ps.iter().any(|p| wildcard(&p.to_ascii_uppercase(), &i.block.to_ascii_uppercase())))
-            else {
-                continue;
+            // A symbol from the toolbar is recognised by its smart block id; the name patterns below must not
+            // see it (every smart block is named `SB_...`, which the switchboard pattern would take).
+            let code = match smart_key(&i.block) {
+                Some(key) => smart_code(key),
+                None => pats
+                    .iter()
+                    .find(|(_, ps)| ps.iter().any(|p| wildcard(&p.to_ascii_uppercase(), &i.block.to_ascii_uppercase())))
+                    .map(|(code, _)| *code),
             };
+            let Some(code) = code else { continue };
             let bounds = entity_bounds(d, e, 0);
             out.push(Item { handle: e.handle, code, bounds, at: i.insert.xy() });
         }
