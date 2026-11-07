@@ -48,7 +48,7 @@ Forms exist for: `project`, `floors`, `beams`, `schedule`, `takeoff.rates`, `roo
 `takeoff.linear|brick|beams|columns|rects|paint|ceiling|floor|area|slab`, `wall.draw`, `wall.door`,
 `wall.window`, `grid.axis`, `column.place`, `lintel.draw`, `stair.plan`, `lift.shaft`, `rail.draw`,
 `level.mark`, `section.marker`, `elevation.marker`, `north.arrow`, `slope.arrow`,
-`electrical.connect|number|schedule` and `bridge.export`. `bridge.import` has its own file picker
+`electrical.connect|number|schedule`, `plumbing.pipe|connect|number|schedule` and `bridge.export`. `bridge.import` has its own file picker
 and preview window ([hcw-kit-port.md](hcw-kit-port.md)).
 
 Adding a form for a new command is one entry in `FORMS`; `forms::tests` checks that every form
