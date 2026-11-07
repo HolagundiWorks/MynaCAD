@@ -154,10 +154,20 @@ internal static partial class ToolIcons
                 pen.Accent(5, 12, 19, 12);
                 pen.Base(5, 17, 19, 17);
                 break;
-            case "plumbing.pipe":
-                pen.Stroke(false, pen.AccentBrush, (4, 19), (4, 8), (18, 8), (18, 19));
-                pen.Circle(4, 8, 2, pen.BaseBrush);
-                pen.Circle(18, 8, 2, pen.BaseBrush);
+            case "plumbing.pipe.cold":
+                pen.Stroke(false, pen.AccentBrush, (3, 9), (14, 9), (14, 19));
+                pen.Circle(3, 9, 2, pen.BaseBrush);
+                pen.Label("C", 18, 8, 9, pen.BaseBrush);
+                break;
+            case "plumbing.pipe.hot":
+                pen.Stroke(false, pen.AccentBrush, (3, 9), (14, 9), (14, 19));
+                pen.Circle(3, 9, 2, pen.BaseBrush);
+                pen.Label("H", 18, 8, 9, pen.BaseBrush);
+                break;
+            case "plumbing.pipe.drain":
+                pen.Stroke(false, pen.AccentBrush, (3, 9), (14, 9), (14, 19));
+                pen.Circle(3, 9, 2, pen.BaseBrush);
+                pen.Label("D", 18, 8, 9, pen.BaseBrush);
                 break;
             case "plumbing.number":
                 pen.Circle(8, 8, 3, pen.BaseBrush);
@@ -169,6 +179,11 @@ internal static partial class ToolIcons
                 pen.Circle(6, 17, 2.5, pen.BaseBrush);
                 pen.Circle(18, 6, 2.5, pen.AccentBrush);
                 pen.Stroke(false, pen.AccentBrush, (6, 15), (6, 8), (18, 8));
+                break;
+            case "plumbing.fittings":
+                pen.Base(3, 10, 21, 10);
+                pen.Circle(12, 10, 3.5, pen.AccentBrush);
+                pen.Accent(12, 13, 12, 21);
                 break;
             case "plumbing.schedule":
                 pen.Base(5, 7, 19, 7);

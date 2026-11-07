@@ -5959,9 +5959,12 @@ public sealed partial class MainWindow : Window
         ("plumb.chamber", "Chamber"),
         ("plumb.tank.round", "Tank"),
         ("plumb.riser", "Riser"),
-        ("plumbing.pipe", "Pipe"),
+        ("plumbing.pipe.cold", "Cold pipe"),
+        ("plumbing.pipe.hot", "Hot pipe"),
+        ("plumbing.pipe.drain", "Drain pipe"),
         ("plumbing.number", "Number"),
         ("plumbing.connect", "Piping"),
+        ("plumbing.fittings", "Fittings"),
         ("plumbing.schedule", "Schedule"),
         ("int.wardrobe", "Wardrobe"),
         ("int.kitchen.counter", "Counter"),
@@ -6063,7 +6066,8 @@ public sealed partial class MainWindow : Window
             return
             [
                 ["plumb.wc.european", "plumb.wc.indian", "plumb.basin", "plumb.sink.kitchen", "plumb.shower", "plumb.floor.trap", "plumb.chamber", "plumb.tank.round", "plumb.riser"],
-                ["plumbing.pipe", "plumbing.number", "plumbing.connect", "plumbing.schedule"],
+                ["plumbing.pipe.cold", "plumbing.pipe.hot", "plumbing.pipe.drain"],
+                ["plumbing.number", "plumbing.connect", "plumbing.fittings", "plumbing.schedule"],
             ];
         }
         if (IsDiscipline("Interior", "I-"))
