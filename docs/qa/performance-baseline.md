@@ -20,7 +20,7 @@ Historical criterion tables: [PERFORMANCE.md](../PERFORMANCE.md) (2026-10-12). *
 | DXF write | 2.87 (0.2 MB) | 27.73 (2.3 MB) | 316.99 (23.6 MB) |
 | DXF read | 4.99 | 47.05 | 513.91 |
 
-Artifacts: [artifacts/perf-1000.txt](artifacts/perf-1000.txt), [perf-10000.txt](artifacts/perf-10000.txt), [perf-100000.txt](artifacts/perf-100000.txt).
+Raw outputs (`artifacts/perf-1000.txt`, `perf-10000.txt`, `perf-100000.txt`) were deleted in the 2026-10-12 cleanup; regenerate with `aad-cli perf N`.
 
 Notes:
 

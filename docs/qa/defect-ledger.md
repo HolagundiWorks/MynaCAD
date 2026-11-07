@@ -41,7 +41,7 @@ Pre-existing issues from [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) are referenced, n
 - Affected: dirty indicator (`MainWindow` uses host `dirty` / `DocState::is_dirty`)
 - Root cause: chrome refresh re-applied current layer/floor/units via commands that always
   `doc_mut()` / `Arc::make_mut`, so `!ptr_eq(doc, saved)` even with 0 entities. Confirmed engine
-  `Session::new` starts clean ([artifacts/engine-smoke-wall-undo-dxf.txt](artifacts/engine-smoke-wall-undo-dxf.txt)).
+  `Session::new` starts clean (raw output `artifacts/engine-smoke-wall-undo-dxf.txt`, deleted in the 2026-10-12 cleanup).
 - Fix:
   - `layer.current`: no-op (no COW) when name already matches `CLAYER`
   - `floor.current`: skip `project::set` when already active

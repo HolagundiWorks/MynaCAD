@@ -281,3 +281,31 @@ Causes, found with `AAD_PERF=1` and `cargo run --release -p aad-host --example p
 - Opening a large drawing builds the first display list on the UI thread (about 0.2 s for this one).
 - A first zoom that crosses a zoom band still builds a list (39 ms here, on a worker), so a very large drawing will show the old detail for a moment.
 - Interactive wheel zoom and middle-button pan were not timed separately (the control port drives commands); they use the same list cache.
+
+## Update: zoom remeshing and first display list (2026-11-05)
+
+Test drawing: a 3.5 MB DWG with 26 206 entities that expand to 710 250 primitives and 15 M triangle
+vertices at full detail (text fill, hatch lines, block references). Machine as above. Measured with
+`AAD_PERF=1` (see the interactive audit above) on a copy of the installed app with a patched
+`aad_host.dll`.
+
+| Step | Before | After |
+|---|---|---|
+| One wheel-zoom tick, mesh rebuild on the UI thread | 35 to 57 ms (frames 20 to 60 ms) | no frame over 20 ms in the same zoom and pan run |
+| Opening the drawing, UI blocked by the first display list | about 400 to 460 ms | not on the UI thread |
+
+- **Zoom:** the mesh origin step and the tile edge came from the exact view height, so every wheel tick
+  changed the origin and every tile key and remeshed the whole drawing. `aad_render::mesh::quantize_view_height`
+  now rounds the height down to a power of two for both (`choose_origin`, `mesh_tile_edge`); ticks inside one
+  octave keep the cached meshes. The origin-to-view offset stays under 32 view heights, so `f32` precision is
+  unchanged. Regression: `zoom_ticks_inside_one_octave_keep_origin_and_tile_edge`.
+- **Open:** for a windowed host and a drawing of 3 000 or more entities (`ASYNC_FIRST_BUILD_ENTITIES`) the first
+  list is built on the `aad-first-list` worker with the spatial index warm-up; `Host::mesh` returns a "loading"
+  state, `redraw` skips the frame and `pump` keeps polling. Edits, band changes, tests and small drawings keep the
+  synchronous paths.
+- **Not a cause:** building the tile meshes in parallel changed nothing (the tile phase is 8 to 40 ms), so it was
+  not kept. The host's "mesh" figure in the perf log includes the synchronous list build, which is why it first
+  looked like a mesh cost.
+- **Still slow:** DWG parse about 1.1 s; a zoom that crosses a detail band costs 20 to 40 ms per tick, mostly the
+  triangle volume of text fill (10 M+ vertices at close zoom; glyph curves are already flattened to about 0.2 px).
+  A GPU glyph atlas is the proposed fix and is not started. O-CoreOp and the Ask bar were not profiled.

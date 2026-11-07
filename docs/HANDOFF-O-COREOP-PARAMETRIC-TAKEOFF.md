@@ -1,4 +1,4 @@
-> **2026-10-19** wall vertical slice hand-off to Falcon. Suite naming updated for `.osp` on **2026-10-30**. Falcon side: `HolagundiWorks/O-COREOP` — [HANDOFF-O-COREOP.md](HANDOFF-O-COREOP.md), [PROJECT-FILE.md](PROJECT-FILE.md) (in that repo).
+> **2026-10-19** wall vertical slice hand-off to Falcon. Suite naming updated for `.osp` on **2026-10-30**. Falcon side: `HolagundiWorks/O-COREOP` — [HANDOFF-O-COREOP.md](https://github.com/HolagundiWorks/O-COREOP/blob/main/docs/HANDOFF-O-COREOP.md), [PROJECT-FILE.md](PROJECT-FILE.md) (in that repo).
 
 # Hand-off to Falcon: parametric take-off modellers (walls)
 
