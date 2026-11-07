@@ -252,13 +252,12 @@ fn build_list_and_scene(doc: &Drawing, space: &Space, opts: &aad_render::Options
     if matches!(space, Space::Model) && has_traces(doc) {
         return (aad_render::build_with_traces(doc, opts, background), None);
     }
-    if matches!(space, Space::Model) {
-        let edge = aad_render::scene_tile_edge(opts.view_height);
-        if aad_render::scene_tiling_viable(doc, edge) {
-            let scene = aad_render::build_scene(doc, opts);
-            let list = aad_render::flatten_scene(&scene);
-            return (list, Some(scene));
-        }
+    if matches!(space, Space::Model)
+        && let Some(scene) = aad_render::build_scene_if_viable(doc, opts)
+    {
+        // One measuring pass decides whether to tile and builds the tiles (asking first and then building measured twice).
+        let list = aad_render::flatten_scene(&scene);
+        return (list, Some(scene));
     }
     (aad_render::build(doc, space, opts), None)
 }
@@ -3795,5 +3794,64 @@ mod tests {
         }
         assert!(menu.contains("\"id\":\"ai_deselect\"") || menu.contains("ai_deselect"));
         assert!(menu.contains("measuregeom") || menu.contains("\"id\":\"measuregeom\""));
+    }
+    /// Timing probe, not a pass/fail test: `AAD_PERF_FILE=<drawing> cargo test --release -p aad-host --lib edit_latency -- --ignored --nocapture`.
+    /// Opens the drawing in a headless host and times what the UI thread does after each edit and each zoom step: the display
+    /// list (retained scene), the tile meshes and the composed mesh, i.e. `Host::mesh`, everything but the GPU upload.
+    #[test]
+    #[ignore]
+    fn edit_latency_on_a_real_drawing() {
+        let Ok(path) = std::env::var("AAD_PERF_FILE") else { return };
+        let name = std::path::Path::new(&path).file_name().and_then(|n| n.to_str()).unwrap_or("x.dwg").to_string();
+        let mut host = Host::create(false);
+        let drawing = aad_io::read(&std::fs::read(&path).unwrap(), &name).unwrap();
+        host.session.open_drawing(drawing, &name, None);
+        host.execute("zoom.extents", &json!({})).unwrap();
+        let ms = |t: std::time::Instant| t.elapsed().as_secs_f64() * 1000.0;
+        let t = std::time::Instant::now();
+        host.mesh().unwrap();
+        println!(
+            "first frame (list + mesh): {:.1} ms, tiles {} (mesh tiles {})",
+            ms(t),
+            host.frame.scene.as_ref().map_or(0, |s| s.tiles.len()),
+            host.frame.tiles_total
+        );
+        let handles: Vec<String> = host.session.doc().unwrap().model.iter().map(|e| e.handle.hex()).collect();
+        println!("{:<14} {:>9} {:>10} {:>16} {:>14}", "edit", "engine", "frame", "mesh tiles redone", "list build ms");
+        for op in ["move", "copy"] {
+            for n in [1usize, 100, 2_000, handles.len()] {
+                let sel: Vec<&String> = handles.iter().take(n).collect();
+                let t = std::time::Instant::now();
+                host.execute(op, &json!({ "handles": sel, "delta": [5000.0, 0.0] })).unwrap();
+                let engine = ms(t);
+                let t = std::time::Instant::now();
+                host.mesh().unwrap();
+                println!(
+                    "{:<14} {:>7.1}ms {:>8.1}ms {:>9}/{:<6} {:>12.1}",
+                    format!("{op} {n}"),
+                    engine,
+                    ms(t),
+                    host.frame.tiles_remeshed,
+                    host.frame.tiles_total,
+                    host.frame.list_build_ms
+                );
+                host.execute("undo", &json!({})).unwrap();
+                host.mesh().unwrap();
+            }
+        }
+        // A zoom tick is a view change: no new document revision, so this is the pan/zoom path.
+        let view = host.session.state().unwrap().view();
+        let mut worst = 0f64;
+        let mut total = 0f64;
+        for i in 0..12 {
+            let h = view.height * 0.86f64.powi(i + 1);
+            host.execute("zoom", &json!({ "mode": "center", "center": [view.center.x, view.center.y], "height": h })).unwrap();
+            let t = std::time::Instant::now();
+            host.mesh().unwrap();
+            let d = ms(t);
+            worst = worst.max(d);
+            total += d;
+        }
+        println!("12 zoom steps: worst {worst:.1} ms, mean {:.1} ms", total / 12.0);
     }
 }

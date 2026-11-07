@@ -4,6 +4,10 @@
 //! [`DisplayList`] fragment so rebuilds can remesh / retessellate only dirty tiles. Flattening
 //! restores document draw order. Rays/xlines without a finite centroid land in [`GLOBAL_TILE`].
 //!
+//! Every model entity's tile and bounds are measured once (in parallel) and kept in [`Scene::info`]. An edit
+//! measures only the entities that changed and reuses the rest, so a rebuild costs what the dirty tiles cost
+//! and not another pass over a drawing of text, hatches and block references.
+//!
 //! Layout viewport model tessellation uses the same process-wide LRU ([`crate::vp_model_get`]) —
 //! no longer `thread_local` — so worker threads can share it.
 //!
@@ -38,9 +42,21 @@ pub struct SceneTile {
     pub list: Arc<DisplayList>,
 }
 
+/// Where one model entity sits in the scene grid. Kept on the scene so an edit measures only what changed.
+#[derive(Clone, Copy, Debug)]
+pub struct EntInfo {
+    pub tile: TileId,
+    /// The entity's bounds; empty for a ray or anything with nothing to draw.
+    pub bounds: Bounds2,
+    /// False when the view window left it out of the scene.
+    pub included: bool,
+}
+
 /// Model-space scene: per-tile display lists plus a document-order assignment for flattening.
 #[derive(Clone, Debug, Default)]
 pub struct Scene {
+    /// Every model entity's tile, bounds and inclusion (`included == false` for those outside the view window).
+    pub info: HashMap<Handle, EntInfo>,
     pub edge: f64,
     pub tiles: BTreeMap<TileId, SceneTile>,
     /// Handles in model iteration order with the tile they were built into.
@@ -62,26 +78,82 @@ pub fn scene_tiling_viable(d: &Drawing, edge: f64) -> bool {
     if !(edge.is_finite() && edge > 0.0) || d.model.is_empty() {
         return false;
     }
-    let mut seen: HashSet<TileId> = HashSet::new();
-    for e in d.model.iter() {
-        let id = entity_tile(d, e, edge).unwrap_or(GLOBAL_TILE);
-        seen.insert(id);
-        if seen.len() > MAX_SCENE_TILES {
-            return false;
-        }
-    }
+    tile_count_ok(measure_all(d, edge, None).iter().map(|(i, _)| i.tile))
+}
+
+/// The number of distinct tiles is in the range tiling is worthwhile for (and not hostile).
+fn tile_count_ok(tiles: impl Iterator<Item = TileId>) -> bool {
+    let seen: HashSet<TileId> = tiles.collect();
     (MIN_SCENE_TILES..=MAX_SCENE_TILES).contains(&seen.len())
 }
 
-fn entity_tile(d: &Drawing, e: &Entity, edge: f64) -> Option<TileId> {
-    if matches!(e.kind, EntityKind::Ray(_) | EntityKind::XLine(_)) {
-        return Some(GLOBAL_TILE);
+/// An entity's bounds, and whether it is a ray or xline (no finite centre: it lives in the global tile).
+fn bounds_of(d: &Drawing, e: &Entity) -> (Bounds2, bool) {
+    (aad_doc::entity_bounds(d, e, 0), matches!(e.kind, EntityKind::Ray(_) | EntityKind::XLine(_)))
+}
+
+/// Place a measured entity: the tile its centre falls in, and whether the view window keeps it.
+fn place(bounds: Bounds2, ray: bool, edge: f64, cull: Option<&Bounds2>) -> EntInfo {
+    let tile = if ray || bounds.is_empty() { GLOBAL_TILE } else { tile_id_at(bounds.center(), edge).unwrap_or(GLOBAL_TILE) };
+    let mut included = true;
+    if let Some(win) = cull
+        && tile != GLOBAL_TILE
+    {
+        included = if bounds.is_empty() { tile_intersects_cull(tile, edge, win) } else { bounds.intersects(win) };
     }
-    let b = aad_doc::entity_bounds(d, e, 0);
-    if b.is_empty() {
-        return None;
+    EntInfo { tile, bounds, included }
+}
+
+fn classify(d: &Drawing, e: &Entity, edge: f64, cull: Option<&Bounds2>) -> EntInfo {
+    let (bounds, ray) = bounds_of(d, e);
+    place(bounds, ray, edge, cull)
+}
+
+/// No tile should hold more entities than this when the drawing allows it: an edit rebuilds the tiles it touches.
+fn crowded_limit(entities: usize) -> usize {
+    (entities / 24).max(1_000)
+}
+
+/// The largest tile's entity count and the number of tiles when these entities are gridded at `edge`.
+fn bucket_stats(measured: &[(Bounds2, bool)], edge: f64) -> (usize, usize) {
+    let mut count: HashMap<TileId, usize> = HashMap::new();
+    for (b, ray) in measured {
+        if !*ray && !b.is_empty() {
+            *count.entry(tile_id_at(b.center(), edge).unwrap_or(GLOBAL_TILE)).or_insert(0) += 1;
+        }
     }
-    tile_id_at(b.center(), edge)
+    (count.values().copied().max().unwrap_or(0), count.len())
+}
+
+/// The grid edge for these entities: the view's edge, halved while a tile is crowded and the finer grid still fits well
+/// under the tile cap (a halving can quadruple the tile count, so the next step is checked before it is taken). At full
+/// zoom-out the view's edge puts a whole drawing in two or three tiles, and an edit then rebuilds most of it.
+fn refine_edge(measured: &[(Bounds2, bool)], base: f64) -> f64 {
+    let limit = crowded_limit(measured.len());
+    let min_edge = base / 1024.0;
+    let mut edge = base;
+    loop {
+        let (largest, _) = bucket_stats(measured, edge);
+        let next = edge * 0.5;
+        if largest <= limit || next < min_edge {
+            return edge;
+        }
+        let (_, next_tiles) = bucket_stats(measured, next);
+        if next_tiles + 1 > MAX_SCENE_TILES / 2 {
+            return edge;
+        }
+        edge = next;
+    }
+}
+
+/// Measure every model entity, in document order and in parallel (the second field is always `false`: none is reused).
+fn measure_all(d: &Drawing, edge: f64, cull: Option<&Bounds2>) -> Vec<(EntInfo, bool)> {
+    let ents: Vec<&Arc<Entity>> = d.model.iter().collect();
+    if ents.len() >= PARALLEL_CHUNK * 2 {
+        ents.par_iter().map(|e| (classify(d, e, edge, cull), false)).collect()
+    } else {
+        ents.iter().map(|e| (classify(d, e, edge, cull), false)).collect()
+    }
 }
 
 fn tile_intersects_cull(id: TileId, edge: f64, cull: &Bounds2) -> bool {
@@ -106,29 +178,42 @@ fn build_entities_list(d: &Drawing, ents: &[&Entity], opts: &Options, plotting: 
     })
 }
 
-/// Partition model entities into tiles (document order preserved within each tile).
-fn partition_model<'a>(d: &'a Drawing, edge: f64, cull: Option<&Bounds2>) -> (BTreeMap<TileId, Vec<&'a Entity>>, Vec<(Handle, TileId)>, Bounds2) {
+/// A tile's entities, the handle order for flattening, and the whole model's extents.
+type Assembled<'a> = (BTreeMap<TileId, Vec<&'a Entity>>, Vec<(Handle, TileId)>, Bounds2);
+
+/// Group the entities the window keeps by tile (document order preserved within each tile) from their measurements.
+fn assemble<'a>(d: &'a Drawing, infos: &[(EntInfo, bool)]) -> Assembled<'a> {
     let mut map: BTreeMap<TileId, Vec<&Entity>> = BTreeMap::new();
     let mut assignment = Vec::new();
     let mut extents = Bounds2::default();
-    for e in d.model.iter() {
-        let eb = aad_doc::entity_bounds(d, e, 0);
-        if !eb.is_empty() {
-            extents = extents.union(&eb);
+    for (e, (info, _)) in d.model.iter().zip(infos) {
+        if !info.bounds.is_empty() {
+            extents = extents.union(&info.bounds);
         }
-        let id = entity_tile(d, e, edge).unwrap_or(GLOBAL_TILE);
-        if let Some(win) = cull {
-            if id != GLOBAL_TILE && !eb.is_empty() && !eb.intersects(win) {
-                continue;
-            }
-            if id != GLOBAL_TILE && eb.is_empty() && !tile_intersects_cull(id, edge, win) {
-                continue;
-            }
+        if info.included {
+            assignment.push((e.handle, info.tile));
+            map.entry(info.tile).or_default().push(e);
         }
-        assignment.push((e.handle, id));
-        map.entry(id).or_default().push(e);
     }
     (map, assignment, extents)
+}
+
+fn info_map(d: &Drawing, infos: &[(EntInfo, bool)]) -> HashMap<Handle, EntInfo> {
+    d.model.iter().zip(infos).map(|(e, (i, _))| (e.handle, *i)).collect()
+}
+
+/// Tessellate one tile; a big one is cut into chunks that run in parallel and are joined in order.
+fn tessellate_one(d: &Drawing, ents: &[&Entity], opts: &Options, plotting: bool, budget: &AtomicUsize) -> DisplayList {
+    if ents.len() >= PARALLEL_CHUNK * 2 {
+        let parts: Vec<DisplayList> = ents.par_chunks(PARALLEL_CHUNK).map(|chunk| build_entities_list(d, chunk, opts, plotting, budget)).collect();
+        let mut acc = DisplayList::default();
+        for part in parts {
+            append(&mut acc, part);
+        }
+        acc
+    } else {
+        build_entities_list(d, ents, opts, plotting, budget)
+    }
 }
 
 fn tessellate_tiles(
@@ -139,35 +224,17 @@ fn tessellate_tiles(
 ) -> (BTreeMap<TileId, SceneTile>, usize, usize) {
     let budget = AtomicUsize::new(0);
     let keys: Vec<TileId> = map.keys().copied().collect();
+    let one = |id: &TileId| -> Option<(TileId, DisplayList)> {
+        let ents = map.get(id)?;
+        if ents.is_empty() {
+            return None;
+        }
+        Some((*id, tessellate_one(d, ents, opts, plotting, &budget)))
+    };
     let built: Vec<(TileId, DisplayList)> = if keys.len() >= 2 && map.values().map(Vec::len).sum::<usize>() >= 256 {
-        keys.par_iter()
-            .filter_map(|id| {
-                let ents = map.get(id)?;
-                if ents.is_empty() {
-                    return None;
-                }
-                // Chunk large tiles the same way as the monolithic parallel path.
-                if ents.len() >= PARALLEL_CHUNK * 2 {
-                    let mut acc = DisplayList::default();
-                    for chunk in ents.chunks(PARALLEL_CHUNK) {
-                        append(&mut acc, build_entities_list(d, chunk, opts, plotting, &budget));
-                    }
-                    Some((*id, acc))
-                } else {
-                    Some((*id, build_entities_list(d, ents, opts, plotting, &budget)))
-                }
-            })
-            .collect()
+        keys.par_iter().filter_map(one).collect()
     } else {
-        keys.iter()
-            .filter_map(|id| {
-                let ents = map.get(id)?;
-                if ents.is_empty() {
-                    return None;
-                }
-                Some((*id, build_entities_list(d, ents, opts, plotting, &budget)))
-            })
-            .collect()
+        keys.iter().filter_map(one).collect()
     };
     let rebuilt = built.len();
     let mut tiles = BTreeMap::new();
@@ -183,22 +250,44 @@ fn tessellate_tiles(
 /// [`crate::build_plot`]. When `opts.view_center` is set, only tiles intersecting the frustum
 /// (plus global infinites) are tessellated; [`Scene::extents`] still covers the whole model.
 pub fn build_scene(d: &Drawing, opts: &Options) -> Scene {
+    if let Some(scene) = build_scene_if_viable(d, opts) {
+        return scene;
+    }
     let opts = with_point_view(d, &Space::Model, opts);
     let edge = scene_tile_edge(opts.view_height);
-    if !scene_tiling_viable(d, edge) {
-        // Single-tile fallback: one GLOBAL tile with a full model build so callers always get a Scene.
-        let list = crate::build(d, &Space::Model, &opts);
-        let mut tiles = BTreeMap::new();
-        let assignment: Vec<(Handle, TileId)> = d.model.iter().map(|e| (e.handle, GLOBAL_TILE)).collect();
-        let extents = list.bounds;
-        let expanded = list.expanded;
-        tiles.insert(GLOBAL_TILE, SceneTile { id: GLOBAL_TILE, list: Arc::new(list) });
-        return Scene { edge, tiles, assignment, extents, expanded, tiles_rebuilt: 1 };
+    // Single-tile fallback: one GLOBAL tile with a full model build so callers always get a Scene.
+    let list = crate::build(d, &Space::Model, &opts);
+    let mut tiles = BTreeMap::new();
+    let assignment: Vec<(Handle, TileId)> = d.model.iter().map(|e| (e.handle, GLOBAL_TILE)).collect();
+    let extents = list.bounds;
+    let expanded = list.expanded;
+    tiles.insert(GLOBAL_TILE, SceneTile { id: GLOBAL_TILE, list: Arc::new(list) });
+    Scene { info: HashMap::new(), edge, tiles, assignment, extents, expanded, tiles_rebuilt: 1 }
+}
+
+/// [`build_scene`] when tiling is worthwhile for this drawing, else `None`. The entities are measured once for both
+/// the decision and the tiles; asking [`scene_tiling_viable`] first and then building measured them twice.
+pub fn build_scene_if_viable(d: &Drawing, opts: &Options) -> Option<Scene> {
+    let opts = with_point_view(d, &Space::Model, opts);
+    let base = scene_tile_edge(opts.view_height);
+    if !(base.is_finite() && base > 0.0) || d.model.is_empty() {
+        return None;
     }
     let cull = model_cull_window(&opts);
-    let (map, assignment, extents) = partition_model(d, edge, cull.as_ref());
+    let ents: Vec<&Arc<Entity>> = d.model.iter().collect();
+    let measured: Vec<(Bounds2, bool)> = if ents.len() >= PARALLEL_CHUNK * 2 {
+        ents.par_iter().map(|e| bounds_of(d, e)).collect()
+    } else {
+        ents.iter().map(|e| bounds_of(d, e)).collect()
+    };
+    let edge = refine_edge(&measured, base);
+    let infos: Vec<(EntInfo, bool)> = measured.iter().map(|(b, ray)| (place(*b, *ray, edge, cull.as_ref()), false)).collect();
+    if !tile_count_ok(infos.iter().map(|(i, _)| i.tile)) {
+        return None;
+    }
+    let (map, assignment, extents) = assemble(d, &infos);
     let (tiles, expanded, rebuilt) = tessellate_tiles(d, &map, &opts, false);
-    Scene { edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt }
+    Some(Scene { info: info_map(d, &infos), edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt })
 }
 
 /// Flatten a scene into a single display list in document order (handle assignment order).
@@ -272,8 +361,9 @@ pub fn flatten_scene(scene: &Scene) -> DisplayList {
     out
 }
 
-/// Update `old` for `new_doc`: unchanged tiles keep their `Arc` lists; only dirty tiles retessellate.
-/// `None` when the environment changed or too many tiles are dirty (caller should [`build_scene`]).
+/// Update `old` for `new_doc`: unchanged tiles keep their `Arc` lists; only dirty tiles retessellate. Only the entities
+/// that changed (or are new) are measured; every other entity keeps the tile and bounds stored on `old`.
+/// `None` when the environment changed or the scene cannot be reused (caller should [`build_scene`]).
 pub fn rebuild_scene(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &Options) -> Option<Scene> {
     if old.expanded >= MAX_BLOCK_EXPANSION / 2 || !crate::same_environment(old_doc, new_doc) {
         return None;
@@ -281,46 +371,54 @@ pub fn rebuild_scene(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &O
     if new_doc.header.f64("PDSIZE", 0.0) <= 0.0 && crate::point::sized(new_doc.header.i64("PDMODE", 0)) {
         return None;
     }
+    // A scene built as the single-tile fallback keeps no per-entity data to reuse.
+    if old.info.is_empty() && !new_doc.model.is_empty() {
+        return None;
+    }
     let opts = with_point_view(new_doc, &Space::Model, opts);
     let edge = if old.edge.is_finite() && old.edge > 0.0 { old.edge } else { scene_tile_edge(opts.view_height) };
-    if !scene_tiling_viable(new_doc, edge) {
+    if !(edge.is_finite() && edge > 0.0) || new_doc.model.is_empty() {
         return None;
     }
     let cull = model_cull_window(&opts);
-    let (new_map, assignment, extents) = partition_model(new_doc, edge, cull.as_ref());
+    // Reuse what is untouched (the same `Arc` as before); measure the rest.
+    let ents: Vec<&Arc<Entity>> = new_doc.model.iter().collect();
+    let measure = |e: &&Arc<Entity>| -> (EntInfo, bool) {
+        match old.info.get(&e.handle) {
+            Some(i) if old_doc.model.get(e.handle).is_some_and(|o| Arc::ptr_eq(o, e)) => (*i, true),
+            _ => (classify(new_doc, e, edge, cull.as_ref()), false),
+        }
+    };
+    let infos: Vec<(EntInfo, bool)> =
+        if ents.len() >= PARALLEL_CHUNK * 2 { ents.par_iter().map(measure).collect() } else { ents.iter().map(measure).collect() };
+    if !tile_count_ok(infos.iter().map(|(i, _)| i.tile)) {
+        return None;
+    }
+    let (new_map, assignment, extents) = assemble(new_doc, &infos);
     if new_map.len() > MAX_SCENE_TILES {
         return None;
     }
 
-    let mut old_handle_tile: HashMap<Handle, TileId> = HashMap::new();
-    for (h, id) in &old.assignment {
-        old_handle_tile.insert(*h, *id);
-    }
-
     let mut dirty: HashSet<TileId> = HashSet::new();
-    // Removed or moved entities dirty their previous tile.
-    for (h, id) in &old.assignment {
-        let still = new_doc.model.get(*h);
-        match still {
-            None => {
-                dirty.insert(*id);
-            }
-            Some(e) => {
-                let same = old_doc.model.get(*h).is_some_and(|o| Arc::ptr_eq(o, e));
-                let new_id = entity_tile(new_doc, e, edge).unwrap_or(GLOBAL_TILE);
-                if !same || new_id != *id {
-                    dirty.insert(*id);
-                    dirty.insert(new_id);
-                }
-            }
-        }
-    }
-    // New entities dirty their tile.
-    for e in new_doc.model.iter() {
-        if old_handle_tile.contains_key(&e.handle) {
+    for (e, (info, unchanged)) in ents.iter().zip(&infos) {
+        if *unchanged {
             continue;
         }
-        dirty.insert(entity_tile(new_doc, e, edge).unwrap_or(GLOBAL_TILE));
+        // A changed or moved entity dirties the tile it was in and the tile it is in now.
+        if let Some(prev) = old.info.get(&e.handle)
+            && prev.included
+        {
+            dirty.insert(prev.tile);
+        }
+        if info.included {
+            dirty.insert(info.tile);
+        }
+    }
+    // Removed entities dirty their previous tile.
+    for (h, prev) in &old.info {
+        if prev.included && new_doc.model.get(*h).is_none() {
+            dirty.insert(prev.tile);
+        }
     }
     // Tiles that disappeared from the partition are dropped (not dirty rebuild).
     for id in old.tiles.keys() {
@@ -329,18 +427,15 @@ pub fn rebuild_scene(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &O
         }
     }
 
-    let fresh_entities: usize = dirty.iter().filter_map(|id| new_map.get(id).map(Vec::len)).sum();
-    if fresh_entities > new_doc.model.len() / 4 + 64 {
-        return None;
-    }
-
+    // However many tiles are dirty the rebuild is no dearer than a full build now that nothing is measured twice,
+    // so there is no "too much changed" refusal.
     let budget = AtomicUsize::new(old.expanded.min(MAX_BLOCK_EXPANSION / 2));
     let dirty_ids: Vec<TileId> = dirty.into_iter().filter(|id| new_map.contains_key(id)).collect();
     let rebuilt_parts: Vec<(TileId, DisplayList)> = dirty_ids
         .par_iter()
         .filter_map(|id| {
             let ents = new_map.get(id)?;
-            Some((*id, build_entities_list(new_doc, ents, &opts, false, &budget)))
+            Some((*id, tessellate_one(new_doc, ents, &opts, false, &budget)))
         })
         .collect();
 
@@ -355,12 +450,12 @@ pub fn rebuild_scene(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &O
             tiles.insert(*id, prev.clone());
         } else {
             // Should not happen: new tile must be dirty. Build serially as a fallback.
-            let list = build_entities_list(new_doc, ents, &opts, false, &budget);
+            let list = tessellate_one(new_doc, ents, &opts, false, &budget);
             tiles.insert(*id, SceneTile { id: *id, list: Arc::new(list) });
         }
     }
     let expanded = tiles.values().fold(0usize, |a, t| a.saturating_add(t.list.expanded));
-    Some(Scene { edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt_parts.len() })
+    Some(Scene { info: info_map(new_doc, &infos), edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt_parts.len() })
 }
 
 #[cfg(test)]
