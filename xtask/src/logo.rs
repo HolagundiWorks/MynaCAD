@@ -79,9 +79,12 @@ fn in_eye(x: f64, y: f64) -> bool {
     dx * dx + dy * dy <= 1.0
 }
 
-fn bird() -> &'static (Vec<(f64, f64)>, Vec<(f64, f64)>) {
+/// Crown and beak outlines of the bird, as polygon points.
+type Bird = (Vec<(f64, f64)>, Vec<(f64, f64)>);
+
+fn bird() -> &'static Bird {
     use std::sync::OnceLock;
-    static BIRD: OnceLock<(Vec<(f64, f64)>, Vec<(f64, f64)>)> = OnceLock::new();
+    static BIRD: OnceLock<Bird> = OnceLock::new();
     BIRD.get_or_init(|| (crown(), beak()))
 }
 

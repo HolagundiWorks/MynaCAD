@@ -745,7 +745,7 @@ mod tests {
                 assert!(before_h > 0.0);
                 assert!((v.view_height - before_h / 2.0).abs() < 1e-6);
             }
-            _ => assert!(false),
+            other => panic!("expected a viewport, got {other:?}"),
         }
     }
 

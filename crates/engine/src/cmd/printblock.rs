@@ -143,14 +143,12 @@ fn make(s: &mut Session, name: &str, points: &[Vec2]) -> Result<Value> {
     let mut common = s.current_common();
     common.layer = LAYER.into();
     let created = s.doc_mut()?.ensure_layer(LAYER);
-    if created {
-        if let Some(layer) = s.doc_mut()?.layers.iter_mut().find(|layer| layer.name == LAYER) {
-            // The boundary stays editable and is not a frozen paper-space viewport layer.
-            layer.frozen = false;
-            layer.locked = false;
-            layer.vp_freeze_new = false;
-            layer.plot = false;
-        }
+    if created && let Some(layer) = s.doc_mut()?.layers.iter_mut().find(|layer| layer.name == LAYER) {
+        // The boundary stays editable and is not a frozen paper-space viewport layer.
+        layer.frozen = false;
+        layer.locked = false;
+        layer.vp_freeze_new = false;
+        layer.plot = false;
     }
     let handle = s.doc_mut()?.add(&Space::Model, common, kind)?;
     let id = book.next.max(1);
@@ -220,10 +218,10 @@ fn contents(d: &aad_doc::Drawing, item: &Item) -> Vec<String> {
     } else {
         scan(&d.model);
     }
-    if let (Some(level), Some(sheet)) = (item.level, item.sheet) {
-        if let Some(store) = d.annotation_store(SheetSetId(sheet), LevelId(level)) {
-            scan(store);
-        }
+    if let (Some(level), Some(sheet)) = (item.level, item.sheet)
+        && let Some(store) = d.annotation_store(SheetSetId(sheet), LevelId(level))
+    {
+        scan(store);
     }
     out
 }

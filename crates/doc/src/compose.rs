@@ -151,10 +151,10 @@ impl Drawing {
                 layout_masters.insert(layout.name.clone(), m.0);
             }
             for e in layout.entities.iter() {
-                if let EntityKind::Viewport(vp) = &e.kind {
-                    if let Some(v) = vp.compose_view {
-                        viewport_views.insert(format!("{}\\{}", layout.name, e.handle.hex()), v.0);
-                    }
+                if let EntityKind::Viewport(vp) = &e.kind
+                    && let Some(v) = vp.compose_view
+                {
+                    viewport_views.insert(format!("{}\\{}", layout.name, e.handle.hex()), v.0);
                 }
             }
         }
@@ -219,10 +219,10 @@ impl Drawing {
             }
         }
         for (name, mid) in bundle.layout_masters {
-            if let Some(layout) = self.layouts.iter_mut().find(|l| l.name.eq_ignore_ascii_case(&name)) {
-                if self.master_layouts.iter().any(|m| m.id.0 == mid) {
-                    layout.master = Some(MasterLayoutId(mid));
-                }
+            if let Some(layout) = self.layouts.iter_mut().find(|l| l.name.eq_ignore_ascii_case(&name))
+                && self.master_layouts.iter().any(|m| m.id.0 == mid)
+            {
+                layout.master = Some(MasterLayoutId(mid));
             }
         }
         for (key, vid) in bundle.viewport_views {
@@ -231,13 +231,13 @@ impl Drawing {
                 continue;
             }
             let Some(handle) = crate::Handle::parse_hex(hex) else { continue };
-            if let Some(layout) = self.layouts.iter_mut().find(|l| l.name.eq_ignore_ascii_case(layout_name)) {
-                if let Some(arc) = layout.entities.get(handle).cloned() {
-                    let mut e = (*arc).clone();
-                    if let EntityKind::Viewport(vp) = &mut e.kind {
-                        vp.compose_view = Some(ComposeViewId(vid));
-                        layout.entities.replace(e);
-                    }
+            if let Some(layout) = self.layouts.iter_mut().find(|l| l.name.eq_ignore_ascii_case(layout_name))
+                && let Some(arc) = layout.entities.get(handle).cloned()
+            {
+                let mut e = (*arc).clone();
+                if let EntityKind::Viewport(vp) = &mut e.kind {
+                    vp.compose_view = Some(ComposeViewId(vid));
+                    layout.entities.replace(e);
                 }
             }
         }
@@ -281,15 +281,15 @@ impl Drawing {
         if view.scale_denom > 10_000 {
             return Err(invalid("`scaleDenom` must be 0..=10000"));
         }
-        if let Some(h) = view.view_height {
-            if !(h.is_finite() && h > 0.0 && h < 1.0e12) {
-                return Err(invalid("`viewHeight` must be a finite positive number"));
-            }
+        if let Some(h) = view.view_height
+            && !(h.is_finite() && h > 0.0 && h < 1.0e12)
+        {
+            return Err(invalid("`viewHeight` must be a finite positive number"));
         }
-        if let Some([x, y]) = view.view_center {
-            if !(x.is_finite() && y.is_finite() && x.abs() < 1.0e12 && y.abs() < 1.0e12) {
-                return Err(invalid("`viewCenter` must be finite"));
-            }
+        if let Some([x, y]) = view.view_center
+            && !(x.is_finite() && y.is_finite() && x.abs() < 1.0e12 && y.abs() < 1.0e12)
+        {
+            return Err(invalid("`viewCenter` must be finite"));
         }
         let id = ComposeViewId(self.compose_view_seed);
         self.compose_view_seed = self.compose_view_seed.saturating_add(1);
