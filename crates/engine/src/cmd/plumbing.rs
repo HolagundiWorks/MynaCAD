@@ -5,20 +5,29 @@
 //!   inspection chambers and risers. Toolbar symbols are recognised by their smart block id; other
 //!   blocks by name (names may use `*`). The choice is kept in the drawing.
 //! * `plumbing.number` gives each block an ID (`WC-01`, `RS-02`) and writes it beside the block.
-//! * `plumbing.layers` names the layers the supply and the drain pipes are drawn on.
-//! * `plumbing.pipe` draws a pipe run on the service's layer and keeps its diameter.
+//! * `plumbing.layers` names the layers the cold, hot and drain pipes are drawn on.
+//! * `plumbing.pipe` draws a pipe run of a service (cold, hot or drain) at a diameter: on the service's
+//!   layer, in its colour and linetype, as wide as the pipe, and the diameter is kept for the schedule.
+//!   `plumbing.pipe.cold`, `.hot` and `.drain` are the same with the service fixed and the standard
+//!   sizes of that service to choose from (the toolbar tools).
+//! * Fittings are added where pipes bend or meet: an elbow (90, 45 or other) at each bend of a run, a tee where
+//!   a run ends on the side of another, and an elbow or reducer where two runs meet end to end. They are drawn
+//!   on `P-FITG` every time a pipe is drawn (`plumbing.autofit` turns that off) and by `plumbing.fittings`,
+//!   which redraws them all from the pipes as they are now. The schedule's `fittings` mode counts them.
 //! * `plumbing.connect` works out from the pipes which fixtures reach which source and flags what is
-//!   not connected. Supply and drainage are separate networks, because a fixture normally has both. A
+//!   not connected. Cold water, hot water and drainage are separate networks, because a fixture normally
+//!   has more than one. Hot water is optional, so a fixture without it is not flagged. A
 //!   pipe reaches a block when one of its vertices lies within about 20 mm of the block's extents;
 //!   pipes that meet end to end or in a T are one run. A tank, inspection chamber or riser is a
-//!   source (the tank and the riser for supply, the chamber and the riser for drainage); a fixture is
-//!   a leaf, so a run does not carry on through it.
+//!   source (the tank and the riser for cold water, the water heater and the riser for hot water, the
+//!   chamber and the riser for drainage); a fixture is a leaf, so a run does not carry on through it.
 //! * `plumbing.schedule` draws the schedule: fixtures per source, one row per fixture, or the pipe
 //!   length by service and diameter.
 //!
 //! Not implemented: pipe sizing, fixture units, slope and invert levels, fittings and valves, and hot
 //! water. A riser's service (soil, waste, rainwater, vent, cold, hot) is a block parameter that the
-//! block name does not carry, so every riser counts as a source for both supply and drainage.
+//! block name does not carry, so every riser counts as a source for cold water, hot water and drainage. A
+//! water heater has no toolbar symbol: map your block to `WH` with `plumbing.blocks`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -54,37 +63,64 @@ pub const KINDS: &[Kind] = &[
     Kind { code: "IC", desc: "Inspection chamber", source: true, smart: "PLUMB_CHAMBER" },
     Kind { code: "TK", desc: "Water tank", source: true, smart: "PLUMB_TANK_ROUND" },
     Kind { code: "RS", desc: "Riser or stack", source: true, smart: "PLUMB_RISER" },
+    // No toolbar symbol: matched by block name (`WH`, `WH-*`, `WH_*`) or with `plumbing.blocks`.
+    Kind { code: "WH", desc: "Water heater", source: true, smart: "" },
 ];
 
-/// A pipe network: its pipes' default layer, the sources that feed it, and the fixtures that need it.
+/// A pipe network: its pipes' layer, look and standard sizes, the sources that feed it and the fixtures that need it.
 struct Service {
     code: &'static str,
     key: &'static str,
     title: &'static str,
     layer: &'static str,
+    /// AutoCAD colour index and linetype of the layer when it is made.
+    aci: i16,
+    linetype: &'static str,
     default_dia: f64,
     sources: &'static [&'static str],
+    /// Fixtures that cannot work without this service; a fixture not in the list is not flagged when it lacks it.
     needs: &'static [&'static str],
+    /// The text flagged beside a fixture that needs the service and has none.
+    missing: &'static str,
 }
 
 const SERVICES: &[Service] = &[
     Service {
-        code: "SUP",
-        key: "supply",
-        title: "Water supply",
+        code: "CW",
+        key: "cold",
+        title: "Cold water",
         layer: "P-WATR",
+        aci: 5,
+        linetype: "Continuous",
         default_dia: 20.0,
         sources: &["TK", "RS"],
         needs: &["WC", "IWC", "WB", "KS", "SH"],
+        missing: "NO COLD WATER",
+    },
+    Service {
+        code: "HW",
+        key: "hot",
+        title: "Hot water",
+        layer: "P-HOTW",
+        aci: 1,
+        linetype: "Continuous",
+        default_dia: 15.0,
+        sources: &["WH", "RS"],
+        needs: &[],
+        missing: "NO HOT WATER",
     },
     Service {
         code: "DRN",
         key: "drain",
         title: "Drainage",
         layer: "P-DRAN",
+        // The standard sheet-set layer: green, dashed.
+        aci: 3,
+        linetype: "DASHED",
         default_dia: 100.0,
         sources: &["IC", "RS"],
         needs: &["WC", "IWC", "WB", "KS", "SH", "FT"],
+        missing: "NO DRAIN",
     },
 ];
 
@@ -105,11 +141,30 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("plumbing.layers", "Pipe Layers", run_layers)
             .menu(&["Architecture", "Plumbing", "Pipe Layers"])
             .alias(&["pllayers"])
-            .params("{supply?: [layer], drain?: [layer]} → {supply, drain}"),
+            .params("{cold?: [layer], hot?: [layer], drain?: [layer]} → {cold, hot, drain} (`supply` is the old name of `cold`)"),
         CommandSpec::new("plumbing.pipe", "Draw Pipe", run_pipe)
             .menu(&["Architecture", "Plumbing", "Draw Pipe"])
             .alias(&["pipe"])
-            .params("{points: [[x,y],...] (2 or more), service?: \"supply\" (default) | \"drain\", dia?: mm (default 20 supply, 100 drain)} → {handle, service, layer, dia, length}"),
+            .params("{points: [[x,y],...] (2 or more), service?: \"cold\" (default) | \"hot\" | \"drain\", dia?: mm (default 20 cold, 15 hot, 100 drain)} → {handle, service, layer, dia, length}"),
+        CommandSpec::new("plumbing.pipe.cold", "Cold Water Pipe", run_pipe_cold)
+            .menu(&["Architecture", "Plumbing", "Cold Water Pipe"])
+            .alias(&["cwpipe"])
+            .params("{points: [[x,y],...], dia?: mm, one of 15 20 25 32 40 50 (default 20)} → {handle, service, layer, dia, length}"),
+        CommandSpec::new("plumbing.pipe.hot", "Hot Water Pipe", run_pipe_hot)
+            .menu(&["Architecture", "Plumbing", "Hot Water Pipe"])
+            .alias(&["hwpipe"])
+            .params("{points: [[x,y],...], dia?: mm, one of 15 20 25 (default 15)} → {handle, service, layer, dia, length}"),
+        CommandSpec::new("plumbing.pipe.drain", "Drain Pipe", run_pipe_drain)
+            .menu(&["Architecture", "Plumbing", "Drain Pipe"])
+            .alias(&["drpipe"])
+            .params("{points: [[x,y],...], dia?: mm, one of 50 75 100 110 150 (default 100)} → {handle, service, layer, dia, length}"),
+        CommandSpec::new("plumbing.fittings", "Add Fittings", run_fittings)
+            .menu(&["Architecture", "Plumbing", "Fittings"])
+            .alias(&["plfit"])
+            .params("{snap?: drawing units (default 20 mm)} → {fittings: [{kind, service, size, at}], counts: {\"Elbow 90 20\": n}} (redraws every fitting from the pipes as they are now)"),
+        CommandSpec::new("plumbing.autofit", "Auto-add Fittings", run_autofit)
+            .menu(&["Architecture", "Plumbing", "Auto-add Fittings"])
+            .params("{enabled?: bool} → {enabled}. When on (the default), drawing a pipe adds the fittings at its bends and junctions."),
         CommandSpec::new("plumbing.connect", "Check Piping", run_connect)
             .menu(&["Architecture", "Plumbing", "Check Piping"])
             .alias(&["plconnect"])
@@ -391,7 +446,9 @@ fn run_layers(s: &mut Session, p: &Value) -> Result<Value> {
     let mut o = state(s.doc()?);
     let mut layers = o.get("layers").and_then(Value::as_object).cloned().unwrap_or_default();
     for svc in SERVICES {
-        if let Some(Value::Array(a)) = p.get(svc.key) {
+        // `supply` is the old name of the cold water layers.
+        let given = p.get(svc.key).or_else(|| if svc.code == "CW" { p.get("supply") } else { None });
+        if let Some(Value::Array(a)) = given {
             let v: Vec<Value> = a.iter().filter(|n| n.as_str().is_some_and(|t| !t.is_empty() && t.len() <= 80)).cloned().collect();
             if v.is_empty() {
                 return Err(bad("plumbing.layers", format!("`{}` needs at least one layer name", svc.key)));
@@ -409,10 +466,21 @@ fn run_layers(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn service_by_key(command: &str, key: &str) -> Result<&'static Service> {
+    // `supply` is the old name of cold water.
+    let key = if key.eq_ignore_ascii_case("supply") || key.eq_ignore_ascii_case("sup") { "cold" } else { key };
     SERVICES
         .iter()
         .find(|s| s.key.eq_ignore_ascii_case(key) || s.code.eq_ignore_ascii_case(key))
-        .ok_or_else(|| bad(command, format!("`service` must be supply or drain, not `{key}`")))
+        .ok_or_else(|| bad(command, format!("`service` must be cold, hot or drain, not `{key}`")))
+}
+
+/// The pipe diameter in mm: a number, or the text a form's choice gives.
+fn dia_param(p: &Value, default: f64) -> f64 {
+    match p.get("dia") {
+        Some(Value::String(t)) => t.trim().parse().unwrap_or(f64::NAN),
+        Some(v) => v.as_f64().unwrap_or(f64::NAN),
+        None => default,
+    }
 }
 
 /// Millimetres per drawing unit's metre: how many metres one drawing unit is (a drawing without a unit is taken as mm).
@@ -421,29 +489,54 @@ fn metres_per_unit(d: &Drawing) -> f64 {
 }
 
 fn run_pipe(s: &mut Session, p: &Value) -> Result<Value> {
-    let svc = service_by_key("plumbing.pipe", str_param(p, "service").unwrap_or("supply"))?;
-    let pts = points_param(p, "points").ok_or_else(|| bad("plumbing.pipe", "`points` [[x,y],...] (2 or more) is required"))?;
+    let svc = service_by_key("plumbing.pipe", str_param(p, "service").unwrap_or("cold"))?;
+    draw_pipe(s, p, "plumbing.pipe", svc)
+}
+
+fn run_pipe_cold(s: &mut Session, p: &Value) -> Result<Value> {
+    draw_pipe(s, p, "plumbing.pipe.cold", &SERVICES[0])
+}
+
+fn run_pipe_hot(s: &mut Session, p: &Value) -> Result<Value> {
+    draw_pipe(s, p, "plumbing.pipe.hot", &SERVICES[1])
+}
+
+fn run_pipe_drain(s: &mut Session, p: &Value) -> Result<Value> {
+    draw_pipe(s, p, "plumbing.pipe.drain", &SERVICES[2])
+}
+
+/// A pipe run of `svc`: a polyline as wide as the pipe, on the service's layer, with its diameter kept.
+fn draw_pipe(s: &mut Session, p: &Value, command: &str, svc: &Service) -> Result<Value> {
+    let pts = points_param(p, "points").ok_or_else(|| bad(command, "`points` [[x,y],...] (2 or more) is required"))?;
     if pts.len() < 2 {
-        return Err(bad("plumbing.pipe", "need at least 2 points"));
+        return Err(bad(command, "need at least 2 points"));
     }
-    let dia = f64_or(p, "dia", svc.default_dia);
+    let dia = dia_param(p, svc.default_dia);
     if !(dia.is_finite() && dia > 0.0 && dia <= 2000.0) {
-        return Err(bad("plumbing.pipe", "`dia` must be a pipe diameter in mm, above 0 and at most 2000"));
+        return Err(bad(command, "`dia` must be a pipe diameter in mm, above 0 and at most 2000"));
     }
     let mut o = state(s.doc()?);
     let layer = pipe_layers(&o, svc).remove(0);
-    ensure_layer(s.doc_mut()?, &layer, if svc.code == "SUP" { 5 } else { 30 }, "Continuous", 25, svc.title);
-    let drawn = s.execute("pline", &json!({ "points": pts.iter().map(|q| json!([q.x, q.y])).collect::<Vec<_>>() }))?;
-    let handle =
-        drawn.get("handle").and_then(Value::as_str).and_then(Handle::parse_hex).ok_or_else(|| bad("plumbing.pipe", "the pipe was not drawn"))?;
-    s.doc_mut()?.modify_entity(handle, |e| e.common.layer = layer.clone())?;
+    ensure_layer(s.doc_mut()?, &layer, svc.aci, svc.linetype, 18, svc.title);
+    // The polyline is as wide as the pipe, so a 100 mm drain looks wider than a 15 mm hot line.
+    let per_unit = metres_per_unit(s.doc()?);
+    let width = dia * 0.001 / per_unit;
+    let drawn = s.execute("pline", &json!({ "points": pts.iter().map(|q| json!([q.x, q.y])).collect::<Vec<_>>(), "width": width }))?;
+    let handle = drawn.get("handle").and_then(Value::as_str).and_then(Handle::parse_hex).ok_or_else(|| bad(command, "the pipe was not drawn"))?;
+    // The run keeps the layer's colour but is drawn solid: a dash pattern on a band as wide as the pipe looks like a
+    // ladder, and the width already says it is a pipe.
+    s.doc_mut()?.modify_entity(handle, |e| {
+        e.common.layer = layer.clone();
+        e.common.linetype = "Continuous".to_string();
+    })?;
     let mut pipes = o.get("pipes").and_then(Value::as_object).cloned().unwrap_or_default();
     pipes.insert(handle.hex(), json!(dia));
     o.insert("pipes".into(), Value::Object(pipes));
     save(s.doc_mut()?, &o);
-    let per_unit = metres_per_unit(s.doc()?);
+    // Bends and junctions of this run (and any it joins) get their fittings.
+    let fitted = if autofit_on(&o) { refit(s, snap_of(s, p)?)? } else { 0 };
     let length: f64 = pts.windows(2).map(|w| w[0].dist(w[1])).sum::<f64>() * per_unit;
-    Ok(json!({ "handle": handle.hex(), "service": svc.key, "layer": layer, "dia": dia, "length": length }))
+    Ok(json!({ "handle": handle.hex(), "service": svc.key, "layer": layer, "dia": dia, "length": length, "fittings": fitted }))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -619,7 +712,7 @@ fn connect(s: &mut Session, o: &Map<String, Value>, snap: f64, flag: bool) -> Re
         for r in &a.services {
             let svc = &SERVICES[r.service];
             for i in &r.unconnected {
-                seen.entry(*i).or_default().push(format!("NO {}", if svc.code == "SUP" { "SUPPLY" } else { "DRAIN" }));
+                seen.entry(*i).or_default().push(svc.missing.to_string());
             }
             for i in &r.ambiguous {
                 seen.entry(*i).or_default().push(format!("ON 2 {} SOURCES", svc.code));
@@ -646,6 +739,10 @@ fn connect(s: &mut Session, o: &Map<String, Value>, snap: f64, flag: bool) -> Re
             let own: Vec<usize> = fx.iter().copied().filter(|f| !amb.contains(f)).collect();
             let c = count_by_code(&list, &own);
             let at = list[*ti].handle.hex();
+            // A riser is a source for every service; it only gets a row for the ones it actually serves.
+            if fx.is_empty() && pipe_m == 0.0 {
+                continue;
+            }
             stacks.push(json!({
                 "ref": format!("PS{}-{}", at, svc.code),
                 "handle": at,
@@ -685,7 +782,7 @@ fn connect(s: &mut Session, o: &Map<String, Value>, snap: f64, flag: bool) -> Re
         })
         .map(|(i, _)| id_of(i))
         .collect();
-    // One row per fixture: where its supply comes from and where its drain goes.
+    // One row per fixture: where its cold and hot water come from and where its drain goes.
     let mut fixtures = Vec::new();
     for (i, it) in list.iter().enumerate().filter(|(_, it)| kind_of(it.code).is_some_and(|k| !k.source)) {
         let h = it.handle.hex();
@@ -695,7 +792,8 @@ fn connect(s: &mut Session, o: &Map<String, Value>, snap: f64, flag: bool) -> Re
             "handle": h,
             "fixture": id_of(i),
             "kind": it.code,
-            "supply": from("SUP"),
+            "cold": from("CW"),
+            "hot": from("HW"),
             "drain": from("DRN"),
         }));
     }
@@ -723,6 +821,19 @@ fn schedule_rows(s: &Session, o: &Map<String, Value>, mode: &str, snap: f64) -> 
     let (list, a) = analyse(s, o, snap)?;
     let id_of = id_lookup(o, &list);
     let strs = |v: &[&str]| v.iter().map(|x| (*x).to_string()).collect::<Vec<_>>();
+    if mode == "fittings" {
+        // Count of each fitting by type, size and service, from the pipes as they are now.
+        let mut by: BTreeMap<(usize, String, String), usize> = BTreeMap::new();
+        for f in find_fittings(&a.pipes, snap) {
+            *by.entry((f.service, f.kind.to_string(), f.size())).or_insert(0) += 1;
+        }
+        let mut rows: Vec<Vec<String>> =
+            by.iter().map(|((si, kind, size), n)| vec![kind.clone(), size.clone(), SERVICES[*si].title.to_string(), n.to_string()]).collect();
+        if !rows.is_empty() {
+            rows.push(vec!["TOTAL".into(), String::new(), String::new(), by.values().sum::<usize>().to_string()]);
+        }
+        return Ok((strs(&["Fitting", "Size (mm)", "Service", "Count"]), rows));
+    }
     if mode == "pipes" {
         // Length by service and diameter, in metres.
         let mut by: BTreeMap<(usize, u64), f64> = BTreeMap::new();
@@ -745,17 +856,19 @@ fn schedule_rows(s: &Session, o: &Map<String, Value>, mode: &str, snap: f64) -> 
             let cell = |si: usize| -> String {
                 let svc = &SERVICES[si];
                 let r = &a.services[si];
-                if !svc.needs.contains(&list[*i].code) {
-                    return "-".into();
-                }
                 if r.ambiguous.contains(i) {
                     return "2 SOURCES".into();
                 }
-                r.sources.iter().find(|(_, fx, _)| fx.contains(i)).map_or_else(|| "NOT CONNECTED".to_string(), |(t, _, _)| id_of(*t))
+                match r.sources.iter().find(|(_, fx, _)| fx.contains(i)) {
+                    Some((t, _, _)) => id_of(*t),
+                    // Hot water is optional: a fixture that does not need the service shows a dash.
+                    None if svc.needs.contains(&list[*i].code) => "NOT CONNECTED".into(),
+                    None => "-".into(),
+                }
             };
-            rows.push(vec![id_of(*i), kind_of(list[*i].code).map_or("", |k| k.desc).to_string(), cell(0), cell(1)]);
+            rows.push(vec![id_of(*i), kind_of(list[*i].code).map_or("", |k| k.desc).to_string(), cell(0), cell(1), cell(2)]);
         }
-        return Ok((strs(&["Fixture", "Kind", "Supply from", "Drain to"]), rows));
+        return Ok((strs(&["Fixture", "Kind", "Cold from", "Hot from", "Drain to"]), rows));
     }
     // matrix: a row per source and service, a column per kind of fixture placed.
     let used: Vec<&str> = KINDS.iter().filter(|k| !k.source && fixture_idx.iter().any(|i| list[*i].code == k.code)).map(|k| k.code).collect();
@@ -808,6 +921,7 @@ fn draw_schedule(s: &mut Session, o: &Map<String, Value>, mode: &str, at: Option
     let title = match mode {
         "fixture" => "PLUMBING FIXTURES",
         "pipes" => "PLUMBING PIPES",
+        "fittings" => "PLUMBING FITTINGS",
         _ => "PLUMBING SCHEDULE",
     };
     table(s, &table_ctx(th), origin, title, &header, &rows)?;
@@ -820,8 +934,8 @@ fn draw_schedule(s: &mut Session, o: &Map<String, Value>, mode: &str, at: Option
 
 fn run_schedule(s: &mut Session, p: &Value) -> Result<Value> {
     let mode = str_param(p, "mode").unwrap_or("matrix");
-    if !["matrix", "fixture", "pipes"].contains(&mode) {
-        return Err(bad("plumbing.schedule", "`mode` must be matrix, fixture or pipes"));
+    if !["matrix", "fixture", "pipes", "fittings"].contains(&mode) {
+        return Err(bad("plumbing.schedule", "`mode` must be matrix, fixture, pipes or fittings"));
     }
     let mut o = state(s.doc()?);
     number(s, &mut o, &all_codes(), false)?;
@@ -831,6 +945,198 @@ fn run_schedule(s: &mut Session, p: &Value) -> Result<Value> {
     o.insert("schedule".into(), json!({ "mode": mode, "at": point_param(p, "at").map(|v| [v.x, v.y]) }));
     save(s.doc_mut()?, &o);
     Ok(json!({ "header": header, "rows": rows, "drawn": drawn }))
+}
+
+// ---------------------------------------------------------------------------------------------
+// Fittings
+
+const L_FITTINGS: &str = "P-FITG";
+
+/// A fitting found at a bend or a junction of the pipes of one service.
+struct Fit {
+    kind: &'static str,
+    service: usize,
+    at: Vec2,
+    /// The run it sits on (the main run of a tee) and, for a tee or a reducer, the other size.
+    dia: f64,
+    dia2: f64,
+    /// The direction of a tee's branch, pointing away from the junction.
+    stem: Option<Vec2>,
+}
+
+impl Fit {
+    /// `25` for one size, `25x20` for two.
+    fn size(&self) -> String {
+        if (self.dia - self.dia2).abs() < 0.5 { format!("{}", self.dia) } else { format!("{}x{}", self.dia, self.dia2) }
+    }
+}
+
+fn dir(a: Vec2, b: Vec2) -> Vec2 {
+    Vec2::new(b.x - a.x, b.y - a.y)
+}
+
+/// The angle in degrees between two directions of travel (0 is straight on).
+fn turn(d1: Vec2, d2: Vec2) -> f64 {
+    let (l1, l2) = (d1.x.hypot(d1.y), d2.x.hypot(d2.y));
+    if l1 < 1e-12 || l2 < 1e-12 {
+        return 0.0;
+    }
+    ((d1.x * d2.x + d1.y * d2.y) / (l1 * l2)).clamp(-1.0, 1.0).acos().to_degrees()
+}
+
+/// The elbow a turn of `theta` degrees needs, or `None` for a straight run.
+fn elbow_for(theta: f64) -> Option<&'static str> {
+    if theta < 5.0 {
+        None
+    } else if (theta - 90.0).abs() <= 12.0 {
+        Some("Elbow 90")
+    } else if (theta - 45.0).abs() <= 12.0 {
+        Some("Elbow 45")
+    } else {
+        Some("Bend")
+    }
+}
+
+/// Every fitting the pipes need: an elbow at each bend of a run, a tee where a run ends on the side of another,
+/// and an elbow (or a reducer when the sizes differ) where two runs meet end to end. `snap` is how close
+/// counts as touching.
+fn find_fittings(ps: &[Pipe], snap: f64) -> Vec<Fit> {
+    let mut out: Vec<Fit> = Vec::new();
+    for (i, a) in ps.iter().enumerate() {
+        // Bends inside one run.
+        for w in a.segs.windows(2) {
+            let ((p0, p1), (q0, q1)) = (w[0], w[1]);
+            if p1.dist(q0) > snap.max(1e-9) {
+                continue;
+            }
+            if let Some(kind) = elbow_for(turn(dir(p0, p1), dir(q0, q1))) {
+                out.push(Fit { kind, service: a.service, at: p1, dia: a.dia, dia2: a.dia, stem: None });
+            }
+        }
+        let (Some(first), Some(last)) = (a.segs.first(), a.segs.last()) else { continue };
+        // The two ends of this run: where it stands, and the way it arrives there.
+        for (p, arriving) in [(first.0, dir(first.1, first.0)), (last.1, dir(last.0, last.1))] {
+            for (j, b) in ps.iter().enumerate() {
+                if j == i || b.service != a.service {
+                    continue;
+                }
+                let (Some(bf), Some(bl)) = (b.segs.first(), b.segs.last()) else { continue };
+                // The other run's ends, and the way it leaves them.
+                let ends = [(bf.0, dir(bf.0, bf.1)), (bl.1, dir(bl.1, bl.0))];
+                if let Some((_, leaving)) = ends.iter().find(|(q, _)| q.dist(p) <= snap) {
+                    // End to end: counted once, from the lower-numbered run.
+                    if i > j {
+                        continue;
+                    }
+                    let theta = turn(arriving, *leaving);
+                    if let Some(kind) = elbow_for(theta) {
+                        out.push(Fit { kind, service: a.service, at: p, dia: a.dia.max(b.dia), dia2: a.dia.max(b.dia), stem: None });
+                    } else if (a.dia - b.dia).abs() >= 0.5 {
+                        out.push(Fit { kind: "Reducer", service: a.service, at: p, dia: a.dia.max(b.dia), dia2: a.dia.min(b.dia), stem: None });
+                    }
+                } else if b.segs.iter().any(|(x, y)| seg_point_dist(*x, *y, p) <= snap) {
+                    // This run ends on the side of the other: a tee, with this run as the branch.
+                    let back = Vec2::new(-arriving.x, -arriving.y);
+                    out.push(Fit { kind: "Tee", service: a.service, at: p, dia: b.dia, dia2: a.dia, stem: Some(back) });
+                }
+            }
+        }
+    }
+    // Three runs ending at one point would give the same fitting from each pair: keep one.
+    let cell = (snap * 2.0).max(1e-9);
+    let mut seen = BTreeSet::new();
+    out.retain(|f| seen.insert((f.service, f.kind, (f.at.x / cell).round() as i64, (f.at.y / cell).round() as i64)));
+    out
+}
+
+fn autofit_on(o: &Map<String, Value>) -> bool {
+    o.get("autofit").and_then(Value::as_bool) != Some(false)
+}
+
+fn run_autofit(s: &mut Session, p: &Value) -> Result<Value> {
+    let mut o = state(s.doc()?);
+    if let Some(enabled) = p.get("enabled").and_then(Value::as_bool) {
+        o.insert("autofit".into(), json!(enabled));
+        save(s.doc_mut()?, &o);
+    }
+    Ok(json!({ "enabled": autofit_on(&o) }))
+}
+
+/// Draw one fitting's symbol on the fittings layer and return the handles of what was drawn: a ring for an elbow
+/// (with a dot inside), a ring with a stem for a tee, two rings for a reducer.
+fn draw_fitting(s: &mut Session, f: &Fit, per_mm: f64) -> Result<Vec<Handle>> {
+    let r = f.dia.max(30.0) * 0.9 * per_mm;
+    let ring = |s: &mut Session, radius: f64| -> Result<Handle> {
+        let drawn = s.execute("circle", &json!({ "center": [f.at.x, f.at.y], "radius": radius }))?;
+        drawn.get("handle").and_then(Value::as_str).and_then(Handle::parse_hex).ok_or_else(|| bad("plumbing.fittings", "a fitting was not drawn"))
+    };
+    let mut hs = vec![ring(s, r)?];
+    match f.kind {
+        "Tee" => {
+            if let Some(d) = f.stem {
+                let l = d.x.hypot(d.y).max(1e-12);
+                let end = Vec2::new(f.at.x + d.x / l * r * 2.5, f.at.y + d.y / l * r * 2.5);
+                let drawn = s.execute("line", &json!({ "points": [[f.at.x, f.at.y], [end.x, end.y]] }))?;
+                for h in drawn["handles"].as_array().into_iter().flatten().filter_map(Value::as_str).filter_map(Handle::parse_hex) {
+                    hs.push(h);
+                }
+            }
+        }
+        "Reducer" => hs.push(ring(s, r * 0.6)?),
+        _ => hs.push(ring(s, r * 0.25)?),
+    }
+    for h in &hs {
+        s.doc_mut()?.modify_entity(*h, |e| {
+            e.common.layer = L_FITTINGS.to_string();
+            e.common.linetype = "Continuous".to_string();
+        })?;
+    }
+    Ok(hs)
+}
+
+/// Remove the fittings drawn before and draw the ones the pipes need now. Returns the new rows.
+fn rebuild_fittings(s: &mut Session, o: &mut Map<String, Value>, snap: f64) -> Result<Vec<Value>> {
+    let old: Vec<Handle> =
+        o.get("fitting_handles").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).filter_map(Handle::parse_hex).collect();
+    for h in old {
+        s.doc_mut()?.remove_entity(h);
+    }
+    let space = s.space();
+    let fits = find_fittings(&pipes(s.doc()?, &space, o), snap);
+    ensure_layer(s.doc_mut()?, L_FITTINGS, 4, "Continuous", 18, "Pipe fittings");
+    let per_mm = 0.001 / metres_per_unit(s.doc()?);
+    let (mut handles, mut rows) = (Vec::new(), Vec::new());
+    for f in &fits {
+        for h in draw_fitting(s, f, per_mm)? {
+            handles.push(json!(h.hex()));
+        }
+        rows.push(json!({ "kind": f.kind, "service": SERVICES[f.service].code, "size": f.size(), "at": [f.at.x, f.at.y] }));
+    }
+    o.insert("fitting_handles".into(), Value::Array(handles));
+    o.insert("fittings".into(), Value::Array(rows.clone()));
+    Ok(rows)
+}
+
+/// Load the plumbing state, redraw the fittings and save it. Returns how many there are.
+fn refit(s: &mut Session, snap: f64) -> Result<usize> {
+    let mut o = state(s.doc()?);
+    let rows = rebuild_fittings(s, &mut o, snap)?;
+    save(s.doc_mut()?, &o);
+    Ok(rows.len())
+}
+
+fn run_fittings(s: &mut Session, p: &Value) -> Result<Value> {
+    let mut o = state(s.doc()?);
+    let snap = snap_of(s, p)?;
+    let rows = rebuild_fittings(s, &mut o, snap)?;
+    save(s.doc_mut()?, &o);
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for r in &rows {
+        *counts
+            .entry(format!("{} {} {}", r["kind"].as_str().unwrap_or(""), r["size"].as_str().unwrap_or(""), r["service"].as_str().unwrap_or("")))
+            .or_insert(0) += 1;
+    }
+    Ok(json!({ "fittings": rows, "counts": counts }))
 }
 
 fn run_update(s: &mut Session, p: &Value) -> Result<Value> {
@@ -843,6 +1149,9 @@ fn run_update(s: &mut Session, p: &Value) -> Result<Value> {
         if let Some(rows) = connected.get(key) {
             o.insert(key.into(), rows.clone());
         }
+    }
+    if autofit_on(&o) {
+        rebuild_fittings(s, &mut o, snap)?;
     }
     // Redraw the schedule where it was drawn before.
     if let Some(sc) = o.get("schedule").cloned() {

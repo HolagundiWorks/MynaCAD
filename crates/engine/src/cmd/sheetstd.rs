@@ -68,8 +68,10 @@ const PLUMBING_LAYERS: &[StdLayer] = &[
     ("P-FIXT", 6, "Continuous", 18, "Plumbing fixtures - basin, WC, shower, bath"),
     ("P-PIPE", 4, "Continuous", 18, "Pipes - supply, drain and vent"),
     ("P-WATR", 5, "Continuous", 18, "Water supply lines"),
+    ("P-HOTW", 1, "Continuous", 18, "Hot water supply lines"),
     ("P-DRAN", 3, "DASHED", 18, "Drainage lines"),
     ("P-VENT", 8, "DASHED2", 13, "Vent pipes and stacks"),
+    ("P-FITG", 4, "Continuous", 18, "Pipe fittings - elbows, tees, reducers"),
 ];
 
 const INTERIOR_LAYERS: &[StdLayer] = &[

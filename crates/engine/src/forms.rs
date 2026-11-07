@@ -591,8 +591,35 @@ pub static FORMS: &[Form] = &[
         title: "Draw Pipe",
         wrap: None,
         fields: &[
-            field("service", "Service", Kind::Choice(&["supply", "drain"])).def("supply"),
-            field("dia", "Pipe diameter (mm; blank: 20 supply, 100 drain)", Kind::Number).mm(),
+            field("service", "Service", Kind::Choice(&["cold", "hot", "drain"])).def("cold"),
+            field("dia", "Pipe diameter (mm; blank: 20 cold, 15 hot, 100 drain)", Kind::Number).mm(),
+            field("points", "Pipe run: pick points, Enter to finish", Kind::Points).req(),
+        ],
+    },
+    Form {
+        id: "plumbing.pipe.cold",
+        title: "Cold Water Pipe",
+        wrap: None,
+        fields: &[
+            field("dia", "Pipe diameter (mm)", Kind::Choice(&["15", "20", "25", "32", "40", "50"])).def("20"),
+            field("points", "Pipe run: pick points, Enter to finish", Kind::Points).req(),
+        ],
+    },
+    Form {
+        id: "plumbing.pipe.hot",
+        title: "Hot Water Pipe",
+        wrap: None,
+        fields: &[
+            field("dia", "Pipe diameter (mm)", Kind::Choice(&["15", "20", "25"])).def("15"),
+            field("points", "Pipe run: pick points, Enter to finish", Kind::Points).req(),
+        ],
+    },
+    Form {
+        id: "plumbing.pipe.drain",
+        title: "Drain Pipe",
+        wrap: None,
+        fields: &[
+            field("dia", "Pipe diameter (mm)", Kind::Choice(&["50", "75", "100", "110", "150"])).def("100"),
             field("points", "Pipe run: pick points, Enter to finish", Kind::Points).req(),
         ],
     },
@@ -615,7 +642,7 @@ pub static FORMS: &[Form] = &[
         id: "plumbing.schedule",
         title: "Plumbing Schedule",
         wrap: None,
-        fields: &[field("mode", "Schedule", Kind::Choice(&["matrix", "fixture", "pipes"])).def("matrix")],
+        fields: &[field("mode", "Schedule", Kind::Choice(&["matrix", "fixture", "pipes", "fittings"])).def("matrix")],
     },
     Form {
         id: "bridge.export",
