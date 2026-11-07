@@ -154,6 +154,28 @@ internal static partial class ToolIcons
                 pen.Accent(5, 12, 19, 12);
                 pen.Base(5, 17, 19, 17);
                 break;
+            case "plumbing.pipe":
+                pen.Stroke(false, pen.AccentBrush, (4, 19), (4, 8), (18, 8), (18, 19));
+                pen.Circle(4, 8, 2, pen.BaseBrush);
+                pen.Circle(18, 8, 2, pen.BaseBrush);
+                break;
+            case "plumbing.number":
+                pen.Circle(8, 8, 3, pen.BaseBrush);
+                pen.Circle(16, 16, 3, pen.AccentBrush);
+                pen.Label("1", 8, 9, 5, pen.AccentBrush);
+                pen.Label("2", 16, 17, 5, pen.BaseBrush);
+                break;
+            case "plumbing.connect":
+                pen.Circle(6, 17, 2.5, pen.BaseBrush);
+                pen.Circle(18, 6, 2.5, pen.AccentBrush);
+                pen.Stroke(false, pen.AccentBrush, (6, 15), (6, 8), (18, 8));
+                break;
+            case "plumbing.schedule":
+                pen.Base(5, 7, 19, 7);
+                pen.Accent(5, 12, 19, 12);
+                pen.Base(5, 17, 19, 17);
+                pen.Accent(10, 5, 10, 19);
+                break;
             case "plumb.wc.european":
                 pen.Box(8, 4, 8, 4, pen.BaseBrush);
                 pen.Stroke(true, pen.AccentBrush, (7, 8), (6, 18), (18, 18), (17, 8));
