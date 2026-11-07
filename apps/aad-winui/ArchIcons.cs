@@ -48,6 +48,10 @@ internal static partial class ToolIcons
                 pen.Stroke(true, pen.AccentBrush, (4, 18), (6, 5), (19, 7), (20, 19));
                 pen.Label("A", 12, 13, 8, pen.BaseBrush);
                 break;
+            case "room.lighting":
+                pen.Box(4, 5, 16, 14, pen.BaseBrush);
+                pen.Circle(12, 12, 3, pen.AccentBrush);
+                break;
             case "grid.axis":
                 pen.Base(4, 6, 4, 20);
                 pen.Base(12, 4, 12, 20);

@@ -5930,6 +5930,7 @@ public sealed partial class MainWindow : Window
         ("wall.window", "Window"),
         ("room", "Room"),
         ("rarea", "Room area"),
+        ("room.lighting", "Room lighting"),
         ("grid.axis", "Axis grid"),
         ("column.place", "Column"),
         ("stair.plan", "Stair"),
