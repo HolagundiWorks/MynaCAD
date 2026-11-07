@@ -30,13 +30,13 @@ A drawing that is already flat opens unchanged: no undo step, no message, not ma
 | `examined` | entities looked at |
 | `flattened` | entities whose coordinates, elevation or thickness changed |
 | `unsupported3d` | 3D-only objects kept as read, by DXF type (`3DSOLID`, `BODY`, `MESH`, the surface types, `LIGHT`, `CAMERA`, `SECTION`) |
-| `unmodelled` | other object types O-Draft does not model, kept as read, by DXF type |
+| `unmodelled` | other object types Tren does not model, kept as read, by DXF type |
 | `tiltedPlanes` | entities whose extrusion direction is not parallel to Z; their z values are zeroed but the plane is not projected |
 
 ### Limits
 
 - 3D solids, surfaces and meshes are not converted; they stay in the drawing as raw data and are
-  reported. They are not drawn or editable. Saving writes only the object types O-Draft models,
+  reported. They are not drawn or editable. Saving writes only the object types Tren models,
   and says which it could not write (`notSaved`).
 - Polyface and polygon meshes are dropped by the reader, not reported by the flattener.
 - Hidden-edge flags of 3D faces are not kept.
@@ -48,7 +48,7 @@ A drawing that is already flat opens unchanged: no undo step, no message, not ma
 
 The first time a save replaces an existing file, the old file is copied to `<name>.bak` (for
 example `plan.dxf.bak`). The backup is made once and never replaced by later saves, so it stays the
-file as it was before O-Draft first overwrote it. If the backup cannot be written the save is
+file as it was before Tren first overwrote it. If the backup cannot be written the save is
 refused. On the web build, which has no file system, saving downloads a new file and nothing is
 overwritten.
 

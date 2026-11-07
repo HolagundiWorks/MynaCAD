@@ -56,7 +56,6 @@ internal static class Density
     public const double MenuBarHeight = 24;
     public const double MenuItemHeight = 22;
     public const double FileTabHeight = 28;
-    public const double ArchBarHeight = 28;
     public const double StatusBarHeight = 22;
     public const double CommandLineHeight = 22;
     public const double PropertyRowHeight = 24;

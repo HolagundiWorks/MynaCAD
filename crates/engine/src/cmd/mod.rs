@@ -56,6 +56,7 @@ mod projwizard;
 mod props;
 mod qselect;
 mod revision;
+mod lighting;
 mod roomtools;
 mod schedule;
 mod scriptcmd;

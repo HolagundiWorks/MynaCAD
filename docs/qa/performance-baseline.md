@@ -32,7 +32,7 @@ Notes:
 
 | Metric | Result | Method |
 |---|---|---|
-| Cold start to titled main window | **470 ms** | Start process; poll until `MainWindowTitle` matches `O-Draft*`; Debug x64 unpackaged |
+| Cold start to titled main window | **470 ms** | Start process; poll until `MainWindowTitle` matches `Tren*`; Debug x64 unpackaged |
 | Warm start | not measured | |
 | Time to canvas usable / 0 entities chrome | not separately timed | Screenshot at ~few seconds shows empty Drawing1 |
 

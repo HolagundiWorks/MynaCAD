@@ -1,14 +1,14 @@
 ---
-description: O-Studio suite product names, file terms, and banned legacy labels for UI and docs.
+description: Suite product names, file terms, and banned legacy labels for UI and docs.
 alwaysApply: true
 ---
 
 # Suite nomenclature
 
-- **Authority:** `docs/SUITE.md` (canonical in O-Studio repo; keep identical copies in O-CoreOp, O-Draft, and update all when terms change).
-- **User-visible app names:** O-Studio, O-CoreOp, O-Draft, O-UI. Spell exactly; do not shorten to Studio, CoreOp, or Draft in menus, dialogs, or documentation.
-- **Suite hub:** **O-Studio** (company, users, launch sibling apps). Do not refer to **OSAS**, **OSAS.exe**, or a separate launcher in user text.
+- **Authority:** `docs/SUITE.md` (canonical in the Kivo repository `O-STUDIO`; keep identical copies in Falcon, Tren, and update all when terms change).
+- **User-visible app names:** **Kivo** (hub), **Falcon** (quantities), **Tren** (drafting), **Finch** (form, planned), **Myna** (launcher). Spell exactly. Do not shorten them, and do not use the old names O-Studio, O-CoreOp, O-Draft, or O-Form in menus, dialogs, or user-facing sentences. `docs/SUITE.md` may list those old names only as identifiers.
+- **Suite hub:** **Kivo** (company, users, launch sibling apps). **Myna** is the launcher. Do not refer to **OSAS**, **OSAS.exe**, or an unnamed launcher in user text.
 - **Files:** company file = `.osas`; project file = `.osp`. **Take-off** is hyphenated in user text.
-- **Assistant:** **Olmo 3 7B** on loopback **AI Core** `:8742`; O-Studio hosts; O-CoreOp and O-Draft are clients.
-- **Not in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, OSAS as a product name, OSAS.exe. Wire constants: `%LOCALAPPDATA%\O-Studio\`, `OSTUDIO_*` env vars, format ids `osp` and `studio-active-project` — see `docs/SUITE.md` and `Office.Shared.SuiteWire`.
-- **O-UI:** shared WinUI library in repo **`o-ui`**, assembly **`O.Ui`** (`Hcw.Ui` / hcw-ui retired).
+- **Assistant:** **Olmo 3 7B** on loopback **AI Core** `:8742`; Myna hosts; Kivo, Falcon and Tren are clients.
+- **Not in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, OSAS as a product name, OSAS.exe, and the old app names O-Studio, O-CoreOp, O-Draft, O-Form. Wire constants stay: `%LOCALAPPDATA%\O-Studio\`, `OSTUDIO_*` env vars, ticket ids `O-Studio` / `O-CoreOp` / `O-Draft` / `O-Form`, install folders and executable names, format ids `osp` and `studio-active-project` — see `docs/SUITE.md` and `Office.Shared.SuiteWire`.
+- **O-UI:** shared WinUI library in repo **`o-ui`**, assembly **`O.Ui`** (`Hcw.Ui` / hcw-ui retired). Not a user-visible app name.

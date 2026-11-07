@@ -7,7 +7,7 @@ overlay and Phase 6 visual node canvas are implemented. Capability matrix: [stat
 ## Goal
 
 Make the companion graph engine useful for real architectural plans by connecting it to
-O-Draft's new features (levels, sheet sets, title plate, smart blocks, project details,
+Tren's new features (levels, sheet sets, title plate, smart blocks, project details,
 WinUI design system) while keeping both repos independently buildable and the pipe protocol
 versionable.
 
@@ -24,7 +24,7 @@ versionable.
 | `ODraft.Graph` | `GraphEngine.Evaluate` with drafting + context + insert/title/annotation nodes, `GraphContext`, topological sort, diagnostics, geometry + `inserts`/`titleFields`/`texts`/`dimensions` |
 | `ODynamo.Host` | WPF window (JSON editor + Run), pipe v2 (`evaluate`, `ping`, `context.*`, `subscribe`), named pipe `ODraft.Dynamo` |
 
-### O-Draft engine commands that generate the same geometry
+### Tren engine commands that generate the same geometry
 
 | Engine command | What it draws | Layer |
 |---|---|---|
@@ -62,21 +62,21 @@ Sample graph: `ODynamo.Host/graphs/plan-elements.json`.
 
 **Pipe output:** `result.arcs: [{cx, cy, r, startAngle, endAngle, layer}]` (radians, CCW from +X).
 
-**No O-Draft changes.** The engine does not need to know about arcs from the companion until
+**No Tren changes.** The engine does not need to know about arcs from the companion until
 Phase 3.
 
 ---
 
 ### Phase 2 — Pipe protocol v2: context and subscription (both repos) — **done**
 
-**Goal:** O-Draft sends drawing context (levels, project details) to the companion; the
+**Goal:** Tren sends drawing context (levels, project details) to the companion; the
 companion can push live results without polling.
 
-#### 2a — Context methods (O-Draft → Host)
+#### 2a — Context methods (Tren → Host)
 
 Add two request methods to the pipe protocol:
 
-| Method | Payload (from O-Draft) | Purpose |
+| Method | Payload (from Tren) | Purpose |
 |---|---|---|
 | `context.levels` | `{ levels: [{name, elevation, height, active}] }` | Graph nodes can target a level |
 | `context.project` | `{ name, owner, architect, units, scale, floors, … }` | Graph nodes can read project fields |
@@ -90,7 +90,7 @@ Add two request methods to the pipe protocol:
 | `ODraft.Graph/GraphEngine.cs` | `Evaluate` accepts `GraphContext?`. New node types: `levelSelect` (dropdown, value is a level name, outputs the name as a string and the elevation/height as numbers), `projectField` (reads a named field from the project JSON). |
 | Tests | `levelSelect` outputs the level name; `projectField` reads the project title. |
 
-**O-Draft changes:**
+**Tren changes:**
 
 | File | Change |
 |---|---|
@@ -102,23 +102,23 @@ Add two request methods to the pipe protocol:
 The `ParametricBridge.cs` that was removed is **not restored**. The new `companion.*` commands
 are engine commands, not UI code. The WinUI shell invokes them through `app.run`.
 
-#### 2b — Live subscription (Host → O-Draft)
+#### 2b — Live subscription (Host → Tren)
 
 | Method | Direction | Payload |
 |---|---|---|
-| `subscribe` | O-Draft → Host | `{}` — the host will push `evaluation` messages whenever the graph changes (debounced 300 ms). |
-| `evaluation` | Host → O-Draft (push) | Same shape as `evaluate` response. |
-| `unsubscribe` | O-Draft → Host | Stop pushing. |
-| `drawing.changed` | O-Draft → Host | `{ selection?, layers?, activeLevel? }` — optional, so `geom.path`-style nodes could track source entities. |
+| `subscribe` | Tren → Host | `{}` — the host will push `evaluation` messages whenever the graph changes (debounced 300 ms). |
+| `evaluation` | Host → Tren (push) | Same shape as `evaluate` response. |
+| `unsubscribe` | Tren → Host | Stop pushing. |
+| `drawing.changed` | Tren → Host | `{ selection?, layers?, activeLevel? }` — optional, so `geom.path`-style nodes could track source entities. |
 
 **O-Dynamo changes:**
 
 | File | Change |
 |---|---|
 | `PipeServer.cs` | Refactor from one-shot (read line, write line, close) to a persistent duplex connection. On `subscribe`, set a flag; on `GraphBox.TextChanged` (debounced), push an `evaluation` to the writer. On `unsubscribe` or disconnect, clear the flag. |
-| `MainWindow.xaml.cs` | Wire `GraphBox.TextChanged` → debounced push. Show "O-Draft connected" in the status bar. |
+| `MainWindow.xaml.cs` | Wire `GraphBox.TextChanged` → debounced push. Show "Tren connected" in the status bar. |
 
-**O-Draft changes:**
+**Tren changes:**
 
 | File | Change |
 |---|---|
@@ -171,7 +171,7 @@ fields.
 | `GraphResult` | Gains `IReadOnlyList<GraphInsert> Inserts`. |
 | Tests | `blockInsert` node produces one insert with the given attributes. |
 
-**O-Draft changes:**
+**Tren changes:**
 
 | File | Change |
 |---|---|
@@ -186,7 +186,7 @@ fields.
 | `GraphEngine.cs` | New node type `titleField`: inputs `field` (one of SCALE, REV, DATE, DRAWN_BY, etc.) and `value`. Output: a `GraphTitleField` record. |
 | `GraphResult` | Gains `IReadOnlyList<GraphTitleField> TitleFields`. |
 
-**O-Draft changes:**
+**Tren changes:**
 
 | File | Change |
 |---|---|
@@ -214,7 +214,7 @@ the design geometry.
 | `GraphEngine.cs` | New node types: `textNote` (inputs: text, x, y, height, rotation, layer, level, sheetSet), `dimLinear` (inputs: p1, p2, offset, layer, level, sheetSet). Output: `GraphText`, `GraphDimension` records. |
 | `GraphResult` | Gains `Texts` and `Dimensions` lists. |
 
-**O-Draft changes:**
+**Tren changes:**
 
 | File | Change |
 |---|---|
@@ -226,7 +226,7 @@ Ground, and switching to Design mode does not show it.
 
 ---
 
-### Phase 6 — WinUI graph editor (O-Draft only, optional) — **done** (visual + JSON)
+### Phase 6 — WinUI graph editor (Tren only, optional) — **done** (visual + JSON)
 
 **Shipped:** Side rail **Graph** tab with node canvas (drag cards, add wall/door/number,
 double-click to edit JSON fields), JSON mode, Evaluate and Commit. When the sibling `O-Dynamo`
@@ -250,7 +250,7 @@ the separate process and the pipe.
    when open, the full node editor is visible.
 
 **O-Dynamo remains buildable** as a standalone tool for users who prefer the separate window
-or use it without O-Draft.
+or use it without Tren.
 
 **Done when:** A wall + door graph can be built entirely in the Graph window, committed to the
 drawing, and undone. The WPF host still works independently.
@@ -282,7 +282,7 @@ Phases 1 and 2a are independent and can run in parallel.
 
 ## Work estimates
 
-| Phase | O-Dynamo | O-Draft | Tests | Total |
+| Phase | O-Dynamo | Tren | Tests | Total |
 |---|---|---|---|---|
 | 1 — New nodes | Geometry + Engine: 5 node types, ~200 LOC | — | 5 tests | Small |
 | 2a — Context | PipeServer + GraphContext: ~120 LOC | companion.rs: ~250 LOC, menu items | 4 tests | Medium |
@@ -299,7 +299,7 @@ Phases 1 and 2a are independent and can run in parallel.
 
 | Risk | Mitigation |
 |---|---|
-| Pipe protocol breaks between versions | Version field (`v: 2`) on every message; host ignores unknown methods; O-Draft falls back to v1 if `context.*` is refused |
+| Pipe protocol breaks between versions | Version field (`v: 2`) on every message; host ignores unknown methods; Tren falls back to v1 if `context.*` is refused |
 | Level names in the graph drift from the drawing | `context.levels` is sent on every connect and on every `level.new` / `level.set` / `level.delete`; the graph validates level names against the last context |
 | Block names from the graph don't match the drawing | `companion.commit` warns (does not crash) and skips unknown blocks; the user sees which blocks are missing |
 | WPF and WinUI in one solution | Phase 6 does not replace O-Dynamo; it adds an alternative. The pipe stays for the standalone host |
@@ -316,7 +316,7 @@ Every phase lands with:
 2. **Engine tests** in `crates/engine/tests/companion.rs` for `companion.connect` (mock pipe
    or error), `companion.commit` (entities on the right level/sheet-set), and hostile inputs
    (NaN coordinates, missing levels, empty graph).
-3. **Integration test** via the control protocol: start O-Draft with `--control`, start
+3. **Integration test** via the control protocol: start Tren with `--control`, start
    `ODynamo.Host`, send `companion.connect` + `companion.evaluate` + `companion.commit` +
    `drawing.inspect`, assert entity counts.
 4. **Quality gate:** `cargo xtask ci` (Rust) and `dotnet test` (C#) both pass before any

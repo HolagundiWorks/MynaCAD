@@ -1,6 +1,6 @@
-# Contributing to O-Draft
+# Contributing to Tren
 
-O-Draft is open source under MIT OR Apache-2.0. Contributions are
+Tren is open source under MIT OR Apache-2.0. Contributions are
 welcome under the same terms.
 
 1. Read [CLAUDE.md](CLAUDE.md): scope (2D only), the never-crash rules, clean-room and asset rules.
@@ -30,7 +30,7 @@ Report bugs and security issues through GitHub issues; for a security issue, ope
 
 ## Licence of contributions
 
-O-Draft is licensed under the MIT License or the Apache License 2.0, at the user's option (see
+Tren is licensed under the MIT License or the Apache License 2.0, at the user's option (see
 [LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE) and [NOTICE](NOTICE)). Unless you say
 otherwise, any contribution you submit for inclusion is licensed under the same two licences,
 without additional terms or conditions, as the Apache License 2.0 section 5 describes. Only submit

@@ -104,6 +104,153 @@ internal static partial class ToolIcons
                 pen.Base(3, 14, 3, 20);
                 pen.Base(21, 14, 21, 20);
                 break;
+            case "elec.light":
+                pen.Circle(12, 12, 6, pen.AccentBrush);
+                pen.Accent(12, 4, 12, 20);
+                pen.Accent(4, 12, 20, 12);
+                break;
+            case "elec.socket":
+                pen.Box(6, 7, 12, 10, pen.BaseBrush);
+                pen.Dot(10, 12);
+                pen.Dot(14, 12);
+                break;
+            case "elec.switchboard":
+                pen.Box(3, 8, 18, 8, pen.BaseBrush);
+                pen.Dot(7, 12);
+                pen.Dot(12, 12);
+                pen.Dot(17, 12);
+                break;
+            case "elec.fan.ceiling":
+                pen.Circle(12, 12, 7, pen.BaseBrush);
+                pen.Accent(12, 12, 12, 5);
+                pen.Accent(12, 12, 18, 16);
+                pen.Accent(12, 12, 6, 16);
+                break;
+            case "elec.downlight":
+                pen.Circle(12, 12, 7, pen.BaseBrush);
+                pen.Circle(12, 12, 3, pen.AccentBrush);
+                break;
+            case "elec.db":
+                pen.Box(5, 4, 14, 16, pen.BaseBrush);
+                pen.Label("DB", 12, 13, 6, pen.AccentBrush);
+                break;
+            case "electrical.number":
+                pen.Circle(8, 8, 3, pen.BaseBrush);
+                pen.Circle(16, 16, 3, pen.AccentBrush);
+                pen.Label("1", 8, 9, 5, pen.AccentBrush);
+                pen.Label("2", 16, 17, 5, pen.BaseBrush);
+                break;
+            case "electrical.connect":
+                pen.Circle(6, 16, 2.5, pen.BaseBrush);
+                pen.Circle(18, 8, 2.5, pen.AccentBrush);
+                pen.Accent(7, 15, 17, 9);
+                break;
+            case "electrical.schedule":
+                pen.Base(5, 7, 19, 7);
+                pen.Accent(5, 12, 19, 12);
+                pen.Base(5, 17, 19, 17);
+                break;
+            case "plumb.wc.european":
+                pen.Box(8, 4, 8, 4, pen.BaseBrush);
+                pen.Stroke(true, pen.AccentBrush, (7, 8), (6, 18), (18, 18), (17, 8));
+                break;
+            case "plumb.wc.indian":
+                pen.Stroke(true, pen.BaseBrush, (6, 6), (18, 6), (16, 18), (8, 18));
+                pen.Accent(12, 8, 12, 16);
+                break;
+            case "plumb.basin":
+                pen.Box(4, 7, 16, 10, pen.BaseBrush);
+                pen.Circle(12, 12, 3, pen.AccentBrush);
+                break;
+            case "plumb.sink.kitchen":
+                pen.Box(3, 7, 8, 10, pen.BaseBrush);
+                pen.Box(13, 7, 8, 10, pen.AccentBrush);
+                break;
+            case "plumb.shower":
+                pen.Box(5, 5, 14, 14, pen.BaseBrush);
+                pen.Dot(12, 12);
+                pen.Accent(12, 5, 12, 9);
+                break;
+            case "plumb.floor.trap":
+                pen.Box(6, 6, 12, 12, pen.BaseBrush);
+                pen.Accent(6, 6, 18, 18);
+                pen.Accent(18, 6, 6, 18);
+                break;
+            case "plumb.chamber":
+                pen.Box(4, 4, 16, 16, pen.BaseBrush);
+                pen.Box(8, 8, 8, 8, pen.AccentBrush);
+                break;
+            case "plumb.tank.round":
+                pen.Circle(12, 12, 8, pen.BaseBrush);
+                pen.Accent(6, 12, 18, 12);
+                break;
+            case "plumb.riser":
+                pen.Circle(12, 6, 3, pen.AccentBrush);
+                pen.Base(12, 9, 12, 20);
+                pen.Base(8, 20, 16, 20);
+                break;
+            case "int.bed":
+                pen.Box(4, 8, 16, 10, pen.BaseBrush);
+                pen.Box(5, 6, 5, 4, pen.AccentBrush);
+                break;
+            case "int.sofa":
+                pen.Box(4, 9, 16, 7, pen.BaseBrush);
+                pen.Base(4, 9, 4, 16);
+                pen.Base(20, 9, 20, 16);
+                pen.Accent(8, 11, 16, 11);
+                break;
+            case "int.dining.set":
+                pen.Circle(12, 12, 5, pen.BaseBrush);
+                pen.Dot(6, 6);
+                pen.Dot(18, 6);
+                pen.Dot(6, 18);
+                pen.Dot(18, 18);
+                break;
+            case "int.kitchen.counter":
+                pen.Box(3, 6, 18, 6, pen.BaseBrush);
+                pen.Circle(8, 9, 1.5, pen.AccentBrush);
+                pen.Box(14, 7, 5, 4, pen.AccentBrush);
+                break;
+            case "int.wardrobe":
+                pen.Box(6, 3, 12, 18, pen.BaseBrush);
+                pen.Accent(12, 3, 12, 21);
+                break;
+            case "int.shelf":
+                pen.Base(5, 7, 19, 7);
+                pen.Accent(5, 12, 19, 12);
+                pen.Base(5, 17, 19, 17);
+                pen.Base(6, 7, 6, 17);
+                pen.Base(18, 7, 18, 17);
+                break;
+            case "hvac.duct.rect":
+                pen.Box(3, 8, 18, 8, pen.BaseBrush);
+                pen.Accent(3, 12, 21, 12);
+                break;
+            case "hvac.diffuser.square":
+                pen.Box(5, 5, 14, 14, pen.BaseBrush);
+                pen.Accent(5, 12, 19, 12);
+                pen.Accent(12, 5, 12, 19);
+                break;
+            case "hvac.grille":
+                pen.Box(4, 7, 16, 10, pen.BaseBrush);
+                pen.Accent(7, 7, 7, 17);
+                pen.Accent(12, 7, 12, 17);
+                pen.Accent(17, 7, 17, 17);
+                break;
+            case "hvac.split.indoor":
+                pen.Box(3, 8, 18, 8, pen.AccentBrush);
+                pen.Base(6, 11, 18, 11);
+                break;
+            case "hvac.split.outdoor":
+                pen.Box(5, 5, 14, 14, pen.BaseBrush);
+                pen.Circle(12, 12, 4, pen.AccentBrush);
+                break;
+            case "hvac.fan.exhaust":
+                pen.Circle(12, 12, 7, pen.BaseBrush);
+                pen.Accent(12, 12, 12, 6);
+                pen.Accent(12, 12, 17, 15);
+                pen.Accent(12, 12, 7, 15);
+                break;
             case "stair.plan":
                 pen.Stroke(false, pen.AccentBrush, (3, 20), (3, 16), (8, 16), (8, 12), (13, 12), (13, 8), (18, 8), (18, 4), (22, 4));
                 break;

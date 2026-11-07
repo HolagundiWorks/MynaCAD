@@ -1,4 +1,4 @@
-# Releasing O-Draft
+# Releasing Tren
 
 The canonical recipe is craftrules' [`release/playbook.md`](https://github.com/storytold/craftrules/blob/main/release/playbook.md); this file covers only what's AAD-specific.
 
@@ -12,4 +12,4 @@ The canonical recipe is craftrules' [`release/playbook.md`](https://github.com/s
 - **Windows installer:** `packaging/windows/aad.wxs` (WiX v5 + `WixToolset.UI.wixext`). Wizard: Welcome (splash bitmap) → open-source EULA (`EULA.rtf`, MIT OR Apache-2.0) → Shortcuts → Ready. The Start Menu shortcut is always created; the desktop shortcut is opt-in (`DESKTOPSHORTCUT=1` for silent installs, `DESKTOPSHORTCUT=0` drops it on an upgrade; otherwise upgrades keep the previous choice). AI edition: `packaging/windows/package.ps1 -Arch x64 -Assistant` → `o-draft-ai-<version>-windows-x64.msi` (bundles the local model).
 - **File types:** `.dxf` and `.dwg` (macOS document types, Windows "Open with", Linux MIME types).
 - **Local packaging test:** `packaging/macos/package.sh` (ad-hoc signed DMG), `packaging/linux/package.sh`, `packaging/web/package.sh`.
-- **Icons and logo:** the O-Draft logo is drawn in code (`xtask/src/logo.rs`; vector copy in `assets/app-icon/aad-logo.svg`). `cargo xtask logo` regenerates every icon (PNG sizes, Linux hicolor, `.ico`, `.icns`); the outputs are committed, so builds need no image tools.
+- **Icons and logo:** the Tren logo is drawn in code (`xtask/src/logo.rs`; vector copy in `assets/app-icon/aad-logo.svg`). `cargo xtask logo` regenerates every icon (PNG sizes, Linux hicolor, `.ico`, `.icns`); the outputs are committed, so builds need no image tools.

@@ -1,6 +1,6 @@
 # Plot styles
 
-A plot style table decides how objects print. O-Draft applies it to PDF plots (PLOT,
+A plot style table decides how objects print. Tren applies it to PDF plots (PLOT,
 EXPORTPDF and anything that plots through them). It also applies it to a layout shown with
 **Display plot styles** on: on screen and in the layout's PNG and SVG exports.
 
@@ -26,7 +26,7 @@ Colour 7 prints black. `end`, `join` and `fill` are stored but not applied yet.
 
 ### Built-in tables
 
-These are O-Draft's own definitions, not copies of any vendor's files.
+These are Tren's own definitions, not copies of any vendor's files.
 
 | Table | What it does |
 |---|---|

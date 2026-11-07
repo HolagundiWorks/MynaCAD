@@ -2,7 +2,7 @@
 
 > Describes the optional egui window (`aad --egui`): the context bar, the Classic and Pro workspaces and the
 > docked panels are egui features. The default WinUI shell has no context bar (a layer selector in the top bar, level
-> tabs, a sheet-set rail and a right-hand rail of panel titles instead; see [status.md](status.md)). The layer-state
+> tabs, drawing tabs above the drawing and a right-hand rail of panel titles instead; see [status.md](status.md)). The layer-state
 > commands (`space.*`) and the layer protection in the engine apply to both.
 
 What was found, what was built, how it behaves, and what is not done. Written against the code of

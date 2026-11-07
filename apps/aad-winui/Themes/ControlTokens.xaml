@@ -8,7 +8,6 @@
     <x:Double x:Key="MenuBarHeight">24</x:Double>
     <x:Double x:Key="MenuItemHeight">22</x:Double>
     <x:Double x:Key="FileTabHeight">28</x:Double>
-    <x:Double x:Key="ArchBarHeight">28</x:Double>
     <x:Double x:Key="StatusBarHeight">22</x:Double>
     <x:Double x:Key="CommandLineHeight">22</x:Double>
     <x:Double x:Key="PropertyRowHeight">24</x:Double>

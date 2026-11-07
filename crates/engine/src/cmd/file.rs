@@ -594,7 +594,7 @@ fn record_takeoff_if_any(s: &mut Session) {
     match s.execute("takeoff.record", &serde_json::json!({ "annotate": false })) {
         Ok(v) => {
             let slot = v.get("slot").and_then(|n| n.as_u64()).unwrap_or(0);
-            s.echo(format!("Take-off recorded for O-CoreOp (slot {slot})."));
+            s.echo(format!("Take-off recorded for Falcon (slot {slot})."));
         }
         Err(e) => s.echo(format!("Take-off was not recorded: {e}")),
     }

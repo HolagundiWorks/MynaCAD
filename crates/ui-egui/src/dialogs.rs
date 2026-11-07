@@ -238,7 +238,7 @@ fn about(ctx: &egui::Context, open: &mut bool) {
                     });
                 }
                 _ => {
-                    ui.heading("O-Draft");
+                    ui.heading("Tren");
                     ui.label("Drafting with O-Studio and O-CoreOp.");
                     ui.label(crate::tf!("Version {version}", version = env!("CARGO_PKG_VERSION")));
                     ui.add_space(6.0);

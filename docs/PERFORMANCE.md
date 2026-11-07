@@ -251,7 +251,7 @@ Test drawing: `DEMO.dwg` (OneDrive\Documents\OSAS TEST, 1.3 MB, 9 672 entities, 
 
 ### What was already there
 
-O-Draft already draws on the GPU through its own engine: `aad-render` builds a display list (LOD by zoom band, view culling, tiled meshes, a worker thread for band rebuilds) and `aad-host/gpu.rs` presents it with wgpu on DirectX 12, `HighPerformance` adapter, vsync (`AAD_VSYNC=0` turns it off). So the slowness was not "no hardware acceleration" and a new graphics engine would not have fixed it. It was CPU work and data volume feeding the GPU, and UI-thread work after every change.
+Tren already draws on the GPU through its own engine: `aad-render` builds a display list (LOD by zoom band, view culling, tiled meshes, a worker thread for band rebuilds) and `aad-host/gpu.rs` presents it with wgpu on DirectX 12, `HighPerformance` adapter, vsync (`AAD_VSYNC=0` turns it off). So the slowness was not "no hardware acceleration" and a new graphics engine would not have fixed it. It was CPU work and data volume feeding the GPU, and UI-thread work after every change.
 
 ### What was measured, and what was slow
 
@@ -273,7 +273,7 @@ Causes, found with `AAD_PERF=1` and `cargo run --release -p aad-host --example p
 
 ### Tools left in
 
-- `AAD_PERF=1` (set before starting O-Draft): ticks of the UI loop over 40 ms, with the time of each step, and host redraws over 20 ms, go to `%LOCALAPPDATA%\OSAS\odraft-perf.log`. Free when off.
+- `AAD_PERF=1` (set before starting Tren): ticks of the UI loop over 40 ms, with the time of each step, and host redraws over 20 ms, go to `%LOCALAPPDATA%\OSAS\odraft-perf.log`. Free when off.
 - `cargo run --release -p aad-host --example profile_render -- <file.dwg> [cx cy height]`: display list and mesh time and size at six zoom steps, and what text and fill cost.
 
 ### Still slow

@@ -1,14 +1,14 @@
-# Electrical take-off hand-off (O-CoreOp)
+# Electrical take-off hand-off (Falcon)
 
-O-Draft records switchboard and circuit rows in the same project-file take-off as walls and openings
-(`takeoff.record`). Kinds **10** (board) and **11** (circuit) map in O-CoreOp to `electrical` and `electrical_circuits`.
+Tren records switchboard and circuit rows in the same project-file take-off as walls and openings
+(`takeoff.record`). Kinds **10** (board) and **11** (circuit) map in Falcon to `electrical` and `electrical_circuits`.
 
-## O-CoreOp
+## Falcon
 
 `OspTakeoff` maps kind 10 to `electrical` and kind 11 to `electrical_circuits`. `CadImporter`
 imports them like other take-off rows.
 
-## O-Draft
+## Tren
 
 `takeoff.record` emits board and circuit JSON rows when the drawing has electrical layout data.
 See `crates/engine/src/cmd/takeoffrec.rs` and tests in `takeoff_record.rs`.

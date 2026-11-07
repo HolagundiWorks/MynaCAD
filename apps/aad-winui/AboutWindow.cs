@@ -13,16 +13,16 @@ internal static class AboutWindow
     {
         var theme = owner.Content is FrameworkElement shell ? shell.RequestedTheme : ElementTheme.Default;
         var logo = new Image { Width = Density.LogoSize, Height = Density.LogoSize, HorizontalAlignment = HorizontalAlignment.Left, Source = ShellIcon.Logo() };
-        AutomationProperties.SetName(logo, "O-Draft");
+        AutomationProperties.SetName(logo, "Tren");
         var stack = new StackPanel { Spacing = Density.SpaceSm, Margin = Density.DialogMargin };
         stack.Children.Add(logo);
         stack.Children.Add(new TextBlock
         {
-            Text = "O-Draft",
+            Text = "Tren",
             FontSize = Density.FontSection,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         });
-        stack.Children.Add(new TextBlock { Text = "Architectural drafting with O-Studio and O-CoreOp", FontSize = Density.FontBody });
+        stack.Children.Add(new TextBlock { Text = "Architectural drafting with Kivo and Falcon", FontSize = Density.FontBody });
         if (version.Length > 0)
         {
             stack.Children.Add(new TextBlock { Text = "Version " + version, FontSize = Density.FontBody });
@@ -38,7 +38,7 @@ internal static class AboutWindow
         _window?.Close();
         var window = new Window
         {
-            Title = "About O-Draft",
+            Title = "About Tren",
             Content = new Grid { RequestedTheme = theme, Children = { stack } },
         };
         StandardWindow.Present(window, owner, WindowTemplate.Dialog);

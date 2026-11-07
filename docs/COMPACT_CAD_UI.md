@@ -3,7 +3,7 @@
 > Density background and the original sizing pass. The current rules for windows, layout and
 > components are in [UI_STANDARDS.md](UI_STANDARDS.md); where the two differ, that page wins.
 
-Sizing and styling pass for O-Draft WinUI 3 chrome. **No CAD engine, workflow, or command changes.** Density targets compact professional CAD chrome (2007-era scale as a reference).
+Sizing and styling pass for Tren WinUI 3 chrome. **No CAD engine, workflow, or command changes.** Density targets compact professional CAD chrome (2007-era scale as a reference).
 
 ## Design targets (effective pixels / DIP)
 

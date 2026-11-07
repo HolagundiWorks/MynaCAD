@@ -12,10 +12,10 @@ the drawing holds. Checked by hand in the running shell; there is no automated U
 
 ## Company details (`companyfile`)
 
-The O-Studio company file (`document_context`, version 1) gives: company name, address, phone, email,
+The Kivo company file (`document_context`, version 1) gives: company name, address, phone, email,
 PAN, GSTIN, COA registration, one architect name, the preparation date, and the project's name, code,
 site address, summary and client. The panel shows these read only. The Project Wizard has a "Read company
-file" button (`companyfile {refresh: true}`), which needs `OSAS_COMPANY` and a ticket. O-Draft never asks
+file" button (`companyfile {refresh: true}`), which needs `OSAS_COMPANY` and a ticket. Tren never asks
 for the company admin password.
 
 When the drawing holds company-file identity, those fields are **refresh-only**: `project` and

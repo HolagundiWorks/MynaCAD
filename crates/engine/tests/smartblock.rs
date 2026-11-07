@@ -381,6 +381,34 @@ fn the_rcc_tools_place_their_blocks_and_the_defaults_comply_with_is_456() {
 }
 
 #[test]
+fn electrical_and_plumbing_tools_place_their_symbols() {
+    let mut s = metric();
+    for (cmd, id) in [
+        ("elec.light", "elec.light"),
+        ("elec.socket", "elec.socket"),
+        ("elec.switchboard", "elec.switchboard"),
+        ("elec.fan.ceiling", "elec.fan.ceiling"),
+        ("elec.downlight", "elec.downlight"),
+        ("elec.db", "elec.db"),
+        ("plumb.wc.european", "plumb.wc.european"),
+        ("plumb.wc.indian", "plumb.wc.indian"),
+        ("plumb.basin", "plumb.basin"),
+        ("plumb.sink.kitchen", "plumb.sink.kitchen"),
+        ("plumb.shower", "plumb.shower"),
+        ("plumb.floor.trap", "plumb.floor.trap"),
+        ("plumb.chamber", "plumb.chamber"),
+        ("plumb.tank.round", "plumb.tank.round"),
+        ("plumb.riser", "plumb.riser"),
+        ("int.bed", "int.bed"),
+        ("hvac.diffuser.square", "hvac.diffuser.square"),
+    ] {
+        let r = s.execute(cmd, &json!({ "at": [0.0, 0.0] })).unwrap();
+        let got = s.execute("smartblock.get", &json!({ "handle": r["handle"] })).unwrap();
+        assert_eq!(got["id"], id, "{cmd}");
+    }
+}
+
+#[test]
 fn properties_list_the_is_456_result_and_follow_an_edit() {
     let mut s = metric();
     let r = s.execute("rcc.column", &json!({ "at": [0, 0] })).unwrap();

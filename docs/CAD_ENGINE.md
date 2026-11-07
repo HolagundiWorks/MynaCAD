@@ -72,7 +72,7 @@ the original drawing and that a failed command changes nothing.
 - 3D content is flattened to 2D on import and reported; 3D solids, surfaces and meshes are kept as
   raw data and not converted ([maintenance.md](maintenance.md)).
 - Export: PDF, SVG, PNG; plotting with plot style tables ([plot-styles.md](plot-styles.md)).
-- Object types O-Draft does not model are kept when read and are not written back; the save reports them.
+- Object types Tren does not model are kept when read and are not written back; the save reports them.
 
 ## Known precision and compatibility limits
 

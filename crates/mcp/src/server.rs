@@ -104,7 +104,7 @@ impl Server {
                 Ok(json!({
                     "protocolVersion": version,
                     "capabilities": {"tools": {"listChanged": false}, "resources": {"listChanged": false}},
-                    "serverInfo": {"name": "aad", "title": "O-Draft", "version": env!("CARGO_PKG_VERSION")},
+                    "serverInfo": {"name": "aad", "title": "Tren", "version": env!("CARGO_PKG_VERSION")},
                     "instructions": format!("{INSTRUCTIONS} Backend: {}.", self.backend.describe()),
                 }))
             }

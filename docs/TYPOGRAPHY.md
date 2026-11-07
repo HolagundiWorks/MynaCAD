@@ -101,7 +101,7 @@ to include the fonts only when `package.ps1` printed `fonts: N file(s)` for that
   project's drawings (from `project.json`). Applying backs each changed drawing up to
   `backups/fonts-NNN/`, saves it, and writes `report.json` with the hash of what was written.
   `fonts.rollback {root, id}` restores those drawings byte for byte and leaves alone any drawing
-  edited since. The styles O-Draft creates for roles are recognised by name.
+  edited since. The styles Tren creates for roles are recognised by name.
 - **Clipping and overlap**: for single-line text the migration measures the width in the old and the
   new font and lists text that gets more than 5% wider (`growth`: handle, text, both widths, and the
   neighbours on the same baseline it now reaches). MTEXT, rotated or non-left-aligned text,
@@ -115,6 +115,6 @@ to include the fonts only when `package.ps1` printed `fonts: N file(s)` for that
 |---|---|
 | Other presets (Source, Noto, Roboto, Fira) | Defined and selectable; their files and licences are unverified until obtained the same way |
 | Measuring more text | MTEXT wrapping, rotated or centred text, block attributes, dimension text and table cells are not measured for growth |
-| DWG | Not tested: this build writes DXF. External CAD software may substitute the fonts; the migration only reports what O-Draft itself can see |
+| DWG | Not tested: this build writes DXF. External CAD software may substitute the fonts; the migration only reports what Tren itself can see |
 | Saved migration report beyond JSON | The report is a JSON file; there is no report viewer |
 | Template editor | Typography is part of the project configuration; there is no template editor UI for drawing-set font roles yet |

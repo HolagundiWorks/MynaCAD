@@ -1,4 +1,4 @@
-# O-Draft canvas rendering: review and roadmap
+# Tren canvas rendering: review and roadmap
 
 Source plan: *ODraft canvas rendering review and plan* (Oct 26, 2026).  
 Branch work: `fix/canvas-phase3-gpu-curves` (Phases 1–2 landed earlier).

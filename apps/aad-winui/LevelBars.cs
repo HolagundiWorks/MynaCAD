@@ -4,12 +4,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media;
 
 namespace Aad.WinUi;
 
 /// <summary>
-/// Level tabs under the drawing and the sheet-set rail beside it. Both are thin views of the
+/// Level tabs under the drawing and the drawing tabs above it. Both are thin views of the
 /// chrome state: every click runs an engine command (<c>level.*</c>, <c>sheetset.*</c>), and the
 /// forms for new level, level settings and delete level come from the engine
 /// (<c>forms.rs</c>), like the other dialogs.
@@ -78,7 +77,7 @@ public sealed partial class MainWindow
     private void ShowLevelBars(ChromeState state)
     {
         ShowLevelTabs(state);
-        ShowSheetRail(state);
+        ShowSheetTabs(state);
     }
 
     private void ShowLevelTabs(ChromeState state)
@@ -246,7 +245,7 @@ public sealed partial class MainWindow
         ShowSidePanel(SideTab.History);
     }
 
-    private void ShowSheetRail(ChromeState state)
+    private void ShowSheetTabs(ChromeState state)
     {
         var key = state.DesignMode + "|" + string.Join("|", state.SheetSets.Select(s => s.Id + ":" + s.Name + ":" + s.Active + ":" + s.LayerPrefix));
         if (key == _sheetKey)
@@ -255,7 +254,9 @@ public sealed partial class MainWindow
         }
         _sheetKey = key;
         TabRow.Children.Clear();
-        _activeTabName = state.SheetSets.FirstOrDefault(x => x.Active)?.Name ?? "Design";
+        var active = state.SheetSets.FirstOrDefault(x => x.Active);
+        _activeTabName = active?.Name ?? "Design";
+        _activeLayerPrefix = active?.LayerPrefix ?? "";
         _tabNames = new List<string> { "Design" };
         _tabNames.AddRange(state.SheetSets.Select(x => x.Name));
         TabRow.Children.Add(MakeTopTab(
@@ -285,6 +286,7 @@ public sealed partial class MainWindow
                 false,
                 () => RunShellCommand("sheetset.standard", new Dictionary<string, object>())));
         }
+        RebuildArchitectureBar();
     }
 
     /// <summary>A sheet tab above the drawing: its name; the active tab takes the canvas colour with an accent line on top. Right-click opens the tab's menu.</summary>
@@ -336,47 +338,6 @@ public sealed partial class MainWindow
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
         menu.Items.Add(history);
         return menu;
-    }
-
-    /// <summary>
-    /// A vertical tab: the name is rotated 90 degrees (reading upward) inside a canvas of fixed size,
-    /// because a render transform does not change layout and the canvas does not clip.
-    /// </summary>
-    private static Button MakeRailEntry(string name, string tip, bool active, Action activate, Func<MenuFlyout>? menu = null)
-    {
-        const double width = 26;
-        const double lineHeight = 15;
-        var length = Math.Clamp(name.Length * 6.5 + 28, 72, 168);
-        var text = new TextBlock
-        {
-            Text = name,
-            Width = length,
-            TextAlignment = TextAlignment.Center,
-            FontSize = Density.FontCaption,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal,
-            RenderTransformOrigin = new Windows.Foundation.Point(0, 0),
-            RenderTransform = new RotateTransform { Angle = -90 },
-        };
-        Canvas.SetLeft(text, (width - lineHeight) / 2);
-        Canvas.SetTop(text, length);
-        var entry = SeamlessTab.Create(new Canvas { Width = width, Height = length, Children = { text } }, active, TabEdge.Left, new Thickness(0));
-        entry.Width = width;
-        entry.Height = length;
-        entry.MinWidth = width;
-        entry.MinHeight = length;
-        AutomationProperties.SetName(entry, (active ? "Current: " : "Switch to ") + name);
-        ToolTipService.SetToolTip(entry, tip + (menu != null ? "  (right-click for more)" : ""));
-        entry.Click += (_, _) => activate();
-        if (menu != null)
-        {
-            entry.RightTapped += (_, e) =>
-            {
-                e.Handled = true;
-                menu().ShowAt(entry, new FlyoutShowOptions { Placement = FlyoutPlacementMode.RightEdgeAlignedTop });
-            };
-        }
-        return entry;
     }
 
     private void OnLevelsWindow(object sender, RoutedEventArgs e) => OpenStorySettings();

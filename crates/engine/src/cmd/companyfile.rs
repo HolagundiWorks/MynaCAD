@@ -36,7 +36,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{context?: a `document_context` answer, open?: true (open the company file OSAS gave this start), projects?: true, project_id?: n (read that project), refresh?: true (read the drawing's project again)} → {connected, linked, company, details, projects?, suite?}"),
         CommandSpec::new("company.pack.import", "Import Company Details", run_pack_import)
             .menu(&["Architecture", "Project", "Import Company Details"])
-            .params("{path: an osas-company-pack JSON exported from O-Studio} → {company, details}. Fills title-block fields from the file. Does not open the company file or talk to O-Studio."),
+            .params("{path: an osas-company-pack JSON exported from Kivo} → {company, details}. Fills title-block fields from the file. Does not open the company file or talk to Kivo."),
         CommandSpec::new("company.pack.export", "Export Company Details", run_pack_export)
             .params("{path} → {path, bytes}. Writes the company details already stored in this drawing."),
     ]
@@ -164,7 +164,7 @@ fn run_pack_import(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let pack: Value = serde_json::from_slice(&bytes).map_err(|e| bad("company.pack.import", e.to_string()))?;
     if pack.get("format").and_then(Value::as_str) != Some(PACK_FORMAT) {
-        return Err(bad("company.pack.import", "this file is not an O-Studio company pack"));
+        return Err(bad("company.pack.import", "this file is not a Kivo company pack"));
     }
     let firm = pack.get("company").filter(|c| c.is_object()).ok_or_else(|| bad("company.pack.import", "`company` is missing"))?;
     // Firm identity only: no project link, so O-Draft does not call O-Studio.

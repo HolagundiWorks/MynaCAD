@@ -1,8 +1,8 @@
 # PDF underlay for take-off
 
-A project whose drawings exist only as PDF can be measured in O-Draft. The PDF page is read, drawn as ordinary
+A project whose drawings exist only as PDF can be measured in Tren. The PDF page is read, drawn as ordinary
 polylines on its own layer, calibrated to a real distance, and measured over with the same `takeoff.*` tools as
-any drawing. This is item 3.5 of the O-CoreOp hand-off.
+any drawing. This is item 3.5 of the Falcon hand-off.
 
 ## Design
 
@@ -51,7 +51,7 @@ fills?, lineweights?, curves?}` brings a page in as drawing objects instead, in 
 | stroked path, closed or ending where it began | `LwPolyline` (closed when it closes); a round closed shape (a dozen points from curves, two dozen from short lines, within 1% of a circle) is a `Circle` |
 | filled path | solid `Hatch` in the fill colour (a page-sized or white fill is the paper and is dropped) |
 | text shown with a simple font, or a font with a ToUnicode map | `Text` at its position, angle and colour; height is 0.72 of the em size |
-| optional-content group (what a CAD export writes for layers, O-Draft's own PDF export included) | the drawing layer of that name |
+| optional-content group (what a CAD export writes for layers, Tren's own PDF export included) | the drawing layer of that name |
 
 Everything else sorts by pen colour onto layers named `PDF-RRGGBB` (`layers: "colour"`, or the fallback for
 paths outside any group); `layers: "single"` puts it all on `layer`. Black and white become colour 7, other
@@ -62,7 +62,7 @@ font without a character map (counted in `skipped.text`), invisible OCR text. Cu
 an arc or spline becomes a polyline. Text is placed from the font size alone (no glyph widths), so a string
 shown in pieces without repositioning can overlap.
 
-Verified by `apps/aad-cli/tests/pdf_import.rs` (a layered drawing plotted by O-Draft comes back on its layers
+Verified by `apps/aad-cli/tests/pdf_import.rs` (a layered drawing plotted by Tren comes back on its layers
 with a line, a circle and a closed polyline; one undo step; colour and single-layer modes; text, a solid hatch,
 the scale and the insertion point on a hand-made page; bad requests change nothing) and the reader tests in
 `crates/io/src/pdfread.rs` (colours, optional-content names including UTF-16, text position, size, angle and

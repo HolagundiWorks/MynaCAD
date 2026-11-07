@@ -32,7 +32,7 @@ internal static class SavePrompt
 
         var window = new Window
         {
-            Title = "O-Draft",
+            Title = "Tren",
             Content = root,
         };
         var answered = false;

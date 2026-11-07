@@ -71,8 +71,8 @@ internal static class UpdateCheck
             var newer = CompareVersions(latest, currentVersion) > 0;
             return new Result(true, newer, currentVersion, latest,
                 newer
-                    ? $"A newer O-Draft is listed: {latest} (you have {currentVersion})."
-                    : $"You have the latest listed O-Draft ({currentVersion}).");
+                    ? $"A newer Tren is listed: {latest} (you have {currentVersion})."
+                    : $"You have the latest listed Tren ({currentVersion}).");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
         {

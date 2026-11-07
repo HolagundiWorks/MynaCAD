@@ -1,7 +1,7 @@
 # Levels and sheet sets
 
-**Status: the engine side of all five phases is done. The WinUI shell has level tabs, a sheet-set
-rail, a Trace settings form, and a Navigator for Compose Views, Master Layouts and Publisher Sets
+**Status: the engine side of all five phases is done. The WinUI shell has level tabs, drawing tabs
+above the drawing, a Trace settings form, and a Navigator for Compose Views, Master Layouts and Publisher Sets
 (see "WinUI shell status" and "Compose and publish").** The annotation tool strip, a viewport Level /
 Sheet set / Traces editor, a Show-for dropdown in the Layer manager, the new-drawing option, the
 take-off level ids and the egui tabs are not built. Only what the "Phase N status" sections list is
@@ -17,7 +17,7 @@ levels read-only). Every phase is useful and testable alone, starting with level
 - Levels replace the single Model tab. Each level (Basement, Ground, First, Terrace, ...) is a model
   space for drafting and design. Level tabs sit at the bottom, where the Model tab is now.
 - Any level can be **traced** under any other, several at once.
-- Sheet sets are tabs on the left (Working drawing, Electrical, Plumbing, Interior, False ceiling).
+- Sheet sets are tabs above the drawing (Working drawing, Electrical, Plumbing, Interior, False ceiling).
   They hold annotation and dimensions, reference levels, and never change design geometry.
 - Paper layouts stay. Each viewport says which level, section or elevation and which sheet set it shows.
 - **Sections and elevations** (added 2026-10-27) are a second kind of model space, drafted by hand
@@ -42,7 +42,7 @@ levels read-only). Every phase is useful and testable alone, starting with level
 
 ## Compose and publish (engine)
 
-ArchiCAD separates Stories → Views → Layout Book → Publisher. O-Draft maps that as Levels → Compose Views → Layouts (with Masters) → Publisher Sets. The WinUI **Navigator** window (File > Publish, or Architecture > Sheets) shows the three trees and the one-button **Publish and record take-off**.
+ArchiCAD separates Stories → Views → Layout Book → Publisher. Tren maps that as Levels → Compose Views → Layouts (with Masters) → Publisher Sets. The WinUI **Navigator** window (File > Publish, or Architecture > Sheets) shows the three trees and the one-button **Publish and record take-off**.
 
 | Command family | Purpose |
 |---|---|
@@ -105,7 +105,7 @@ as traces). Guides are never saved; they are recomputed on open. What the user d
 Guide maths is planned for `crates/engine/src/sectionguide.rs` (the file does not exist yet): plain 2D line/segment intersection and
 projection onto the marker line. Hostile-input rules apply: zero-length line, depth 0 or negative,
 NaN or infinite heights, more than 100 000 guide lines (capped, with a note), nested blocks bounded by
-`MAX_BLOCK_DEPTH`. Guides know only O-Draft walls, openings, columns and stairs (or objects carrying
+`MAX_BLOCK_DEPTH`. Guides know only Tren walls, openings, columns and stairs (or objects carrying
 their attributes); plain lines give none. Roofs, sloped slabs and curved walls in elevation are
 drafted by hand.
 
@@ -183,12 +183,15 @@ the referenced level through snaps; programmatic calls never open dialogs.
 
 ## UI (WinUI shell stays thin)
 
-- **Bottom tabs:** level tabs in tab order, a `+` (`level.new`), then the level tools. Paper layouts are not tabs. A print block (`printblock`) names a region by a boundary drawn on the model, the way a block is named. Its description is the level and the tab (the sheet set, or Design) and follows those names when they are renamed. The description is stored on the print block when it is listed. The boundary determines which objects are covered. Nothing is frozen and the objects are not converted into a block. The project map, the layout, the nameplate and the sheet PDF are composed in O-CoreOp. Right
+- **Bottom tabs:** level tabs in tab order, a `+` (`level.new`), then the level tools. Paper layouts are not tabs. A print block (`printblock`) names a region by a boundary drawn on the model, the way a block is named. Its description is the level and the tab (the sheet set, or Design) and follows those names when they are renamed. The description is stored on the print block when it is listed. The boundary determines which objects are covered. Nothing is frozen and the objects are not converted into a block. The project map, the layout, the nameplate and the sheet PDF are composed in Falcon. Right
   click on a level: Rename, Elevation and height, Copy level, Delete, Trace over current level. A
   **Trace** flyout lists the other levels (tick, fade slider, grey/true colour, below/above, snap).
-- **Left sheet-set rail** (about 32 DIP): Design, then the sheet sets, then `+`. Choosing one keeps the
-  current level. In a sheet view the draw strip swaps to annotation tools and the Architecture bar
-  hides. The rail hides in layouts.
+- **Drawing tabs** sit above the drawing: Design, then each sheet set. With no sheet set, a `+` tab
+  adds Working drawing, Electrical, Plumbing, Interior and False ceiling. Choosing one keeps the
+  current level. The left column keeps the draw, modify and annotate strip. The discipline tools
+  under it follow the active drawing tab: Design and Working drawing show openings, rooms and
+  structure; Electrical, Plumbing, Interior and False ceiling show that tab's symbols. A renamed tab
+  keeps those tools when its layer prefix is still `E-`, `P-`, `I-` or `FC-`.
 - Layer manager "Show for" filter (All / This level / This sheet set); viewport properties gain Level,
   Sheet set and Traces; new-drawing and `project.setup` offer levels; Ctrl+PageUp/PageDown change
   level, Ctrl+Shift+PageUp/PageDown change sheet set. Tab data comes from `chrome_json`
@@ -263,7 +266,7 @@ rendering work). Each phase ends with `cargo xtask ci` and its named tests, and 
 |---|---|---|
 | 1. Levels core | `doc` types, `switch_target`, `levels.rs` commands (list/new/set/delete/activate/copyto/moveto/fromfloors), classification of every `.model` use as edit-target or drawing-wide, drawing-wide commands use `all_stores()`, DXF/DWG round-trip with `levels2`, hostile-input tests | A two-level drawing saves, reopens and undoes identically; purge, audit, layer delete and extents see both levels; old files load as one level unchanged |
 | 2. Traces and level tabs | `level.trace`, trace rendering and cache, snaps, bottom level tabs and Trace flyout, `chrome_json` data | Three 25 000-object traces keep pans cached; a tab switch rebuilds no unchanged mesh |
-| 3. Sheet sets | `SheetSet`, per-level annotation stores, `sheetset.*`, `protect.rs` reference locking, annotation layer prefixes, left rail, annotation tool strip | In a sheet view a level object edit is refused naming the level; annotation of two sets on one level does not collide; presets create their spaces |
+| 3. Sheet sets | `SheetSet`, per-level annotation stores, `sheetset.*`, `protect.rs` reference locking, annotation layer prefixes, drawing tabs above the drawing, annotation tool strip | In a sheet view a level object edit is refused naming the level; annotation of two sets on one level does not collide; presets create their spaces |
 | 4. Layouts and exchange | `Viewport.level/sheet_set/traces`, `viewport.set`, layout tessellation per store, `AAD_VP` data, Export for exchange | One layout holds the Electrical and Plumbing First-floor plans side by side and round-trips |
 | 5. Migration and polish (engine done; take-off ids, shell UI and egui not) | `level.import/export`, `project.merge`, take-off level ids, layer "Show for" filter, shortcuts, new-drawing and `project.setup` flow, egui tabs, memory load test (20 levels) | A floor project merges into one file in one undo step; docs and status complete |
 | 6. Sections and elevations (planned, not built) | View spaces, linked markers, `section.*` / `view.*` commands, projection guides (`sectionguide.rs`), view tab group, per-space annotation, `ODRAFT$VIEW$` round-trip | See [Done when](#done-when) above |
@@ -380,12 +383,13 @@ Implemented and tested (`crates/engine/tests/sheetsets.rs`, `level_trace_snap.rs
   records and the active sheet view ride in `levels2`. A drawing with sheet sets and one implicit
   level round-trips as well. Damaged set records open the file as plain design with a note.
 - `chrome_json` carries `sheetSets` (`id`, `name`, `active`, `layerPrefix`) and `designMode` for the
-  rail.
+  drawing tabs.
 
 Not built yet:
 
-- **The annotation tool strip and hiding the Architecture bar in a sheet view.** The sheet-set rail
-  exists (see "WinUI shell status"); the data and every command the strip needs exist.
+- **An annotation-only tool strip in a sheet view.** The left discipline tools follow the active
+  drawing tab (see "WinUI shell status"); they are the place tools for that tab, not a separate
+  annotation strip. The draw, modify and annotate strip stays on every tab.
 - A new drawing does not create the five presets on its own (decision 3 asks for it in the UI).
 - A sheet set's `space`, `dimStyle` and `textStyle` are stored, saved and shown, but not applied on
   entering the set (no layer visibility from a drawing space, no current styles yet).
@@ -467,16 +471,16 @@ Implemented and tested (`crates/engine/tests/migrate.rs`, `levels.rs`):
 Not built, and why:
 
 - **Take-off rows do not carry a level id.** The record format (`(kind << 56) | (slot <<
-  32) | n`, [PROJECT-FILE.md](PROJECT-FILE.md) / O-CoreOp `docs/PROJECT-FILE.md`) is a contract with O-CoreOp; giving each level
+  32) | n`, [PROJECT-FILE.md](PROJECT-FILE.md) / Falcon `docs/PROJECT-FILE.md`) is a contract with Falcon; giving each level
   its own slot or header changes what that program reads, so it needs agreement there first.
   Take-off acts on the store being edited, so a recording covers one level at a time.
 - The shell: the Layer manager dropdown, the new-drawing dialog's "Levels in this drawing" option
-  and the viewport editor. The level tabs and the sheet-set rail are built (see "WinUI shell status").
+  and the viewport editor. The level tabs and the drawing tabs are built (see "WinUI shell status").
 - egui tabs (the egui shell is the optional one).
 - `project.merge` merges into a new or ordinary drawing; there is no reverse (levels back out into a
   floor project), only `level.export` per level and `exchange.export`.
 
-## WinUI shell status: level tabs and sheet-set rail
+## WinUI shell status: level tabs and drawing tabs
 
 Built (`apps/aad-winui/LevelBars.cs`, `ComposeNavigator.cs`, `MainWindow.xaml`; the chrome JSON from `aad-host` already
 carried `levels`, `sheetSets` and `designMode`):
@@ -509,8 +513,8 @@ carried `levels`, `sheetSets` and `designMode`):
   opens a collapsed dock; an unpinned open panel still collapses 1.5 s after the pointer leaves.
   Float puts the panels in their own window, and the rail then switches the panel shown there.
   Not tried by hand: Float with the new rail, and the pinned/unpinned auto-collapse.
-- **Tab styling** (`apps/aad-winui/SeamlessTab.cs`): the level tabs under the drawing, the sheet-set tabs
-  on the left and the panel titles on the right share one look. An inactive tab is flat grey text on
+- **Tab styling** (`apps/aad-winui/SeamlessTab.cs`): the level tabs under the drawing, the drawing tabs
+  above it and the panel titles on the right share one look. An inactive tab is flat grey text on
   the bar; the active tab takes the colour of the surface it controls (the drawing, or the open side
   panel), so the two read as one piece with no dividing line, with rounded corners on the outer side and
   a thin accent line on the outer edge. The bars lost their divider lines. Checked by hand in the light
@@ -524,11 +528,10 @@ carried `levels`, `sheetSets` and `designMode`):
   or copy so floors drawn offset in one plan can share the site base. Enter on the origin prompt
   keeps world coordinates (previous behaviour). Architecture → Levels → Move / Copy to Level
   opens the same form. Offered only in design view with two or more levels.
-- **Sheet-set rail** on the left edge as vertical tabs (the name rotated 90 degrees, reading
-  upward): Design, then one tab per sheet set, the active one
-  selected; a click runs `sheetset.activate`. Without sheet sets the rail shows Design and a
-  `+ Drawing tabs` entry that runs `sheetset.standard` (the Project Wizard and `level.setup` also
-  make tabs). In a sheet view the bar says which set is being annotated.
+- **Drawing tabs** above the drawing: Design, then one tab per sheet set. A click runs
+  `sheetset.activate`. With no sheet sets, a `+ Drawing tabs` tab runs `sheetset.standard` (the
+  Project Wizard and `level.setup` also make tabs). Right-click opens Save milestone, Page layout
+  and History. The left column is the tool column; its discipline tools follow the active tab.
 - **The project's active floor follows the level**: `level.activate` (and so the tabs, Ctrl+PageUp
   and Ctrl+PageDown, `level.next` and `level.prev`) sets the active floor when the level has the
   name of a listed floor. There is no Floor selector (or any context bar) in the WinUI shell

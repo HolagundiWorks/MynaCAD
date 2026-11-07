@@ -1,40 +1,40 @@
-# O-Studio suite: names, roles, files, links and how it works live
+# Kivo suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the O-Studio repository, `docs/SUITE.md`. Each app repository carries an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called, what their toolbars hold and how they connect. If you change one, change all four. Updated 2026-11-06.
+**Canonical copy:** the Kivo repository, `docs/SUITE.md`. Each app repository carries an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called, what their toolbars hold and how they connect. If you change one, change all four. Updated 2026-11-07.
 
 ## 1. Names
 
-The suite is the **O-Studio family of apps** (O-Studio, O-CoreOp, O-Draft, O-UI). **O-Studio** is the hub: company sign-in, users, and the Neon sync settings. The **launcher** hosts the Olmo AI Core, runs the Neon sync, signs in, loads the project and starts the apps. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
+The suite is the **Kivo family of apps** (Kivo, Falcon, Tren, Finch, Myna, and O-UI). **Kivo** is the hub: company sign-in, users, and the Neon sync settings. **Myna** hosts the Olmo AI Core, runs the Neon sync, signs in, loads the project and starts the apps. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
-| **O-Studio** | Office and projects; **suite hub** (company file, users, launch O-CoreOp/O-Draft, approvals, Neon `.osp` sync settings) | Flame Orange `#FF5B04` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
-| **O-CoreOp** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Wild Sand `#E4EEF0` | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
-| **O-Draft** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Dark Slate Blue (Mirage) `#16232B` | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
+| **Kivo** | Office and projects; **suite hub** (company file, users, launch Falcon/Tren, approvals, Neon `.osp` sync settings) | Flame Orange `#FF5B04` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
+| **Falcon** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Wild Sand `#E4EEF0` | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
+| **Tren** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Dark Slate Blue (Mirage) `#16232B` | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
-| **O-Form**, **O-Dynamo** | Planned, not built | O-Form: Deep Sea Green `#075056` | `O-Form`, `O-Dynamo` | |
+| **Finch**, **O-Dynamo** | Planned, not built | Finch: Deep Sea Green `#075056` | `Finch`, `O-Dynamo` | |
 
-**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). O-Studio starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`, `OSTUDIO_PROJECT_NAME`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (O-Studio), `aad-office::wire` (O-Draft).
+**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). Kivo starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`, `OSTUDIO_PROJECT_NAME`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (Kivo), `aad-office::wire` (Tren).
 
 Other names:
 
 | Term | Meaning |
 |---|---|
-| **Company file** | One file per practice, `.osas` (earlier `.adms` opens too). SQLite, optionally encrypted (`AOSENC1`). Chosen and created in **O-Studio**. **O-CoreOp** signs in as an O-Studio user and pushes project items into it. **O-Draft** does not open it |
+| **Company file** | One file per practice, `.osas` (earlier `.adms` opens too). SQLite, optionally encrypted (`AOSENC1`). Chosen and created in **Kivo**. **Falcon** signs in as a Kivo user and pushes project items into it. **Tren** does not open it |
 | **Project file** | `.osp`. One SQLite file per project holding the drawing, the take-off and the project record. Format name `osp`, version 1. (`.odp` was the working name and clashed with LibreOffice Impress; it is not used) |
-| **Take-off** | Quantities measured from a drawing. Recorded by O-Draft into the project file; read by O-CoreOp |
+| **Take-off** | Quantities measured from a drawing. Recorded by Tren into the project file; read by Falcon |
 | **Revision** | The counter inside a project file (`meta.revision`). Every save by any program is one revision. Apps compare revisions to know someone else wrote |
-| **Active-project pointer** | `%LOCALAPPDATA%\O-Studio\active-project.json`, written by O-Draft: which project file is open there, so O-CoreOp can open the same one |
-| **Shared project file** | One `.osp` opened in **O-Draft** and **O-CoreOp**. Double-click opens it in O-Draft; **Open in O-CoreOp** is a separate verb. Neither verb starts the launcher. O-Draft writes the drawing and take-off; O-CoreOp writes quantities, the estimate, bills, and the project maps and layouts |
-| **Ticket** | One-time sign-in token **O-Studio** gives an app it starts: 32 random bytes, two minutes, one use. The password is never passed on (`OSTUDIO_TICKET` in the environment) |
-| **Persona** | In O-CoreOp, Project Manager/PMC or Contractor: each has its own letterhead and numbering |
-| **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). the **launcher** hosts **Olmo 3 7B** for as long as it runs; **O-Studio**, **O-CoreOp** and **O-Draft** are clients only |
-| **Olmo 3 7B** | The shared local assistant model (GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`). Not Tulu and not in-process in O-CoreOp or O-Draft |
+| **Active-project pointer** | `%LOCALAPPDATA%\O-Studio\active-project.json`, written by Tren: which project file is open there, so Falcon can open the same one |
+| **Shared project file** | One `.osp` opened in **Tren** and **Falcon**. Double-click opens it in Tren; **Open in Falcon** is a separate verb. Neither verb starts Myna. Tren writes the drawing and take-off; Falcon writes quantities, the estimate, bills, and the project maps and layouts |
+| **Ticket** | One-time sign-in token **Kivo** gives an app it starts: 32 random bytes, two minutes, one use. The password is never passed on (`OSTUDIO_TICKET` in the environment) |
+| **Persona** | In Falcon, Project Manager/PMC or Contractor: each has its own letterhead and numbering |
+| **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). **Myna** hosts **Olmo 3 7B** for as long as it runs; **Kivo**, **Falcon** and **Tren** are clients only |
+| **Olmo 3 7B** | The shared local assistant model (GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`). Not Tulu and not in-process in Falcon or Tren |
 
 ## 2. Hierarchy
 
 ```
-O-Studio (company, users, practice records, Neon sync settings); the launcher (sign-in, project, AI Core host, cloud sync)   <- which company, who is signed in
+Kivo (company, users, practice records, Neon sync settings); Myna (sign-in, project, AI Core host, cloud sync)   <- which company, who is signed in
  |
  +-- Company file (.osas)                                 <- the practice: clients, projects, users, accounts
  |     |
@@ -46,12 +46,12 @@ O-Studio (company, users, practice records, Neon sync settings); the launcher (s
  |                 |-- project record (estimate, bills, tasks, quantities, POs)
  |                 |-- markups, history, change log
  |
- +-- O-CoreOp   reads company details; reads/writes the project record and take-off view in the .osp
- +-- O-Draft    writes the drawing and take-off in the .osp
+ +-- Falcon   reads company details; reads/writes the project record and take-off view in the .osp
+ +-- Tren    writes the drawing and take-off in the .osp
  +-- Viewer (planned: tablet/phone)  views and marks up the synced project
 ```
 
-Rule: **a project's data lives in its `.osp`; the practice's data lives in the company file; nothing else is a source of truth.** Cloud (**Neon** — Lakebase Postgres and Object Storage) is a master copy that O-Studio syncs; the apps never hold cloud keys.
+Rule: **a project's data lives in its `.osp`; the practice's data lives in the company file; nothing else is a source of truth.** Cloud (**Neon** — Lakebase Postgres and Object Storage) is a master copy that Kivo syncs; the apps never hold cloud keys.
 
 ## 3. Roles
 
@@ -65,11 +65,11 @@ Users belong to the company, so they are the same in every app. Roles are in `of
 | **Document editor** | View and edit documents |
 | **Auditor** | View, and view the audit trail (read only) |
 
-Users are added, re-roled and re-passworded in **O-Studio** (Office > Users or company sign-in flows), each change asking for the owner's password again; the last active owner cannot be removed. O-CoreOp signs in as one of those users and pushes project items; it does not edit users. Firm details for O-Draft title blocks are an exported pack, not a live company-file session. The project's persona (PM/PMC or Contractor) is separate from the user's role.
+Users are added, re-roled and re-passworded in **Kivo** (Office > Users or company sign-in flows), each change asking for the owner's password again; the last active owner cannot be removed. Falcon signs in as one of those users and pushes project items; it does not edit users. Firm details for Tren title blocks are an exported pack, not a live company-file session. The project's persona (PM/PMC or Contractor) is separate from the user's role.
 
 ## 4. What each app has on screen
 
-### O-Draft (WinUI shell over a Rust engine)
+### Tren (WinUI shell over a Rust engine)
 
 | Region | Contents |
 |---|---|
@@ -78,82 +78,82 @@ Users are added, re-roled and re-passworded in **O-Studio** (Office > Users or c
 | Take-off strip (row 2) | **Take-off tools only** (Ext wall, Int wall, Beam, … Record, Map layers, phase pickers) while **Take-off** is on in Classic workspace |
 | Right | Layers / Properties / Blocks tabbed stack |
 | Bottom bar | Snap/ortho/polar toggles, coordinates, units, **Take-off toggle** (next to Nameplate) |
-| File | New, Open, Save, Save as, Close, Export, Print/Plot, History, and **Import company details** (`company.pack.import`). The project file is the `.osp` shared with O-CoreOp. Company details for title blocks are a JSON pack exported from O-Studio (Firm settings, **Export for O-Draft**). O-Draft does not call O-Studio or the launcher |
+| File | New, Open, Save, Save as, Close, Export, Print/Plot, History, and **Import company details** (`company.pack.import`). The project file is the `.osp` shared with Falcon. Company details for title blocks are a JSON pack exported from Kivo (Firm settings, **Export for Tren**). Tren does not call Kivo or Myna |
 | Command line | Every tool is also a typed command, e.g. `takeoff.record` |
 
 Details: `docs/UI_UX.md`.
 
-### O-CoreOp (WinUI shell, C++ engine)
+### Falcon (WinUI shell, C++ engine)
 
 | Region | Contents |
 |---|---|
-| Main ribbon | One text tab per section: Project, RCC steel, Civil BOQ, Schedule, Contracts, Stores, Outputs (Ctrl+1 to Ctrl+7). Office, Accounts and HR live in O-Studio |
+| Main ribbon | One text tab per section: Project, RCC steel, Civil BOQ, Schedule, Contracts, Stores, Outputs (Ctrl+1 to Ctrl+7). Office, Accounts and HR live in Kivo |
 | Sub ribbon | One text tab per page of the open section |
-| Take-off page | Reads the take-off from the open `.osp`; shows "O-Draft updated the take-off" when O-Draft writes; Import brings it into the estimate |
-| Layout page | Outputs > Layout. The left side is the project map and its layouts (for example Ground floor working drawing). The right side lists print blocks saved in the open `.osp` by O-Draft. Insert places the related print block, Update nameplate stores the title fields in the project document, and Export PDF writes a sheet record. The PDF does not redraw the model |
-| File | Open project (the shared `.osp`), Save, **Sign in to O-Studio**, **Push to O-Studio**, Take-off, Import from CAD, Export. Sign-in uses the O-Studio user and the company file. Push writes this project's items (`aqc.project`, and an estimate draft when one has been calculated) |
-| Bottom shell | Full-bleed status row + floating Ask pill (`O.Ui` `SuiteBottomStatusBar`, `SuiteAskBar`) — O-Draft layout is canonical |
-| Assistant (Olmo) | Hosted by the launcher on `:8742`; O-CoreOp and O-Draft are clients |
+| Take-off page | Reads the take-off from the open `.osp`; shows "Tren updated the take-off" when Tren writes; Import brings it into the estimate |
+| Layout page | Outputs > Layout. The left side is the project map and its layouts (for example Ground floor working drawing). The right side lists print blocks saved in the open `.osp` by Tren. Insert places the related print block, Update nameplate stores the title fields in the project document, and Export PDF writes a sheet record. The PDF does not redraw the model |
+| File | Open project (the shared `.osp`), Save, **Sign in to Kivo**, **Push to Kivo**, Take-off, Import from CAD, Export. Sign-in uses the Kivo user and the company file. Push writes this project's items (`aqc.project`, and an estimate draft when one has been calculated) |
+| Bottom shell | Full-bleed status row + floating Ask pill (`O.Ui` `SuiteBottomStatusBar`, `SuiteAskBar`) — Tren layout is canonical |
+| Assistant (Olmo) | Hosted by Myna on `:8742`; Falcon and Tren are clients |
 
 Details: `docs/WINUI-SHELL.md`.
 
-### O-Studio (WinUI shell over a Rust engine)
+### Kivo (WinUI shell over a Rust engine)
 
 | Region | Contents |
 |---|---|
-| Sign-in / company | New or open company file (`.osas`) **in the launcher**; sign in once; remember path in `suite.json`; admin password and **Users** (in O-Studio) |
+| Sign-in / company | New or open company file (`.osas`) **in Myna**; sign in once; remember path in `suite.json`; admin password and **Users** (in Kivo) |
 | Left pane | Practice (Pulse, Clients, Projects, enquiries, site records, permits, proposals, meetings); Documents (letters, templates); Billing (invoices, receipts, reconciliation); Books (expenses, income, salaries, assets, journals); Reports and tax; Office (firm profile, staff, leave, attendance, library, security, backup); **Suite** (dashboard, **Cloud sync**, approvals) |
 | Shortcuts | Ctrl+N new record, Ctrl+S save, Ctrl+P print, Ctrl+F search, Ctrl+K go to page |
-| Bottom shell | Same status row and Ask pill as O-Draft and O-CoreOp (`O.Ui`); **launch O-CoreOp, O-Draft, O-Form** from the status row |
-| Assistant (Olmo) | Client of the launcher's host on `:8742`; read-only practice tools in the floating bar |
+| Bottom shell | Same status row and Ask pill as Tren and Falcon (`O.Ui`); **launch Falcon, Tren, Finch** from the status row |
+| Assistant (Olmo) | Client of Myna's host on `:8742`; read-only practice tools in the floating bar |
 
 ## 5. How they are linked, and how it works live
 
 | Link | Mechanism | Latency |
 |---|---|---|
-| O-Studio -> apps | Starts the app with `OSTUDIO_COMPANY` + one-time `OSTUDIO_TICKET` (and Olmo client env when applicable) | on launch |
+| Kivo -> apps | Starts the app with `OSTUDIO_COMPANY` + one-time `OSTUDIO_TICKET` (and Olmo client env when applicable) | on launch |
 | Company -> apps | `office.dll` (C ABI from `office-ffi`), read by the app | on open |
-| O-Draft -> O-CoreOp | Both open the **same `.osp`**. O-Draft's `takeoff.record` writes headers/rows/annotated PDF in one revision; O-CoreOp polls `meta.revision` every 2 s and notifies | about 2 s, no server |
-| O-CoreOp -> company file | File > **Sign in to O-Studio** (`auth.login` on the `.osas`), then **Push to O-Studio**. If the open `.osp` is not linked, O-CoreOp asks which O-Studio project receives the items | on push |
-| O-Studio -> O-Draft (company details) | Firm settings > **Export for O-Draft** writes `osas-company-pack` v1 JSON (name, address, phone, email, PAN, GSTIN, COA registration, architect). O-Draft **Import company details** applies it to title blocks. No live session and no launcher | on import |
-| O-Draft -> O-CoreOp (which file) | The same `.osp`, opened in each app. Active-project pointer remains: `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
+| Tren -> Falcon | Both open the **same `.osp`**. Tren's `takeoff.record` writes headers/rows/annotated PDF in one revision; Falcon polls `meta.revision` every 2 s and notifies | about 2 s, no server |
+| Falcon -> company file | File > **Sign in to Kivo** (`auth.login` on the `.osas`), then **Push to Kivo**. If the open `.osp` is not linked, Falcon asks which Kivo project receives the items | on push |
+| Kivo -> Tren (company details) | Firm settings > **Export for Tren** writes `osas-company-pack` v1 JSON (name, address, phone, email, PAN, GSTIN, COA registration, architect). Tren **Import company details** applies it to title blocks. No live session and no launcher | on import |
+| Tren -> Falcon (which file) | The same `.osp`, opened in each app. Active-project pointer remains: `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
 | Two programs, one file | SQLite WAL, immediate write transactions, 5 s busy timeout: writers take turns, every commit is exactly one revision, readers never block (tested with 4 writers x 40 commits) | immediate |
-| Machine -> machine | O-Studio syncs `.osp` with **Neon** by revision (connector MVP; see `docs/CLOUD-NEON.md`); a viewer on tablet/phone reads what O-Studio pushed and sends markups back | Postgres revision + Object Storage |
+| Machine -> machine | Kivo syncs `.osp` with **Neon** by revision (connector MVP; see `docs/CLOUD-NEON.md`); a viewer on tablet/phone reads what Kivo pushed and sends markups back | Postgres revision + Object Storage |
 
-Both apps share one format library: Rust `aad-odp` (O-Draft) and .NET `Office.Shared.OdpFile` (O-CoreOp), kept compatible by tests that read each other's files.
+Both apps share one format library: Rust `aad-odp` (Tren) and .NET `Office.Shared.OdpFile` (Falcon), kept compatible by tests that read each other's files.
 
-Saving: O-Draft writes the drawing back into the `.osp` only when its bytes changed (so a take-off-only change does not touch the drawing), and records take-off changes as differences only.
+Saving: Tren writes the drawing back into the `.osp` only when its bytes changed (so a take-off-only change does not touch the drawing), and records take-off changes as differences only.
 
 ## 6. Where to read next
 
 | Topic | Document |
 |---|---|
-| Project file format and sync plan | O-Studio `docs/ODP-PROJECT-FILE-AND-SYNC.md` (filename keeps the working name) |
+| Project file format and sync plan | Kivo `docs/ODP-PROJECT-FILE-AND-SYNC.md` (filename keeps the working name) |
 | Project hierarchy and security | `docs/PROJECT-HIERARCHY-AND-SECURITY.md` |
-| Suite architecture and integration map | O-Studio `docs/suite-architecture.md`, `docs/suite-hub.md` |
-| Suite hub and wire | O-Studio `docs/suite-hub.md`, `Office.Shared/SuiteWire.cs` |
-| Company file ABI | O-Studio `docs/office-abi.md` |
-| O-Draft UI, commands, performance | O-Draft `docs/UI_UX.md`, `docs/PERFORMANCE.md`, `docs/PERFORMANCE-AUDIT-2026-10-30.md` |
-| O-CoreOp shell, model, take-off | O-CoreOp `docs/WINUI-SHELL.md`, `docs/LOCAL-MODEL.md`, `docs/PROJECT-FILE.md` |
-| O-Studio assistant and Neon sync | O-Studio `docs/AI_RUNTIME.md`, `docs/CLOUD-NEON.md`, `docs/ODP-PROJECT-FILE-AND-SYNC.md` |
+| Suite architecture and integration map | Kivo `docs/suite-architecture.md`, `docs/suite-hub.md` |
+| Suite hub and wire | Kivo `docs/suite-hub.md`, `Office.Shared/SuiteWire.cs` |
+| Company file ABI | Kivo `docs/office-abi.md` |
+| Tren UI, commands, performance | Tren `docs/UI_UX.md`, `docs/PERFORMANCE.md`, `docs/PERFORMANCE-AUDIT-2026-10-30.md` |
+| Falcon shell, model, take-off | Falcon `docs/WINUI-SHELL.md`, `docs/LOCAL-MODEL.md`, `docs/PROJECT-FILE.md` |
+| Kivo assistant and Neon sync | Kivo `docs/AI_RUNTIME.md`, `docs/CLOUD-NEON.md`, `docs/ODP-PROJECT-FILE-AND-SYNC.md` |
 | Shared WinUI chrome | O-UI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |
 | ShilpiDB → `.osp` migration (historical) | Each app repo `docs/MIGRATION-OSP.md` — do not use **ShilpiDB** in new user text |
-| Installers | **Unified:** O-Studio `installer/suite/README.md` (`O-Suite-Setup-<version>.exe`, install and remove modes). Per-app: O-Studio `docs/packaging.md`, O-CoreOp `docs/PACKAGING.md`, O-Draft `docs/RELEASE_AND_PACKAGING.md` |
-| Testing | O-Studio `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
-| Brand (palette, the mark, the AI agent orb, type) | O-Studio `docs/BRANDING.md`; artwork and colour files in `o-ui` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
+| Installers | **Unified:** Kivo `installer/suite/README.md` (`O-Suite-Setup-<version>.exe`, install and remove modes). Per-app: Kivo `docs/packaging.md`, Falcon `docs/PACKAGING.md`, Tren `docs/RELEASE_AND_PACKAGING.md` |
+| Testing | Kivo `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
+| Brand (palette, the mark, the AI agent orb, type) | Kivo `docs/BRANDING.md`; artwork and colour files in `o-ui` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
 
 ## 7. Conventions
 
-- **App names (user-visible):** O-Studio, O-CoreOp, O-Draft, O-UI. Spell exactly; do not shorten to Studio, CoreOp, or Draft in menus, dialogs, or docs.
-- **Suite hub:** say **O-Studio** — not OSAS, not a separate launcher app, not "the OSAS suite" in user text.
+- **App names (user-visible):** Kivo, Falcon, Tren, Finch, Myna, and O-UI. Spell exactly. Finch is planned. Myna is the launcher. Do not use the earlier names Kivo, Falcon, Tren, or Finch in menus, dialogs, or user-facing sentences. Those names remain ticket ids, install folders, and executable names.
+- **Suite hub:** say **Kivo**. The launcher is **Myna**. Do not say OSAS or "the OSAS suite" in user text.
 - **Never in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, **OSAS** as a product name, **OSAS.exe** (assistant is **Olmo 3 7B**). Legacy exe names (`AQCCore.exe`, `aad-host.dll`) belong in migration or identifier columns only.
 - **Files:** project file = **`.osp`**; company file = **`.osas`**. Do not call the project file ODP or `.odp` in user text.
 - **Take-off:** hyphenated **Take-off** (not takeoff or take off) in UI and documentation.
 - **Company file** vs **project file:** practice-wide data lives in the company file; one project's drawing, take-off, and estimate live in its `.osp`.
 - New project data goes in the `.osp` schema with a change-log row, not a sidecar file.
 - Apps do not call each other; they meet in the `.osp`, the company file, the active-project pointer, or the AI Core on loopback.
-- Cloud keys, Neon credentials, and the Olmo host process live only in the **launcher** and **O-Studio**; O-CoreOp and O-Draft hold none.
+- Cloud keys, Neon credentials, and the Olmo host process live only in **Myna** and **Kivo**; Falcon and Tren hold none.
 
 ## AI agent privacy
 
-The AI agent (Olmo 3 7B) runs on this computer and is hosted by the launcher. The launcher's Ask page has a **Privacy** panel whose choices are saved in `%LOCALAPPDATA%\O-Studio\ai-privacy.json` (`Osas.Core.Suite.AiPrivacy`): tell it which project is loaded (default off), remember the conversation while the window is open (default off), allow attaching files with the + button (default on), and Clear this conversation. Not done yet: a switch to stop the agent altogether, per-app permissions for O-Draft and O-CoreOp, and the same panel in those apps' prompt bars.
+The AI agent (Olmo 3 7B) runs on this computer and is hosted by Myna. Myna's Ask page has a **Privacy** panel whose choices are saved in `%LOCALAPPDATA%\O-Studio\ai-privacy.json` (`Osas.Core.Suite.AiPrivacy`): tell it which project is loaded (default off), remember the conversation while the window is open (default off), allow attaching files with the + button (default on), and Clear this conversation. Not done yet: a switch to stop the agent altogether, per-app permissions for Tren and Falcon, and the same panel in those apps' prompt bars.

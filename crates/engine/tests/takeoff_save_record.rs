@@ -27,7 +27,7 @@ fn saving_a_measured_drawing_tries_to_record_takeoff_and_still_succeeds() {
     let r = s.execute("saveas", &json!({ "path": path.to_string_lossy() })).unwrap();
     let _ = std::fs::remove_file(&path);
     assert_eq!(r["path"].as_str().unwrap(), path.to_string_lossy());
-    let echoed = s.log.iter().any(|l| l.starts_with("Take-off recorded for O-CoreOp") || l.starts_with("Take-off was not recorded:"));
+    let echoed = s.log.iter().any(|l| l.starts_with("Take-off recorded for Falcon") || l.starts_with("Take-off was not recorded:"));
     assert!(echoed, "expected a take-off record attempt after save; log={:?}", s.log);
 }
 

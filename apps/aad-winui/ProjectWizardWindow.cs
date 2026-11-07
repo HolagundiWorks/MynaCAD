@@ -78,7 +78,7 @@ internal static class ProjectWizardWindow
         var engineer = Density.DialogField("", "Engineer");
         var company = Density.Secondary("No company details read yet.", TextWrapping.Wrap);
         var suiteHint = Density.Secondary(
-            "Company details for title blocks come from a file exported in O-Studio. Import that file here. O-Draft does not open the company file.",
+            "Company details for title blocks come from a file exported in Kivo. Import that file here. Tren does not open the company file.",
             TextWrapping.Wrap);
         var readCompany = Density.DialogAction("Import company details…");
         var page2 = new StackPanel { Spacing = Density.SpaceSm };
@@ -118,9 +118,9 @@ internal static class ProjectWizardWindow
                 && suite2.TryGetProperty("refresh_only", out var ro)
                 && ro.ValueKind == JsonValueKind.True;
             suiteHint.Text = refreshOnly
-                ? "This drawing holds imported company details. Locked fields stay as imported. Export a new file from O-Studio and import it again to change them. Engineer and other local fields stay editable."
-                : "Company details for title blocks come from a file exported in O-Studio. Import that file here. O-Draft does not open the company file.";
-            ToolTipService.SetToolTip(readCompany, "Import an O-Studio company-details file into this drawing");
+                ? "This drawing holds imported company details. Locked fields stay as imported. Export a new file from Kivo and import it again to change them. Engineer and other local fields stay editable."
+                : "Company details for title blocks come from a file exported in Kivo. Import that file here. Tren does not open the company file.";
+            ToolTipService.SetToolTip(readCompany, "Import a Kivo company-details file into this drawing");
         }
 
         // ---- page 3: the building

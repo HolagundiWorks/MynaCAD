@@ -146,6 +146,87 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("rcc.lintel", "Lintel", run_rcc_lintel)
             .menu(&["Architecture", "RCC Structure", "Lintel"])
             .params("{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert, for `rcc.lintel.section`; in the Windows app the point is picked on the drawing and the reinforcement is edited in the Properties panel (checked to IS 456:2000)"),
+        CommandSpec::new("elec.light", "Light point", run_elec_light)
+            .menu(&["Architecture", "Electrical", "Light point"])
+            .params(PLACE),
+        CommandSpec::new("elec.socket", "Socket", run_elec_socket)
+            .menu(&["Architecture", "Electrical", "Socket"])
+            .params(PLACE),
+        CommandSpec::new("elec.switchboard", "Switch board", run_elec_switchboard)
+            .menu(&["Architecture", "Electrical", "Switch board"])
+            .params(PLACE),
+        CommandSpec::new("elec.fan.ceiling", "Ceiling fan", run_elec_fan)
+            .menu(&["Architecture", "Electrical", "Ceiling fan"])
+            .params(PLACE),
+        CommandSpec::new("elec.downlight", "Downlight", run_elec_downlight)
+            .menu(&["Architecture", "Electrical", "Downlight"])
+            .params(PLACE),
+        CommandSpec::new("elec.db", "Distribution board", run_elec_db)
+            .menu(&["Architecture", "Electrical", "Distribution board"])
+            .params(PLACE),
+        CommandSpec::new("plumb.wc.european", "European WC", run_plumb_wc_eu)
+            .menu(&["Architecture", "Plumbing", "European WC"])
+            .params(PLACE),
+        CommandSpec::new("plumb.wc.indian", "Indian WC", run_plumb_wc_in)
+            .menu(&["Architecture", "Plumbing", "Indian WC"])
+            .params(PLACE),
+        CommandSpec::new("plumb.basin", "Wash basin", run_plumb_basin)
+            .menu(&["Architecture", "Plumbing", "Wash basin"])
+            .params(PLACE),
+        CommandSpec::new("plumb.sink.kitchen", "Kitchen sink", run_plumb_sink)
+            .menu(&["Architecture", "Plumbing", "Kitchen sink"])
+            .params(PLACE),
+        CommandSpec::new("plumb.shower", "Shower", run_plumb_shower)
+            .menu(&["Architecture", "Plumbing", "Shower"])
+            .params(PLACE),
+        CommandSpec::new("plumb.floor.trap", "Floor trap", run_plumb_trap)
+            .menu(&["Architecture", "Plumbing", "Floor trap"])
+            .params(PLACE),
+        CommandSpec::new("plumb.chamber", "Inspection chamber", run_plumb_chamber)
+            .menu(&["Architecture", "Plumbing", "Inspection chamber"])
+            .params(PLACE),
+        CommandSpec::new("plumb.tank.round", "Water tank", run_plumb_tank)
+            .menu(&["Architecture", "Plumbing", "Water tank"])
+            .params(PLACE),
+        CommandSpec::new("plumb.riser", "Pipe riser", run_plumb_riser)
+            .menu(&["Architecture", "Plumbing", "Pipe riser"])
+            .params(PLACE),
+        CommandSpec::new("int.wardrobe", "Wardrobe", run_int_wardrobe)
+            .menu(&["Architecture", "Interior", "Wardrobe"])
+            .params(PLACE),
+        CommandSpec::new("int.kitchen.counter", "Kitchen counter", run_int_counter)
+            .menu(&["Architecture", "Interior", "Kitchen counter"])
+            .params(PLACE),
+        CommandSpec::new("int.dining.set", "Dining set", run_int_dining)
+            .menu(&["Architecture", "Interior", "Dining set"])
+            .params(PLACE),
+        CommandSpec::new("int.bed", "Bed", run_int_bed)
+            .menu(&["Architecture", "Interior", "Bed"])
+            .params(PLACE),
+        CommandSpec::new("int.sofa", "Sofa", run_int_sofa)
+            .menu(&["Architecture", "Interior", "Sofa"])
+            .params(PLACE),
+        CommandSpec::new("int.shelf", "Shelf", run_int_shelf)
+            .menu(&["Architecture", "Interior", "Shelf"])
+            .params(PLACE),
+        CommandSpec::new("hvac.duct.rect", "Duct", run_hvac_duct)
+            .menu(&["Architecture", "False ceiling", "Duct"])
+            .params(PLACE),
+        CommandSpec::new("hvac.diffuser.square", "Diffuser", run_hvac_diffuser)
+            .menu(&["Architecture", "False ceiling", "Diffuser"])
+            .params(PLACE),
+        CommandSpec::new("hvac.grille", "Grille", run_hvac_grille)
+            .menu(&["Architecture", "False ceiling", "Grille"])
+            .params(PLACE),
+        CommandSpec::new("hvac.split.indoor", "Indoor unit", run_hvac_indoor)
+            .menu(&["Architecture", "False ceiling", "Indoor unit"])
+            .params(PLACE),
+        CommandSpec::new("hvac.split.outdoor", "Outdoor unit", run_hvac_outdoor)
+            .menu(&["Architecture", "False ceiling", "Outdoor unit"])
+            .params(PLACE),
+        CommandSpec::new("hvac.fan.exhaust", "Exhaust fan", run_hvac_exhaust)
+            .menu(&["Architecture", "False ceiling", "Exhaust fan"])
+            .params(PLACE),
         CommandSpec::new("smartblock.check", "Check Block to IS 456", run_check)
             .menu(&["Architecture", "RCC Structure", "Check to IS 456"])
             .alias(&["sbcheck", "is456"])
@@ -1221,6 +1302,48 @@ fn run_rcc_slab(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn run_rcc_lintel(s: &mut Session, p: &Value) -> Result<Value> {
     insert_preset(s, p, "rcc.lintel.section")
+}
+
+const PLACE: &str = "{at: [x,y], params?: {name: value} | \"name=value, …\", rotation?, scale?, layer?} → as smartblock.insert for this symbol; the Windows bar picks the point and Properties edits the size";
+
+macro_rules! place_fn {
+    ($($name:ident => $id:literal),* $(,)?) => {
+        $(
+            fn $name(s: &mut Session, p: &Value) -> Result<Value> {
+                insert_preset(s, p, $id)
+            }
+        )*
+    };
+}
+
+place_fn! {
+    run_elec_light => "elec.light",
+    run_elec_socket => "elec.socket",
+    run_elec_switchboard => "elec.switchboard",
+    run_elec_fan => "elec.fan.ceiling",
+    run_elec_downlight => "elec.downlight",
+    run_elec_db => "elec.db",
+    run_plumb_wc_eu => "plumb.wc.european",
+    run_plumb_wc_in => "plumb.wc.indian",
+    run_plumb_basin => "plumb.basin",
+    run_plumb_sink => "plumb.sink.kitchen",
+    run_plumb_shower => "plumb.shower",
+    run_plumb_trap => "plumb.floor.trap",
+    run_plumb_chamber => "plumb.chamber",
+    run_plumb_tank => "plumb.tank.round",
+    run_plumb_riser => "plumb.riser",
+    run_int_wardrobe => "int.wardrobe",
+    run_int_counter => "int.kitchen.counter",
+    run_int_dining => "int.dining.set",
+    run_int_bed => "int.bed",
+    run_int_sofa => "int.sofa",
+    run_int_shelf => "int.shelf",
+    run_hvac_duct => "hvac.duct.rect",
+    run_hvac_diffuser => "hvac.diffuser.square",
+    run_hvac_grille => "hvac.grille",
+    run_hvac_indoor => "hvac.split.indoor",
+    run_hvac_outdoor => "hvac.split.outdoor",
+    run_hvac_exhaust => "hvac.fan.exhaust",
 }
 
 /// `smartblock.insert` for the block `id` unless the parameters name another.

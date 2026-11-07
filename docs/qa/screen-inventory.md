@@ -1,4 +1,4 @@
-﻿# O-Draft WinUI screen inventory
+# Tren WinUI screen inventory
 
 Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` `CommandSpec::menu()` (via `crates/aad-host/src/chrome.rs` → host `TextMenu` JSON).
 
@@ -8,7 +8,7 @@ Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` 
 
 | ID | Surface | Type | Source file | How opened | Testing status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| main.window | O-Draft main shell | main | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml | Application launch (`Program.cs` → `MainWindow`) | pass | screenshots/03-main-clean-drawing1.webp |
+| main.window | Tren main shell | main | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml | Application launch (`Program.cs` → `MainWindow`) | pass | screenshots/03-main-clean-drawing1.webp |
 | main.splash | Startup splash overlay | overlay | apps/aad-winui/MainWindow.xaml (SplashOverlay) | Shown at load until host/canvas ready | pass | visual 2026-10-26 (dismisses ~900ms) |
 | main.welcome | Welcome after splash | overlay | apps/aad-winui/MainWindow.xaml (WelcomeOverlay) + WelcomeBusy.cs | Empty launch (no path / not --sample): New, Open, Project Wizard, recent | unverified | code 2026-10-28 |
 | main.busy | Open/save progress | overlay | apps/aad-winui/MainWindow.xaml (BusyOverlay) + WelcomeBusy.cs | While OpenFileAsync / SaveFileAsync (and .vdb import) run | unverified | code 2026-10-28 |
@@ -82,7 +82,7 @@ Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` 
 | main.panel.project | Project settings side tab | panel | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml (ProjectTab) | Side tab; slab/beam defaults + links to project/floors forms | not_tested | — |
 | win.menu.shell.ucs | Window menu: UCS icon | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml.cs ('EnsureShellMenus') | Window ▸ UCS icon | not_tested | — |
 | help.commands | Help: Command list | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml.cs ('EnsureHelp') | Help menu or F1 → CommandList.Show | not_tested | — |
-| help.about | Help: About O-Draft | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | Help menu → AboutWindow.Show | not_tested | — |
+| help.about | Help: About Tren | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | Help menu → AboutWindow.Show | not_tested | — |
 | win.layer-manager | Layer Properties Manager | manager | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/LayerManagerWindow.xaml | Menu `layer`/`layers`; status layers button; `OpenLayers()`; merge mode docks body in side tab | not_tested | — |
 | win.drafting | Drafting Settings | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/DraftingWindow.cs | `dsettings`/`ds`/`se`; menu/osnap shortcut menu | not_tested | — |
 | win.units | Display units and plot | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/UnitsWindow.cs | `units`/`un`; Format menu | not_tested | — |
@@ -100,7 +100,7 @@ Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` 
 | win.quick-select | Quick Select | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/QuickSelectWindow.cs | `qselect`/`qs`/`ui.dialog.qselect` | not_tested | — |
 | win.quick-props | Quick Properties | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/QuickWindow.cs | Auto when `_qpmode` and selection quick JSON from host | not_tested | — |
 | win.commands | Commands (reference) | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/CommandList.cs | F1; Help; `ui.dialog.commands` | not_tested | — |
-| win.about | About O-Draft | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | `ui.dialog.about`; Help menu | not_tested | — |
+| win.about | About Tren | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | `ui.dialog.about`; Help menu | not_tested | — |
 | win.calc | Calculator | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/CalcWindow.cs | `cal`/`calc`; Window menu | not_tested | — |
 | win.pomodoro | Pomodoro | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/PomodoroWindow.cs | Window menu | not_tested | — |
 | win.tools | Tool bar (customize) | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/ToolsWindow.cs | `ui.dialog.customizetop`; tool strip gear | not_tested | — |
@@ -188,6 +188,33 @@ Populated at runtime from host menu JSON (`BuildMenus()`). Top-level order: File
 | menu.electrical.blocks | Architecture > Electrical > Map Blocks | menu | crates/engine/src/cmd/electrical.rs (+ host chrome) | Menu bar path; command id electrical.blocks via StartCommand / accelerator | not_tested | — |
 | menu.electrical.number | Architecture > Electrical > Number Blocks | menu | crates/engine/src/cmd/electrical.rs (+ host chrome) | Menu bar path; command id electrical.number via StartCommand / accelerator | not_tested | — |
 | menu.electrical.schedule | Architecture > Electrical > Schedule | menu | crates/engine/src/cmd/electrical.rs (+ host chrome) | Menu bar path; command id electrical.schedule via StartCommand / accelerator | not_tested | — |
+| menu.elec.light | Architecture > Electrical > Light point | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id elec.light via StartCommand / accelerator | not_tested | — |
+| menu.elec.socket | Architecture > Electrical > Socket | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id elec.socket via StartCommand / accelerator | not_tested | — |
+| menu.elec.switchboard | Architecture > Electrical > Switch board | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id elec.switchboard via StartCommand / accelerator | not_tested | — |
+| menu.elec.fan | Architecture > Electrical > Ceiling fan | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id elec.fan.ceiling via StartCommand / accelerator | not_tested | — |
+| menu.elec.downlight | Architecture > Electrical > Downlight | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id elec.downlight via StartCommand / accelerator | not_tested | — |
+| menu.elec.db | Architecture > Electrical > Distribution board | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id elec.db via StartCommand / accelerator | not_tested | — |
+| menu.plumb.wc.european | Architecture > Plumbing > European WC | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.wc.european via StartCommand / accelerator | not_tested | — |
+| menu.plumb.wc.indian | Architecture > Plumbing > Indian WC | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.wc.indian via StartCommand / accelerator | not_tested | — |
+| menu.plumb.basin | Architecture > Plumbing > Wash basin | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.basin via StartCommand / accelerator | not_tested | — |
+| menu.plumb.sink | Architecture > Plumbing > Kitchen sink | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.sink.kitchen via StartCommand / accelerator | not_tested | — |
+| menu.plumb.shower | Architecture > Plumbing > Shower | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.shower via StartCommand / accelerator | not_tested | — |
+| menu.plumb.trap | Architecture > Plumbing > Floor trap | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.floor.trap via StartCommand / accelerator | not_tested | — |
+| menu.plumb.chamber | Architecture > Plumbing > Inspection chamber | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.chamber via StartCommand / accelerator | not_tested | — |
+| menu.plumb.tank | Architecture > Plumbing > Water tank | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.tank.round via StartCommand / accelerator | not_tested | — |
+| menu.plumb.riser | Architecture > Plumbing > Pipe riser | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id plumb.riser via StartCommand / accelerator | not_tested | — |
+| menu.int.bed | Architecture > Interior > Bed | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id int.bed via StartCommand / accelerator | not_tested | — |
+| menu.int.sofa | Architecture > Interior > Sofa | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id int.sofa via StartCommand / accelerator | not_tested | — |
+| menu.int.dining | Architecture > Interior > Dining set | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id int.dining.set via StartCommand / accelerator | not_tested | — |
+| menu.int.counter | Architecture > Interior > Kitchen counter | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id int.kitchen.counter via StartCommand / accelerator | not_tested | — |
+| menu.int.wardrobe | Architecture > Interior > Wardrobe | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id int.wardrobe via StartCommand / accelerator | not_tested | — |
+| menu.int.shelf | Architecture > Interior > Shelf | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id int.shelf via StartCommand / accelerator | not_tested | — |
+| menu.hvac.diffuser | Architecture > False ceiling > Diffuser | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id hvac.diffuser.square via StartCommand / accelerator | not_tested | — |
+| menu.hvac.grille | Architecture > False ceiling > Grille | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id hvac.grille via StartCommand / accelerator | not_tested | — |
+| menu.hvac.duct | Architecture > False ceiling > Duct | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id hvac.duct.rect via StartCommand / accelerator | not_tested | — |
+| menu.hvac.exhaust | Architecture > False ceiling > Exhaust fan | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id hvac.fan.exhaust via StartCommand / accelerator | not_tested | — |
+| menu.hvac.indoor | Architecture > False ceiling > Indoor unit | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id hvac.split.indoor via StartCommand / accelerator | not_tested | — |
+| menu.hvac.outdoor | Architecture > False ceiling > Outdoor unit | menu | crates/engine/src/cmd/smartblock.rs (+ host chrome) | Menu bar path; command id hvac.split.outdoor via StartCommand / accelerator | not_tested | — |
 | menu.electrical.update | Architecture > Electrical > Update | menu | crates/engine/src/cmd/electrical.rs (+ host chrome) | Menu bar path; command id electrical.update via StartCommand / accelerator | not_tested | — |
 | menu.electrical.layers | Architecture > Electrical > Wiring Layers | menu | crates/engine/src/cmd/electrical.rs (+ host chrome) | Menu bar path; command id electrical.layers via StartCommand / accelerator | not_tested | — |
 | menu.floor.activate | Architecture > Floors > Activate Floor | menu | crates/engine/src/cmd/projfile.rs (+ host chrome) | Menu bar path; command id floor.activate via StartCommand / accelerator | not_tested | — |
@@ -225,6 +252,7 @@ Populated at runtime from host menu JSON (`BuildMenus()`). Top-level order: File
 | menu.room.audit | Architecture > Rooms and Areas > Room Label Audit | menu | crates/engine/src/cmd/roomtools.rs (+ host chrome) | Menu bar path; command id room.audit via StartCommand / accelerator | not_tested | — |
 | menu.room.settings | Architecture > Rooms and Areas > Room Label Settings... | menu | crates/engine/src/cmd/hcw.rs (+ host chrome) | Menu bar path; command id room.settings via StartCommand / accelerator | not_tested | — |
 | menu.room.log | Architecture > Rooms and Areas > Room Log (CSV) | menu | crates/engine/src/cmd/roomtools.rs (+ host chrome) | Menu bar path; command id room.log via StartCommand / accelerator | not_tested | — |
+| menu.room.lighting | Architecture > Rooms and Areas > Room Lighting | menu | crates/engine/src/cmd/roomtools.rs (+ host chrome) | Menu bar path; command id room.lighting via StartCommand / accelerator | not_tested | — |
 | menu.room.check | Architecture > Rooms and Areas > Room Rectangle Check | menu | crates/engine/src/cmd/roomtools.rs (+ host chrome) | Menu bar path; command id room.check via StartCommand / accelerator | not_tested | — |
 | menu.sheet.template.list | Architecture > Sheets > Apply Sheet Template | menu | crates/engine/src/cmd/sheet.rs (+ host chrome) | Menu bar path; command id sheet.template.list via StartCommand / accelerator | not_tested | — |
 | menu.sheet.template.save | Architecture > Sheets > Save Sheet Template | menu | crates/engine/src/cmd/sheet.rs (+ host chrome) | Menu bar path; command id sheet.template.save via StartCommand / accelerator | not_tested | — |

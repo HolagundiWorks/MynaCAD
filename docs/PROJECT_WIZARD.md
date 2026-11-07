@@ -13,7 +13,7 @@ separates what exists from what is planned ([status.md](status.md) holds the ove
 | Project data in the drawing (details, floors, heights, schedules) | `cmd/project.rs`, `Drawing::project` | Implemented |
 | Schedules and take-off | `cmd/schedule.rs`, `cmd/takeoff.rs` | Implemented; no opening *type* field, generated opening blocks or reconciliation report |
 | Sheets and batch plot | `cmd/sheet.rs`, `plot.batch` | Implemented; no title block or nameplate with fields |
-| File formats | `crates/io` | DXF read and write; DWG read. The project files O-Draft writes are DXF |
+| File formats | `crates/io` | DXF read and write; DWG read. The project files Tren writes are DXF |
 | Wizard UI, template manager, company profiles, nameplates, recovery | none | Not built (before this work) |
 
 Constraints found: identities in `project.aad.json` are names, not ids (renaming a floor breaks its
@@ -98,7 +98,7 @@ the naming rules only for when DWG writing exists.
 File > Project Wizard (`apps/aad-winui/ProjectWizardWindow.cs`, engine command `project.wizard`,
 `cmd/wizard.rs`) sets up a new single drawing in five pages: the project (name, client, location,
 site address, property ID, site area, plot use, authority, date, summary); the team and company
-(architect, engineer, and a button that reads the O-Studio company file); the building (drawing unit,
+(architect, engineer, and a button that reads the Kivo company file); the building (drawing unit,
 floors above ground, basements, terrace, a default floor-to-floor height and an editable list of
 floor names and heights, slab and beam defaults, one level per floor or not); the standards
 (architectural, permit and presentation layer sets, the five discipline tabs, symbol blocks); and a

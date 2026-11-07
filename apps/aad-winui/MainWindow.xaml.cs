@@ -587,9 +587,9 @@ public sealed partial class MainWindow : Window
             _ = ImportFile();
             return;
         }
-        if (RccTools.TryGetValue(id, out var rccBlock))
+        if (RccTools.TryGetValue(id, out var rccBlock) || MepTools.TryGetValue(id, out rccBlock))
         {
-            // Built-in structural tools: the block goes in with its defaults; the reinforcement is then edited in Properties (IS 456).
+            // Built-in place tools: the block goes in with its defaults; size and counts are edited in Properties.
             InsertLibrarySmartBlock(rccBlock);
             return;
         }
@@ -1864,6 +1864,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>The tab that is active now.</summary>
     private string _activeTabName = "Design";
+
+    /// <summary>Layer prefix of the active drawing tab, empty on Design.</summary>
+    private string _activeLayerPrefix = "";
 
     /// <summary>
     /// O-Draft holds one drawing. Before a file is opened or a new drawing started, offer to save what is open; false when the
@@ -5816,7 +5819,7 @@ public sealed partial class MainWindow : Window
     private void BuildTools()
     {
         ToolStrip.Children.Clear();
-        // Draw � Modify � Annotate on the top tool strip (horizontal groups).
+        // Draw, modify and annotate, down the left tool column.
         string[][] groups =
         [
             ["line", "pline", "circle", "arc", "rectang"],
@@ -5937,6 +5940,36 @@ public sealed partial class MainWindow : Window
         ("rcc.footing", "Footing"),
         ("rcc.slab", "Slab"),
         ("rcc.lintel", "Lintel"),
+        ("elec.light", "Light"),
+        ("elec.socket", "Socket"),
+        ("elec.switchboard", "Switch board"),
+        ("elec.fan.ceiling", "Fan"),
+        ("elec.downlight", "Downlight"),
+        ("elec.db", "DB"),
+        ("electrical.number", "Number"),
+        ("electrical.connect", "Wiring"),
+        ("electrical.schedule", "Schedule"),
+        ("plumb.wc.european", "WC"),
+        ("plumb.wc.indian", "Indian WC"),
+        ("plumb.basin", "Basin"),
+        ("plumb.sink.kitchen", "Sink"),
+        ("plumb.shower", "Shower"),
+        ("plumb.floor.trap", "Trap"),
+        ("plumb.chamber", "Chamber"),
+        ("plumb.tank.round", "Tank"),
+        ("plumb.riser", "Riser"),
+        ("int.wardrobe", "Wardrobe"),
+        ("int.kitchen.counter", "Counter"),
+        ("int.dining.set", "Dining"),
+        ("int.bed", "Bed"),
+        ("int.sofa", "Sofa"),
+        ("int.shelf", "Shelf"),
+        ("hvac.duct.rect", "Duct"),
+        ("hvac.diffuser.square", "Diffuser"),
+        ("hvac.grille", "Grille"),
+        ("hvac.split.indoor", "Indoor unit"),
+        ("hvac.split.outdoor", "Outdoor unit"),
+        ("hvac.fan.exhaust", "Exhaust"),
     ];
 
     /// <summary>The structural tools and the parametric block each places (IS 456 checked in Properties).</summary>
@@ -5950,17 +5983,43 @@ public sealed partial class MainWindow : Window
         ["rcc.lintel"] = "rcc.lintel.section",
     };
 
+    /// <summary>Electrical and plumbing symbols. The command id is the smart-block id.</summary>
+    private static readonly Dictionary<string, string> MepTools = new()
+    {
+        ["elec.light"] = "elec.light",
+        ["elec.socket"] = "elec.socket",
+        ["elec.switchboard"] = "elec.switchboard",
+        ["elec.fan.ceiling"] = "elec.fan.ceiling",
+        ["elec.downlight"] = "elec.downlight",
+        ["elec.db"] = "elec.db",
+        ["plumb.wc.european"] = "plumb.wc.european",
+        ["plumb.wc.indian"] = "plumb.wc.indian",
+        ["plumb.basin"] = "plumb.basin",
+        ["plumb.sink.kitchen"] = "plumb.sink.kitchen",
+        ["plumb.shower"] = "plumb.shower",
+        ["plumb.floor.trap"] = "plumb.floor.trap",
+        ["plumb.chamber"] = "plumb.chamber",
+        ["plumb.tank.round"] = "plumb.tank.round",
+        ["plumb.riser"] = "plumb.riser",
+        ["int.wardrobe"] = "int.wardrobe",
+        ["int.kitchen.counter"] = "int.kitchen.counter",
+        ["int.dining.set"] = "int.dining.set",
+        ["int.bed"] = "int.bed",
+        ["int.sofa"] = "int.sofa",
+        ["int.shelf"] = "int.shelf",
+        ["hvac.duct.rect"] = "hvac.duct.rect",
+        ["hvac.diffuser.square"] = "hvac.diffuser.square",
+        ["hvac.grille"] = "hvac.grille",
+        ["hvac.split.indoor"] = "hvac.split.indoor",
+        ["hvac.split.outdoor"] = "hvac.split.outdoor",
+        ["hvac.fan.exhaust"] = "hvac.fan.exhaust",
+    };
+
     private void RebuildArchitectureBar()
     {
         ArchBar.Children.Clear();
-        // Openings � rooms � structure ? thin dividers between sections. Wall draw is command-line only.
-        string[][] groups =
-        [
-            ["wall.door", "wall.window"],
-            ["room", "rarea", "north.arrow"],
-            ["grid.axis", "column.place", "stair.plan"],
-            ["rcc.column", "rcc.column.round", "rcc.beam", "rcc.footing", "rcc.slab", "rcc.lintel"],
-        ];
+        // The draw strip above stays. These tools follow the open drawing tab.
+        var groups = DisciplineGroups();
         var first = true;
         foreach (var group in groups)
         {
@@ -5979,6 +6038,55 @@ public sealed partial class MainWindow : Window
             }
         }
     }
+
+    /// <summary>
+    /// Design and Working drawing keep the building tools. A standard discipline tab shows that discipline.
+    /// A renamed tab keeps its tools when the layer prefix is still E-, P-, I- or FC-.
+    /// </summary>
+    private string[][] DisciplineGroups()
+    {
+        if (IsDiscipline("Electrical", "E-"))
+        {
+            return
+            [
+                ["elec.light", "elec.socket", "elec.switchboard", "elec.fan.ceiling", "elec.downlight", "elec.db"],
+                ["electrical.number", "electrical.connect", "electrical.schedule"],
+            ];
+        }
+        if (IsDiscipline("Plumbing", "P-"))
+        {
+            return
+            [
+                ["plumb.wc.european", "plumb.wc.indian", "plumb.basin", "plumb.sink.kitchen", "plumb.shower", "plumb.floor.trap", "plumb.chamber", "plumb.tank.round", "plumb.riser"],
+            ];
+        }
+        if (IsDiscipline("Interior", "I-"))
+        {
+            return
+            [
+                ["int.bed", "int.sofa", "int.dining.set", "int.kitchen.counter", "int.wardrobe", "int.shelf"],
+            ];
+        }
+        if (IsDiscipline("False ceiling", "FC-"))
+        {
+            return
+            [
+                ["hvac.diffuser.square", "hvac.grille", "hvac.duct.rect", "hvac.fan.exhaust", "elec.downlight", "elec.fan.ceiling"],
+                ["hvac.split.indoor", "hvac.split.outdoor"],
+            ];
+        }
+        return
+        [
+            ["wall.door", "wall.window"],
+            ["room", "rarea", "room.lighting", "north.arrow"],
+            ["grid.axis", "column.place", "stair.plan"],
+            ["rcc.column", "rcc.column.round", "rcc.beam", "rcc.footing", "rcc.slab", "rcc.lintel"],
+        ];
+    }
+
+    private bool IsDiscipline(string name, string prefix) =>
+        _activeTabName.Equals(name, StringComparison.OrdinalIgnoreCase)
+        || _activeLayerPrefix.Equals(prefix, StringComparison.OrdinalIgnoreCase);
 
     private void StartTakeoffDraw(string kind)
     {
@@ -6127,7 +6235,7 @@ public sealed partial class MainWindow : Window
         _documents.Clear();
         _documents.AddRange(state.Documents);
         var active = _documents.FirstOrDefault(doc => doc.Active);
-        Title = active == null || active.Title.Length == 0 ? "O-Draft" : "O-Draft \u2014 " + active.Title;
+        Title = active == null || active.Title.Length == 0 ? "Tren" : "Tren \u2014 " + active.Title;
         PublishActiveProject(ActiveDrawingPath(active));
         var key = string.Join("\n", _documents.Select(doc => doc.Index + ":" + doc.Title + ":" + doc.Dirty + ":" + doc.Active));
         if (key == _docKey)
@@ -6365,7 +6473,7 @@ public sealed partial class MainWindow : Window
         var takeoff = tools && _takeoffMode;
         TakeoffModeButton.IsChecked = _takeoffMode;
         ToolStripHost.Visibility = tools ? Visibility.Visible : Visibility.Collapsed;
-        SheetRailHost.Visibility = tools ? Visibility.Visible : Visibility.Collapsed;
+        ToolColumnHost.Visibility = tools ? Visibility.Visible : Visibility.Collapsed;
         if (tools && ArchBar.Children.Count == 0)
         {
             RebuildArchitectureBar();

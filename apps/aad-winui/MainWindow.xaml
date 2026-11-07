@@ -3,7 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Aad.WinUi"
-    Title="O-Draft">
+    Title="Tren">
     <Grid x:Name="ShellRoot" Language="en-US" Loaded="OnLoaded" PreviewKeyDown="OnShellKey" Background="{ThemeResource AppBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -39,8 +39,7 @@
             FontSize="{StaticResource FontSizeBody}"
             AutomationProperties.Name="Menu" />
         </StackPanel>
-        <!-- Standard tools: layer, draw/modify/annotate, architecture (one row under the menu). -->
-        <!-- Drawing tabs across the top: Design, then one tab per discipline, each with its own paper size and orientation. -->
+        <!-- Layer selector. Draw, modify, annotate and the discipline tools are the left column. -->
         <StackPanel Grid.Row="1" Orientation="Vertical">
         <Border x:Name="ToolStripHost" Style="{StaticResource ToolStripChromeStyle}" BorderThickness="0,0,0,1" AutomationProperties.Name="Drawing and architecture tools" AutomationProperties.LandmarkType="Navigation">
             <ScrollViewer VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto">
@@ -68,7 +67,7 @@
             </ScrollViewer>
         </Border>
         <Grid Grid.Row="3">
-            <!-- Sheet-set rail | canvas | splitter | properties (right). -->
+            <!-- Tools | canvas | splitter | properties (right). -->
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="RailColumn" Width="Auto" />
                 <ColumnDefinition Width="*" MinWidth="{StaticResource FieldWidth}" />
@@ -76,13 +75,12 @@
                 <ColumnDefinition x:Name="PropertiesColumn" Width="{StaticResource SidePanelColumnWidth}" MinWidth="0" />
             </Grid.ColumnDefinitions>
             <!-- Tools down the left side, two to a row: draw, modify, annotate, then the architecture tools. The drawing tabs are across the top. -->
-            <Border x:Name="SheetRailHost" Background="{ThemeResource SurfaceBrush}" BorderBrush="{ThemeResource BorderSubtleBrush}" BorderThickness="0,0,1,0" AutomationProperties.Name="Tools">
+            <Border x:Name="ToolColumnHost" Background="{ThemeResource SurfaceBrush}" BorderBrush="{ThemeResource BorderSubtleBrush}" BorderThickness="0,0,1,0" AutomationProperties.Name="Tools">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Orientation="Vertical" Spacing="{StaticResource SpaceXs}" Margin="{StaticResource PaddingSm}">
                         <Border x:Name="ToolStripSlot" />
                         <Border x:Name="ArchToolsDivider" Height="1" Margin="2,4" Background="{ThemeResource BorderSubtleBrush}" Visibility="Collapsed" />
                         <Border x:Name="ArchBarSlot" />
-                        <StackPanel x:Name="SheetRail" Visibility="Collapsed" />
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -395,7 +393,7 @@
             </StackPanel>
         </Grid>
         </Border>
-        <!-- Page layout: shown from the "Page layout" tab of the left rail (code puts this panel in a flyout). -->
+        <!-- Page layout: the drawing tab's Page layout item shows this panel in a flyout. -->
         <StackPanel x:Name="PageLayoutPanel" Visibility="Collapsed" Spacing="{StaticResource SpaceMd}" Padding="{StaticResource PaddingMd}" MinWidth="220">
             <TextBlock x:Name="PageLayoutTitle" Text="Page layout" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="260" />
             <TextBlock Text="Paper size" FontSize="{StaticResource FontSizeCaption}" Foreground="{ThemeResource TextSecondaryBrush}" />
@@ -453,7 +451,7 @@
                     Spacing="{StaticResource SpaceLg}">
                     <!-- The lockup artwork has dark text: on the dark theme it sits on a light plate. -->
                     <Border HorizontalAlignment="Left" CornerRadius="4" Padding="12" Background="{ThemeResource LockupPlateBrush}">
-                        <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="O-Draft" />
+                        <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="Tren" />
                     </Border>
                     <TextBlock
                         Text="Start a drawing or open the project file (.osp) shared with O-CoreOp. Company details for title blocks come from a file exported in O-Studio."
@@ -560,10 +558,10 @@
         <!-- In-window splash (avoids a second top-level window fighting the command chrome). -->
         <Grid x:Name="SplashOverlay" Grid.RowSpan="6" Background="{ThemeResource SplashBackgroundBrush}" Canvas.ZIndex="1000" AutomationProperties.Name="Splash">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="{StaticResource SpaceMd}">
-                <Image x:Name="SplashLogo" Width="{StaticResource LogoSplash}" Height="{StaticResource LogoSplash}" HorizontalAlignment="Center" AutomationProperties.Name="O-Draft" />
-                <TextBlock Text="O-Draft" FontSize="{StaticResource FontSizeSplashTitle}" FontWeight="SemiBold" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Architectural drafting with O-Studio and O-CoreOp" FontSize="{StaticResource FontSizeSection}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Open Source Architecture Suite · with O-Studio and O-CoreOp" FontSize="{StaticResource FontSizeBody}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
+                <Image x:Name="SplashLogo" Width="{StaticResource LogoSplash}" Height="{StaticResource LogoSplash}" HorizontalAlignment="Center" AutomationProperties.Name="Tren" />
+                <TextBlock Text="Tren" FontSize="{StaticResource FontSizeSplashTitle}" FontWeight="SemiBold" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Architectural drafting with Kivo and Falcon" FontSize="{StaticResource FontSizeSection}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Myna · with Kivo and Falcon" FontSize="{StaticResource FontSizeBody}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="Open source · MIT OR Apache-2.0" FontSize="{StaticResource FontSizeBody}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" Margin="0,8,0,0" />
             </StackPanel>
         </Grid>

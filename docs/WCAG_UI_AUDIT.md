@@ -56,7 +56,7 @@ $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Window
 Do not capture the window with a screen copy while another window overlaps it; `PrintWindow` with the
 `PW_RENDERFULLCONTENT` flag (2) captures only that window.
 
-## Second pass, after the O-Draft rebrand (2026-10-19)
+## Second pass, after the Tren rebrand (2026-10-19)
 
 Same method, plus the dialogs opened through UI Automation (Units, Linetype, Drafting Settings, Command list) and both themes captured with `PrintWindow`.
 

@@ -1,8 +1,8 @@
 # Parametric graphs and the wall take-off slice
 
-What exists for Grasshopper-style parametric modelling in O-Draft. This is not CAD parametric
-constraints (those remain out of scope). The graph computes measured wall facts; O-Draft owns the
-drawing and undo; O-CoreOp owns finishes, net areas and costing.
+What exists for Grasshopper-style parametric modelling in Tren. This is not CAD parametric
+constraints (those remain out of scope). The graph computes measured wall facts; Tren owns the
+drawing and undo; Falcon owns finishes, net areas and costing.
 
 ## Ownership
 
@@ -10,8 +10,8 @@ drawing and undo; O-CoreOp owns finishes, net areas and costing.
 |---|---|
 | Component type schemas (`osas.wall` v1) and node library | Code in `aad-param` (hosted library not built yet) |
 | Graph evaluation, units, formulas, cycle detection, cache | `crates/param` (`aad-param`) |
-| Drawing geometry, project data, undo, commit | O-Draft engine (`param.*` in `crates/engine/src/cmd/param.rs`) |
-| Quantity take-off and costing from measured facts | O-CoreOp (via `bridge.export` / `takeoff.record`) |
+| Drawing geometry, project data, undo, commit | Tren engine (`param.*` in `crates/engine/src/cmd/param.rs`) |
+| Quantity take-off and costing from measured facts | Falcon (via `bridge.export` / `takeoff.record`) |
 
 ## Crate: `aad-param`
 
@@ -77,7 +77,7 @@ material, finish, component type).
 
 ### Take-off hand-off
 
-`param.takeoff` returns O-CoreOp wall rows:
+`param.takeoff` returns Falcon wall rows:
 
 ```json
 { "ref": "PW-<instanceId>", "level", "length_mm", "height_mm", "thickness_mm", "layer": "A-WALL" }
@@ -89,7 +89,7 @@ revisions, handles). Stale and detached walls are omitted with warnings.
 `bridge.export` (and therefore `takeoff.record`) includes linked, current parametric walls alongside
 brick take-off walls. Parametric rows carry `thickness_mm`; brick take-off walls still do not.
 Gross face area and volume from `measure.wall` are graph measurements for preview only — not the
-BOQ. Finishes and net areas stay with O-CoreOp. Hand-off for O-CoreOp (row shapes, gaps, questions):
+BOQ. Finishes and net areas stay with Falcon. Hand-off for Falcon (row shapes, gaps, questions):
 [HANDOFF-O-COREOP-PARAMETRIC-TAKEOFF.md](HANDOFF-O-COREOP-PARAMETRIC-TAKEOFF.md).
 
 ## Tests
@@ -115,8 +115,8 @@ take-off.
   [architecture/DYNAMO_INTEGRATION.md](architecture/DYNAMO_INTEGRATION.md)).
 - Async C ABI for long evaluations.
 - Hosted component library (schemas are in code).
-- An O-CoreOp `measure(component, rule, revision)` API (the published contract is measured-fact rows
-  through the bridge / `takeoff.record`; derived finishes must not be sent from O-Draft).
+- A Falcon `measure(component, rule, revision)` API (the published contract is measured-fact rows
+  through the bridge / `takeoff.record`; derived finishes must not be sent from Tren).
 - Columns, beams, slabs and other component types beyond `osas.wall` in `aad-param` (companion
   has draft geometry, block-insert and sheet-set annotation nodes).
 - Agent tools for `param.*` (engine commands exist; the agent registry does not expose them yet).

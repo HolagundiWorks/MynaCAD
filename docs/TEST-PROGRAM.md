@@ -1,6 +1,6 @@
 # Test program
 
-Every feature of the suite is tested by a written plan, app by app and then connected. The plans, the test environment, the bug process, the bug log and the report template are in the O-Studio repository: `docs/testing/`.
+Every feature of the suite is tested by a written plan, app by app and then connected. The plans, the test environment, the bug process, the bug log and the report template are in the Kivo repository: `docs/testing/`.
 
 | Document | What |
 |---|---|

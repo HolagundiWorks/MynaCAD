@@ -39,6 +39,13 @@ pub fn specs() -> Vec<CommandSpec> {
             .menu(&["Architecture", "Rooms and Areas", "Room Rectangle Check"])
             .params("{} → {result: PASS|WARN, closed, open, lines, other} (everything on ROOM-RECT should be a closed polyline)")
             .noundo(),
+        CommandSpec::new("room.lighting", "Room Lighting", run_lighting)
+            .menu(&["Architecture", "Rooms and Areas", "Room Lighting"])
+            .alias(&["roomlux"])
+            .params(
+                "{} → {count, note, rooms: [{name, declared, lighting_matched, area_m2, area_ft2, lm_per_m2, lm_per_ft2, flux_lm}]} (maintained illuminance for each declared room label)",
+            )
+            .noundo(),
     ]
 }
 
@@ -141,11 +148,9 @@ pub(crate) fn rooms_for_export(d: &Drawing, space: &aad_doc::Space) -> Vec<RoomR
             let m2 = if r.unit.starts_with("sq ft") { r.area * 0.092_903_04 } else { r.area };
             let outline =
                 rects.iter().find(|(_, b)| r.at.x >= b.min.x && r.at.x <= b.max.x && r.at.y >= b.min.y && r.at.y <= b.max.y).map(|(h, _)| *h);
-            RoomRow {
-                row: json!({ "ref": format!("R{}", r.name_text.hex()), "name": r.name, "size": r.size, "area_m2": (m2 * 1000.0).round() / 1000.0 }),
-                handle: r.name_text,
-                outline,
-            }
+            let mut row = json!({ "ref": format!("R{}", r.name_text.hex()), "name": r.name, "size": r.size, "area_m2": (m2 * 1000.0).round() / 1000.0 });
+            merge_lighting(&mut row, &r.name, r.area, &r.unit);
+            RoomRow { row, handle: r.name_text, outline }
         })
         .collect()
 }
@@ -254,6 +259,34 @@ fn run_audit(s: &mut Session, _p: &Value) -> Result<Value> {
     Ok(json!({ "labels": rooms.len(), "rectangles": rects.len(), "labelsWithoutRectangle": no_rect, "rectanglesWithoutLabel": no_label }))
 }
 
+fn merge_lighting(row: &mut Value, name: &str, area: f64, unit: &str) {
+    let Some(into) = row.as_object_mut() else { return };
+    let Some(extra) = super::lighting::lighting_for(name, area, unit).as_object().cloned() else { return };
+    for (key, value) in extra {
+        if key != "area_m2" {
+            into.insert(key, value);
+        }
+    }
+}
+
+fn run_lighting(s: &mut Session, _p: &Value) -> Result<Value> {
+    let space = s.space();
+    let mut rooms = find_rooms(s.doc()?, &space);
+    if rooms.is_empty() {
+        return Err(bad("room.lighting", "no room labels on ROOM-LABELS in this space"));
+    }
+    rooms.sort_by(|a, b| a.name.cmp(&b.name).then(a.at.y.total_cmp(&b.at.y)).then(a.at.x.total_cmp(&b.at.x)));
+    let list: Vec<Value> = rooms
+        .iter()
+        .map(|r| {
+            let mut row = json!({ "name": r.name });
+            merge_lighting(&mut row, &r.name, r.area, &r.unit);
+            row
+        })
+        .collect();
+    Ok(json!({ "count": list.len(), "note": super::lighting::NOTE, "rooms": list }))
+}
+
 fn run_check(s: &mut Session, _p: &Value) -> Result<Value> {
     let space = s.space();
     let d = s.doc()?;
@@ -357,6 +390,39 @@ mod tests {
         s.doc_mut().unwrap().modify_entity(h, |e| e.common.layer = RECT_LAYER.0.to_string()).unwrap();
         let r = s.execute("room.check", &json!({})).unwrap();
         assert_eq!((r["result"].clone(), r["lines"].clone()), (json!("WARN"), json!(1)));
+    }
+
+    #[test]
+    fn lighting_follows_the_declared_room() {
+        let mut s = Session::new();
+        room(&mut s, "br", 0.0, 0.0, 4.0, 3.0, true);
+        room(&mut s, "st", 10.0, 0.0, 14.0, 4.0, false);
+        let light = s.execute("room.lighting", &json!({})).unwrap();
+        let rooms = light["rooms"].as_array().unwrap();
+        let bed = rooms.iter().find(|r| r["name"] == "BEDROOM").unwrap();
+        assert_eq!(bed["declared"], json!("Bedroom"));
+        assert_eq!(bed["lm_per_m2"], json!(100));
+        assert_eq!(bed["lm_per_ft2"], json!(9.29));
+        assert_eq!(bed["flux_lm"], json!(1200.0));
+        let study = rooms.iter().find(|r| r["name"] == "STUDY ROOM").unwrap();
+        assert_eq!(study["lm_per_m2"], json!(500));
+        assert_eq!(study["flux_lm"], json!(8000.0));
+        assert!(light["note"].as_str().unwrap().contains("not the lamp catalog"));
+        let exported = rooms_for_export(s.doc().unwrap(), &aad_doc::Space::Model);
+        let bed_row = exported.iter().find(|r| r.row["name"] == "BEDROOM").unwrap();
+        assert_eq!(bed_row.row["lm_per_m2"], json!(100));
+    }
+
+    #[test]
+    fn an_undeclared_room_uses_the_general_level() {
+        let mut s = Session::new();
+        room(&mut s, "Plant", 0.0, 0.0, 2.0, 2.0, false);
+        let row = &s.execute("room.lighting", &json!({})).unwrap()["rooms"][0];
+        assert_eq!(row["lighting_matched"], json!(false));
+        assert_eq!(row["declared"], json!("General"));
+        assert_eq!(row["lm_per_m2"], json!(150));
+        assert_eq!(row["flux_lm"], json!(600.0));
+        assert!(Session::new().execute("room.lighting", &json!({})).is_err());
     }
 
     #[test]
