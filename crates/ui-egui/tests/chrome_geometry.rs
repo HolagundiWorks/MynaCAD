@@ -61,7 +61,11 @@ fn status_labels_never_overlap_at_standard_and_compact_sizes() {
                     visible_text(&shape.shape, shape.clip_rect, &mut texts);
                 }
                 texts.retain(|(_, rect)| rect.center().y > height - 26.0);
-                assert!(texts.iter().any(|(text, _)| text == "Layout2"));
+                // Paper layouts are no longer tabs in the status bar (a print block names a region of the
+                // model). The left side shows the status message when there is one, else the cursor
+                // coordinates the harness sets.
+                let expected = if message { "Drawing saved" } else { "1234" };
+                assert!(texts.iter().any(|(text, _)| text.contains(expected)), "status bar shows {expected:?}: {texts:?}");
                 for (i, (first, first_rect)) in texts.iter().enumerate() {
                     for (second, second_rect) in texts.iter().skip(i + 1) {
                         if first_rect.intersects(*second_rect) {
