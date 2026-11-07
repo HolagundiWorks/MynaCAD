@@ -102,8 +102,12 @@ fn park(w: &mut Drawing, name: String, store: EntityStore) {
 /// compose / master / publisher data.
 pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
     let needs_levels = d.levels.len() >= 2 || !d.sheet_sets.is_empty();
-    let needs_compose = !d.compose_views.is_empty() || !d.master_layouts.is_empty() || !d.publisher_sets.is_empty()
-        || d.layouts.iter().any(|l| l.master.is_some() || l.entities.iter().any(|e| matches!(&e.kind, EntityKind::Viewport(v) if v.compose_view.is_some())));
+    let needs_compose = !d.compose_views.is_empty()
+        || !d.master_layouts.is_empty()
+        || !d.publisher_sets.is_empty()
+        || d.layouts
+            .iter()
+            .any(|l| l.master.is_some() || l.entities.iter().any(|e| matches!(&e.kind, EntityKind::Viewport(v) if v.compose_view.is_some())));
     if !needs_levels && !needs_compose {
         return Cow::Borrowed(d);
     }

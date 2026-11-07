@@ -3,8 +3,8 @@
 
 use std::sync::{Mutex, OnceLock};
 
-use aad_engine::cmd::file::{IoHooks, set_io, set_pdf_merge};
 use aad_engine::Session;
+use aad_engine::cmd::file::{IoHooks, set_io, set_pdf_merge};
 use serde_json::json;
 
 static PLOTS: Mutex<usize> = Mutex::new(0);
@@ -43,9 +43,7 @@ fn single_file_pdf_joins_pages_and_records_the_takeoff_attempt() {
     let dir = std::env::temp_dir().join(format!("aad-pub-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let r = s
-        .execute("publisher.publish", &json!({"set": "Issue", "folder": dir.to_string_lossy(), "takeoff": true}))
-        .unwrap();
+    let r = s.execute("publisher.publish", &json!({"set": "Issue", "folder": dir.to_string_lossy(), "takeoff": true})).unwrap();
     assert_eq!(r["files"].as_array().unwrap().len(), 1);
     assert!(r["files"][0]["path"].as_str().unwrap().ends_with(".pdf"));
     assert_eq!(r["files"][0]["pages"], 2);

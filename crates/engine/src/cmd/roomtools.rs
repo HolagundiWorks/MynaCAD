@@ -148,7 +148,8 @@ pub(crate) fn rooms_for_export(d: &Drawing, space: &aad_doc::Space) -> Vec<RoomR
             let m2 = if r.unit.starts_with("sq ft") { r.area * 0.092_903_04 } else { r.area };
             let outline =
                 rects.iter().find(|(_, b)| r.at.x >= b.min.x && r.at.x <= b.max.x && r.at.y >= b.min.y && r.at.y <= b.max.y).map(|(h, _)| *h);
-            let mut row = json!({ "ref": format!("R{}", r.name_text.hex()), "name": r.name, "size": r.size, "area_m2": (m2 * 1000.0).round() / 1000.0 });
+            let mut row =
+                json!({ "ref": format!("R{}", r.name_text.hex()), "name": r.name, "size": r.size, "area_m2": (m2 * 1000.0).round() / 1000.0 });
             merge_lighting(&mut row, &r.name, r.area, &r.unit);
             RoomRow { row, handle: r.name_text, outline }
         })

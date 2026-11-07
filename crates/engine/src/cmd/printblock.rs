@@ -97,7 +97,11 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
     if book.items.iter().any(|item| item.name.eq_ignore_ascii_case(&new_name) && !item.name.eq_ignore_ascii_case(&name)) {
         return Err(bad("printblock.set", format!("a print block named \"{new_name}\" already exists")));
     }
-    let item = book.items.iter_mut().find(|item| item.name.eq_ignore_ascii_case(&name)).ok_or_else(|| bad("printblock.set", format!("no print block named \"{name}\"")))?;
+    let item = book
+        .items
+        .iter_mut()
+        .find(|item| item.name.eq_ignore_ascii_case(&name))
+        .ok_or_else(|| bad("printblock.set", format!("no print block named \"{name}\"")))?;
     item.name = new_name;
     let out_name = item.name.clone();
     let level = item.level;
@@ -313,7 +317,9 @@ impl Interactive for PrintBlockM {
     fn prompt(&self, _s: &Session) -> Prompt {
         if self.name.is_none() {
             return match &self.existing {
-                Some(name) => Prompt::new(format!("Print block \"{name}\" already exists. Replace it?"), Accept::TEXT).kw(&["Yes", "No"]).default("N"),
+                Some(name) => {
+                    Prompt::new(format!("Print block \"{name}\" already exists. Replace it?"), Accept::TEXT).kw(&["Yes", "No"]).default("N")
+                }
                 None => Prompt::new("Enter print block name", Accept::TEXT),
             };
         }

@@ -585,14 +585,7 @@ pub struct Layout {
 
 impl Layout {
     pub fn new(name: &str, tab_order: u32) -> Self {
-        Layout {
-            name: name.into(),
-            tab_order,
-            page: PageSetup::default(),
-            entities: EntityStore::new(),
-            view: None,
-            master: None,
-        }
+        Layout { name: name.into(), tab_order, page: PageSetup::default(), entities: EntityStore::new(), view: None, master: None }
     }
 }
 

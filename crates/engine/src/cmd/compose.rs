@@ -4,9 +4,7 @@
 //! Publisher Sets. See `docs/levels-and-sheet-sets.md` (Compose and publish) and the case study
 //! canvas. Distinct from DXF `VIEW` (`NamedView`) and from Phase-6 section/elevation spaces.
 
-use aad_doc::{
-    ComposeView, ComposeViewId, MasterLayout, MasterLayoutId, PageSetup, PublishFormat, PublisherSet, Trace,
-};
+use aad_doc::{ComposeView, ComposeViewId, MasterLayout, MasterLayoutId, PageSetup, PublishFormat, PublisherSet, Trace};
 use serde_json::{Map, Value, json};
 
 use super::*;
@@ -308,15 +306,7 @@ fn apply_compose_view(s: &mut Session, id: ComposeViewId, handle: Option<&str>) 
     let (view_name, level, sheet_set, scale_denom, center, height, traces) = {
         let d = s.doc()?;
         let v = d.compose_view(id).ok_or_else(|| bad(cmd, "gone"))?;
-        (
-            v.name.clone(),
-            v.level,
-            v.sheet_set,
-            v.scale_denom,
-            v.view_center,
-            v.view_height,
-            v.traces.clone(),
-        )
+        (v.name.clone(), v.level, v.sheet_set, v.scale_denom, v.view_center, v.view_height, v.traces.clone())
     };
     let mut set = Map::new();
     if let Some(h) = handle {
@@ -345,10 +335,7 @@ fn apply_compose_view(s: &mut Session, id: ComposeViewId, handle: Option<&str>) 
     }
     if !traces.is_empty() {
         let d = s.doc()?;
-        let list: Vec<Value> = traces
-            .iter()
-            .filter_map(|t| d.level(t.level).map(|l| json!({ "level": l.name, "fade": t.fade })))
-            .collect();
+        let list: Vec<Value> = traces.iter().filter_map(|t| d.level(t.level).map(|l| json!({ "level": l.name, "fade": t.fade }))).collect();
         set.insert("traces".into(), json!(list));
     }
     let out = s.execute("viewport.set", &Value::Object(set))?;
@@ -402,13 +389,7 @@ fn run_master_new(s: &mut Session, p: &Value) -> Result<Value> {
     let id = s.doc_mut()?.add_master_layout(MasterLayout {
         id: MasterLayoutId(0),
         name: name.to_string(),
-        page: PageSetup {
-            paper: paper.clone(),
-            width_mm,
-            height_mm,
-            landscape,
-            ..PageSetup::default()
-        },
+        page: PageSetup { paper: paper.clone(), width_mm, height_mm, landscape, ..PageSetup::default() },
         title_block,
         template,
     })?;
@@ -632,11 +613,7 @@ fn publish_folder(s: &Session, p: &Value, stored: &str) -> std::path::PathBuf {
 }
 
 fn file_stem(name: &str) -> String {
-    let t: String = name
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
-        .take(80)
-        .collect();
+    let t: String = name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).take(80).collect();
     if t.is_empty() { "publish".into() } else { t }
 }
 

@@ -416,13 +416,7 @@ mod tests {
         d.add_master_layout(MasterLayout {
             id: MasterLayoutId(0),
             name: "A1 Landscape".into(),
-            page: PageSetup {
-                paper: "A1".into(),
-                width_mm: 841.0,
-                height_mm: 594.0,
-                landscape: true,
-                ..PageSetup::default()
-            },
+            page: PageSetup { paper: "A1".into(), width_mm: 841.0, height_mm: 594.0, landscape: true, ..PageSetup::default() },
             title_block: "AAD-TITLEBLOCK".into(),
             template: String::new(),
         })
@@ -462,8 +456,8 @@ mod tests {
             view_height: None,
         })
         .unwrap();
-        assert!(d
-            .add_compose_view(ComposeView {
+        assert!(
+            d.add_compose_view(ComposeView {
                 id: ComposeViewId(0),
                 name: "plan".into(),
                 level: None,
@@ -474,9 +468,10 @@ mod tests {
                 view_center: None,
                 view_height: None,
             })
-            .is_err());
-        assert!(d
-            .add_compose_view(ComposeView {
+            .is_err()
+        );
+        assert!(
+            d.add_compose_view(ComposeView {
                 id: ComposeViewId(0),
                 name: "".into(),
                 level: None,
@@ -487,6 +482,7 @@ mod tests {
                 view_center: None,
                 view_height: None,
             })
-            .is_err());
+            .is_err()
+        );
     }
 }

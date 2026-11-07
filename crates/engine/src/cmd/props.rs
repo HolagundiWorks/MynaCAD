@@ -186,9 +186,9 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
         let mut body = serde_json::Map::new();
         body.insert("handles".into(), json!(hs.iter().map(|h| h.hex()).collect::<Vec<_>>()));
         let kind = str_param(p, "buildingKind").map(str::to_string).or_else(|| {
-            s.doc().ok().and_then(|d| {
-                hs.first().and_then(|h| d.entity(*h)).and_then(|e| e.common.building.as_ref()).map(|b| b.kind.as_str().to_string())
-            })
+            s.doc()
+                .ok()
+                .and_then(|d| hs.first().and_then(|h| d.entity(*h)).and_then(|e| e.common.building.as_ref()).map(|b| b.kind.as_str().to_string()))
         });
         body.insert("kind".into(), json!(kind.unwrap_or_else(|| "other".into())));
         if let Some(t) = str_param(p, "ifcType") {
