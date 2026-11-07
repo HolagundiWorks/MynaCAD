@@ -118,16 +118,24 @@ pub fn mesh(
         } else if session.running.is_some() {
             let ents = session.preview(cursor.aim);
             if !ents.is_empty() {
+                // The ghost is rebuilt on every mouse move, so it gets the same level of detail as the drawing: text and
+                // hatches a few pixels tall are bars, tints or left out. At full detail a copy of a few thousand
+                // entities cost over 30 ms per move.
+                let per_pixel = 1.0 / scale;
+                let lod = aad_render::lod_flags_for_view(per_pixel.max(1e-300), 1.0);
                 list = aad_render::build_entities(
                     &state.doc,
                     ents.iter(),
                     &aad_render::Options {
                         tolerance: 0.2 / scale,
                         min_dash: 2.0 / scale,
-                        text: true,
-                        fill: true,
+                        text: lod.text,
+                        fill: lod.fill,
+                        text_greek: lod.text_greek,
+                        fill_tint: lod.fill_tint,
                         lineweights: false,
                         view_height: view.height,
+                        screen_px: per_pixel,
                         ..Default::default()
                     },
                 );

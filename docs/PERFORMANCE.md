@@ -309,3 +309,42 @@ vertices at full detail (text fill, hatch lines, block references). Machine as a
 - **Still slow:** DWG parse about 1.1 s; a zoom that crosses a detail band costs 20 to 40 ms per tick, mostly the
   triangle volume of text fill (10 M+ vertices at close zoom; glyph curves are already flattened to about 0.2 px).
   A GPU glyph atlas is the proposed fix and is not started. O-CoreOp and the Ask bar were not profiled.
+
+## Update: editing a large drawing (2026-11-07)
+
+Test drawing: the 3.5 MB DWG used above (26 206 entities, 710 250 primitives at full detail; text, hatches and block
+references). Measured headlessly with the ignored probes `aad-host` `edit_latency_on_a_real_drawing`
+(`AAD_PERF_FILE=<drawing> cargo test --release -p aad-host --lib edit_latency -- --ignored --nocapture`: the real
+`Host`, everything the UI thread does per frame except the GPU upload) and `aad-cli` `edit_cost_by_operation`
+(the scene rebuild alone). One machine, one run; use the figures for orders of magnitude.
+
+| Operation | UI-thread frame before | After |
+|---|---|---|
+| move or copy 1 to 100 entities | at least 450 ms | about 43 ms |
+| move or copy 2 000 entities | about 450 ms | about 62 ms |
+| move or copy all 26 206 | 450 to 700 ms | 140 to 190 ms |
+| erase 1, 100, 2 000 entities, and the undo of each | not measured | 42 to 56 ms |
+| undo of an erase of everything | not measured | about 115 ms |
+| select 100, 2 000 or all entities (engine + selection overlay) | not measured | under 6 ms |
+| drag a copy of 2 000 or more selected entities: ghost per mouse move | 31 to 42 ms | 3 to 6 ms |
+| one wheel-zoom step | 20 to 60 ms | mean 4 ms, worst 24 ms |
+| first frame of the drawing (list and mesh) | 400 ms or more | about 180 ms |
+
+- **Why an edit cost 450 ms:** `rebuild_scene` measured every entity's bounds three times on one thread (the
+  viability check, the partition and the dirty pass; text, hatch and block bounds are the expensive ones) and then
+  refused anyway. At full zoom-out the view-sized grid put the whole drawing in 3 tiles (the largest held 14 325
+  entities, over the one-quarter limit), so any edit was "too much changed" and the caller did a full build.
+- **What changed (`aad-render` `scene.rs`):** each entity's tile, bounds and inclusion are measured once, in
+  parallel, and kept in `Scene::info`; an edit measures only what changed and reuses the rest, so the extents are
+  exact again; the grid edge is halved while a tile holds more than `max(1000, n/24)` entities and the finer grid
+  still fits under the tile cap (the next step is checked first, since a halving can quadruple the tile count);
+  big tiles tessellate in parallel chunks; and the "too much changed" refusal is gone, because a rebuild of every
+  tile now costs no more than a full build. The host asks `build_scene_if_viable` instead of `scene_tiling_viable`
+  and then `build_scene`, which measured twice. The full scene build went from 363 ms to about 150 ms.
+- **The copy ghost** (`aad-host` `overlay.rs`): the command previews at most 500 entities and rebuilt them at full
+  detail on every mouse move. It now uses the main view's level of detail (text and hatches a few pixels tall are
+  bars, tints or omitted).
+- **Still open:** the frame after a small edit is about 43 ms, of which about 32 ms is the scene rebuild and the
+  flatten into one list (an incremental flatten would remove most of it); the DWG parse is still about 1.1 s; a
+  zoom that crosses a detail band still costs 20 to 40 ms per tick on a worker, mostly text fill. The Ask bar and
+  O-CoreOp were not profiled. Numbers are from the headless host, not from timing the window.

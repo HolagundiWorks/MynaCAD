@@ -3839,6 +3839,122 @@ mod tests {
                 host.mesh().unwrap();
             }
         }
+        // Erase and the undo that follows it, then selecting everything: the selection overlay is drawn on top of the
+        // drawing on every frame, so its cost counts as much as the mesh.
+        println!("{:<14} {:>9} {:>10} {:>14}", "operation", "engine", "frame", "overlay");
+        let overlay_ms = |host: &mut Host| {
+            let t = std::time::Instant::now();
+            let origin = host.frame.mesh_origin;
+            let paper = host.paper();
+            // With a cursor, as the real redraw has: the selection highlight and the grips are drawn only then.
+            let cursor = overlay::Cursor {
+                aim: host.aim,
+                raw: host.raw,
+                snap: host.snap,
+                track: host.track.clone(),
+                hot: host.hot,
+                hover: host.hover,
+                warm_grip: None,
+            };
+            let _ = overlay::mesh(
+                &host.session,
+                Some(&cursor),
+                paper,
+                host.height,
+                origin,
+                None,
+                host.width,
+                host.show_ucs,
+                f64::from(host.pixels_per_point),
+            );
+            t.elapsed().as_secs_f64() * 1000.0
+        };
+        for n in [1usize, 100, 2_000, handles.len()] {
+            let sel: Vec<&String> = handles.iter().take(n).collect();
+            let t = std::time::Instant::now();
+            host.execute("erase", &json!({ "handles": sel })).unwrap();
+            let engine = ms(t);
+            let t = std::time::Instant::now();
+            host.mesh().unwrap();
+            let frame = ms(t);
+            println!("{:<14} {:>7.1}ms {:>8.1}ms {:>12.1}ms", format!("erase {n}"), engine, frame, overlay_ms(&mut host));
+            let t = std::time::Instant::now();
+            host.execute("undo", &json!({})).unwrap();
+            let engine = ms(t);
+            let t = std::time::Instant::now();
+            host.mesh().unwrap();
+            let frame = ms(t);
+            println!("{:<14} {:>7.1}ms {:>8.1}ms {:>12.1}ms", format!("undo erase {n}"), engine, frame, overlay_ms(&mut host));
+        }
+        for n in [100usize, 2_000, handles.len()] {
+            let sel: Vec<&String> = handles.iter().take(n).collect();
+            let t = std::time::Instant::now();
+            host.execute("select", &json!({ "handles": sel })).unwrap_or_else(|_| json!({}));
+            let engine = ms(t);
+            let t = std::time::Instant::now();
+            host.mesh().unwrap();
+            let frame = ms(t);
+            println!(
+                "{:<14} {:>7.1}ms {:>8.1}ms {:>12.1}ms  ({} selected)",
+                format!("select {n}"),
+                engine,
+                frame,
+                overlay_ms(&mut host),
+                host.session.selection().len()
+            );
+            host.execute("deselect", &json!({})).ok();
+        }
+        let t = std::time::Instant::now();
+        host.execute("selectall", &json!({})).unwrap();
+        let engine = ms(t);
+        let t = std::time::Instant::now();
+        host.mesh().unwrap();
+        let frame = ms(t);
+        println!(
+            "{:<14} {:>7.1}ms {:>8.1}ms {:>12.1}ms  ({} selected)",
+            "select all",
+            engine,
+            frame,
+            overlay_ms(&mut host),
+            host.session.selection().len()
+        );
+        host.execute("deselect", &json!({})).ok();
+        // The ghost shown while a copy is being placed is rebuilt on every mouse move (the command previews at most 500 entities).
+        println!("{:<24} {:>12} {:>12}", "copy ghost", "mean/move", "worst");
+        let full_view = host.session.state().unwrap().view();
+        for (label, divisor) in [("at extents", 1.0f64), ("zoomed in x12", 12.0)] {
+            host.execute(
+                "zoom",
+                &json!({ "mode": "center", "center": [full_view.center.x, full_view.center.y], "height": full_view.height / divisor }),
+            )
+            .unwrap();
+            host.mesh().unwrap();
+            println!("  {label}");
+            for n in [100usize, 2_000, handles.len()] {
+                let sel: Vec<&String> = handles.iter().take(n).collect();
+                host.execute("select", &json!({ "handles": sel })).unwrap();
+                host.submit("copy").ok();
+                host.submit("0,0").ok();
+                let (mut total, mut worst) = (0f64, 0f64);
+                let moves = 20;
+                for i in 0..moves {
+                    host.aim = aad_geom::Vec2::new(f64::from(i) * 400.0, 100.0);
+                    let d = overlay_ms(&mut host);
+                    total += d;
+                    worst = worst.max(d);
+                }
+                println!(
+                    "{:<24} {:>10.1}ms {:>10.1}ms  (running: {})",
+                    format!("{n} selected"),
+                    total / f64::from(moves),
+                    worst,
+                    host.session.running.is_some()
+                );
+                host.cancel_command().ok();
+                host.execute("deselect", &json!({})).ok();
+            }
+        }
+        host.execute("zoom", &json!({ "mode": "center", "center": [full_view.center.x, full_view.center.y], "height": full_view.height })).unwrap();
         // A zoom tick is a view change: no new document revision, so this is the pan/zoom path.
         let view = host.session.state().unwrap().view();
         let mut worst = 0f64;
