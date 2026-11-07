@@ -11,7 +11,10 @@ use aad_doc::{Common, Drawing, EntityKind, HAlign, Handle, Lineweight, Space, Te
 use aad_geom::Vec3;
 use serde_json::{Value, json};
 
-use super::bridge::{Collected, Item, KIND_COLUMN, KIND_ELEC_BOARD, KIND_ELEC_CIRCUIT, KIND_LINTEL, KIND_OPENING, KIND_ROOM, KIND_SLAB, KIND_WALL};
+use super::bridge::{
+    Collected, Item, KIND_COLUMN, KIND_ELEC_BOARD, KIND_ELEC_CIRCUIT, KIND_LINTEL, KIND_OPENING, KIND_PLUMB_FIXTURE, KIND_PLUMB_STACK, KIND_ROOM,
+    KIND_SLAB, KIND_WALL,
+};
 use super::*;
 use crate::{Result, Session};
 
@@ -28,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 /// The legend: kind, label, ACI colour.
-const KINDS: [(u8, &str, u8); 8] = [
+const KINDS: [(u8, &str, u8); 10] = [
     (KIND_WALL, "Walls", 1),
     (KIND_OPENING, "Openings", 3),
     (KIND_COLUMN, "Columns", 5),
@@ -37,6 +40,8 @@ const KINDS: [(u8, &str, u8); 8] = [
     (KIND_SLAB, "Slabs", 30),
     (KIND_ELEC_BOARD, "Boards", 2),
     (KIND_ELEC_CIRCUIT, "Circuits", 140),
+    (KIND_PLUMB_STACK, "Plumbing sources", 150),
+    (KIND_PLUMB_FIXTURE, "Fixtures", 160),
 ];
 
 fn colour_of(kind: u8) -> u8 {

@@ -586,7 +586,9 @@ fn record_takeoff_if_any(s: &mut Session) {
         let openings = super::project::get(d, "schedule")["openings"].as_array().is_some_and(|a| !a.is_empty());
         let elec = super::project::get(d, "electrical");
         let wires = elec["wires"].as_array().is_some_and(|a| !a.is_empty()) || elec["ids"].as_object().is_some_and(|m| !m.is_empty());
-        measured || openings || wires
+        let plumb = super::project::get(d, "plumbing");
+        let pipes = plumb["stacks"].as_array().is_some_and(|a| !a.is_empty()) || plumb["fixtures"].as_array().is_some_and(|a| !a.is_empty());
+        measured || openings || wires || pipes
     });
     if !worth {
         return;

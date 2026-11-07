@@ -9,7 +9,7 @@ pub const PDF_CHUNK: usize = 512 * 1024;
 
 const KIND_HEADER: u8 = 1;
 const KIND_PDF: u8 = 9;
-const ROW_KINDS: [u8; 8] = [3, 4, 5, 6, 7, 8, 10, 11];
+const ROW_KINDS: [u8; 10] = [3, 4, 5, 6, 7, 8, 10, 11, 12, 13];
 
 impl Odp {
     /// The take-off in record form, `(id, payload)` with `id = kind << 56 | slot << 32 | n`, the shape O-Draft's recorder works in: one header per

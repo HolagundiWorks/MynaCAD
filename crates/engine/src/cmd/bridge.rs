@@ -153,6 +153,8 @@ pub(crate) const KIND_ROOM: u8 = 7;
 pub(crate) const KIND_SLAB: u8 = 8;
 pub(crate) const KIND_ELEC_BOARD: u8 = 10;
 pub(crate) const KIND_ELEC_CIRCUIT: u8 = 11;
+pub(crate) const KIND_PLUMB_STACK: u8 = 12;
+pub(crate) const KIND_PLUMB_FIXTURE: u8 = 13;
 
 /// The number of an item in its record id: the low 56 bits of the entity handle.
 fn number_of(h: aad_doc::Handle) -> u64 {
@@ -726,6 +728,26 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
         root.insert("electrical_circuits".into(), Value::Array(circuits));
     }
 
+    // Plumbing: a row per source and service (kind 12) and one per fixture (kind 13), from `plumbing.connect`.
+    let plumb = project::get(d, "plumbing");
+    for (key, kind, section) in [("stacks", KIND_PLUMB_STACK, "plumbing"), ("fixtures", KIND_PLUMB_FIXTURE, "plumbing_fixtures")] {
+        let mut rows = Vec::new();
+        for (i, row) in plumb[key].as_array().into_iter().flatten().enumerate() {
+            let mut row = row.clone();
+            if row.get("level").is_none() {
+                row["level"] = json!(level);
+            }
+            let n = row["handle"].as_str().and_then(aad_doc::Handle::parse_hex).map(number_of).unwrap_or(i as u64 + 1);
+            // A source appears once per service, so its number also takes the service.
+            let n = if kind == KIND_PLUMB_STACK { (n.wrapping_mul(2) + u64::from(row["service"] == "DRN")) & 0x00FF_FFFF_FFFF_FFFF } else { n };
+            items.push(Item { kind, n, row: row.clone() });
+            rows.push(row);
+        }
+        if !rows.is_empty() {
+            root.insert(section.into(), Value::Array(rows));
+        }
+    }
+
     if unstable > 0 {
         warnings.push(format!("{unstable} take-off row(s) have no entity handle, so their `ref` is a position and can change when the take-off is run again: run the take-off again"));
     }
@@ -734,6 +756,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
         "columns": columns.len(), "lintels": lintels.len(), "slabs": slabs.len(),
         "rooms": items.iter().filter(|i| i.kind == KIND_ROOM).count(),
         "electrical": boards.len(), "electricalCircuits": items.iter().filter(|i| i.kind == KIND_ELEC_CIRCUIT).count(),
+        "plumbing": items.iter().filter(|i| i.kind == KIND_PLUMB_STACK).count(), "plumbingFixtures": items.iter().filter(|i| i.kind == KIND_PLUMB_FIXTURE).count(),
     });
     Ok(Collected { root, warnings, drawing_id: id, items, counts })
 }
