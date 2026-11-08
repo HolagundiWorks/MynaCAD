@@ -46,10 +46,8 @@ How the pieces connect:
 
 - **Project data.** Tren and Falcon read and write the same `.osp` on this PC. Nothing in it is pushed anywhere (`Osas.Core.ProjectFilePolicy`; `OSAS_PUSH_PROJECT_FILES=1` is an opt-in that is off).
 - **CSV.** Falcon writes `osas-falcon-csv/1` (20 columns; rows `meta`, `estimate`, `measured`, `takeoff`, `total`; UTF-8 with BOM, RFC 4180, CRLF). Kivo previews it and imports it in one transaction onto estimate versions and draft running bills. Contracts: `contracts/falcon-csv.md` (Kivo repo, `docs/contracts/falcon-csv.md`), `contracts/falcon-csv-import.md` (Kivo repo, `docs/contracts/falcon-csv-import.md`); a running bill locks its measured-to-date once certified.
-- **Kivo's broker and Myna's database service** (`contracts/session-broker.md`) still exist in Kivo and Myna, but Tren and Falcon no longer call them; the connect code was removed from both on 2026-11-08.
+- **Retired 2026-11-08:** Kivo's session broker, Myna's database service, the sign-in ticket Kivo passed to the apps it started, and the project Myna locked are gone. Tren and Falcon no longer read a company file or take a sign-in from anywhere; Falcon no longer pushes anything into Kivo. Kivo starts Falcon and Tren with nothing but where the AI Core is (Kivo `docs/contracts/session-broker.md` is kept only as history).
 - **Design note:** `WORKFLOW-KIVO-HUB.md` (Kivo repo, `docs/WORKFLOW-KIVO-HUB.md`).
-
-**Still tied to Kivo in the code (to be removed when the owner confirms the scope):** Tren's read of the company file for title blocks (`aad-office`), the one-time sign-in ticket Kivo passes to the apps it starts, the locked project that Myna chooses, and Falcon's push of a project summary and estimate drafts into the company file.
 
 ## 2. Hierarchy
 
