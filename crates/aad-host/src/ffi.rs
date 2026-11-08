@@ -13,8 +13,6 @@ const TEXT_CAP: usize = 1_048_576;
 /// `sample` non-zero opens the sample drawing. Never null.
 #[unsafe(no_mangle)]
 pub extern "C" fn aad_host_create(sample: i32) -> *mut Host {
-    // Only the desktop shell connects projects to the suite database; the command line and the tests never start Kivo.
-    aad_dbconnect::enable();
     Box::into_raw(Box::new(Host::create(sample != 0)))
 }
 

@@ -31,25 +31,25 @@ Other names:
 | **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). **Myna** hosts **Olmo 3 7B** for as long as it runs; **Kivo**, **Falcon** and **Tren** are clients only |
 | **Olmo 3 7B** | The shared local assistant model (GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`). Not Tulu and not in-process in Falcon or Tren |
 
-## 1a. The workflow (from suite 1.5.0)
+## 1a. The workflow (decided 2026-11-08)
 
-**Built in 1.5.0:** Kivo's sign-in and session broker, the slimmed Myna with the database service, Falcon's CSV export and Kivo's CSV import. **Built after 1.5.5 (next suite build):** Tren and Falcon connect the open `.osp` to the database service (ask Kivo for a session, connect, push each saved revision; status in the status bar; Tren `docs/DB-CONNECT.md`). **Not built yet:** moving approvals and revisions fully into Kivo; pulling a newer shared revision into an open file.
+**Tren and Falcon are independent of Kivo.** They do not sign in to Kivo, ask it for a session, or need it running. They share one **local `.osp` file**, which is their database; it stays on this PC and is never synced. **Falcon exports a CSV; Kivo imports it** for estimates and running bills, and that data becomes part of the company database. **Approvals and revisions live in Kivo.** Only Kivo is synced to the cloud.
 
-Draw in **Tren**, measure in **Falcon**, both on **one `.osp` file** connected to the suite database. **Falcon exports a CSV; Kivo imports it** for estimates and running bills. **Approvals and revisions live in Kivo.**
-
-| App | Owns | No longer owns |
+| App | Owns | Does not need |
 |---|---|---|
-| **Myna** | The **AI Core** (Olmo, loopback `127.0.0.1:8742`) and the **database service** (loopback `127.0.0.1:8743`, the local shared project database; project files are not synced). Tray icon. | Company sign-in |
-| **Kivo** | **Company sign-in** and the session; estimates, running bills, **approvals, revisions**; **Import from Falcon (CSV)** | |
-| **Tren** | The drawing and its take-off rows, written into the `.osp` | Sign-in, approvals, revisions |
-| **Falcon** | Quantities, rates, the estimate; **Export for Kivo (CSV)** | Sign-in, approvals, revisions |
+| **Tren** | The drawing and its take-off rows, written into the local `.osp` | Kivo, a sign-in, a network |
+| **Falcon** | Quantities, rates, the estimate, read and written in the same local `.osp`; **Export for Kivo (CSV)** | Kivo, a sign-in, a network |
+| **Kivo** | Company sign-in and users; estimates, running bills, **approvals, revisions**; **Import from Falcon (CSV)**; the only cloud sync | |
+| **Myna** | The **AI Core** (Olmo, loopback `127.0.0.1:8742`), which Tren, Falcon and Kivo may use when it runs; tray icon | |
 
 How the pieces connect:
 
-- **Sign-in on demand.** When Tren or Falcon first needs the database it asks Kivo for a session over the local named pipe `\\.\pipe\osas-session-broker`. Kivo opens, the person signs in once, and a session token (32 random bytes, held in memory, 8 hours idle, 24 hours at most) is handed back. The apps never store company credentials. Contract: `contracts/session-broker.md` (Kivo repo, `docs/contracts/session-broker.md`).
-- **Database.** Myna's database service checks every request's Bearer token with Kivo's broker. Project files stay on this PC, so the service reports state `local` and sends nothing; the local `.osp` is the shared database.
+- **Project data.** Tren and Falcon read and write the same `.osp` on this PC. Nothing in it is pushed anywhere (`Osas.Core.ProjectFilePolicy`; `OSAS_PUSH_PROJECT_FILES=1` is an opt-in that is off).
 - **CSV.** Falcon writes `osas-falcon-csv/1` (20 columns; rows `meta`, `estimate`, `measured`, `takeoff`, `total`; UTF-8 with BOM, RFC 4180, CRLF). Kivo previews it and imports it in one transaction onto estimate versions and draft running bills. Contracts: `contracts/falcon-csv.md` (Kivo repo, `docs/contracts/falcon-csv.md`), `contracts/falcon-csv-import.md` (Kivo repo, `docs/contracts/falcon-csv-import.md`); a running bill locks its measured-to-date once certified.
+- **Kivo's broker and Myna's database service** (`contracts/session-broker.md`) still exist in Kivo and Myna, but Tren and Falcon no longer call them; the connect code was removed from both on 2026-11-08.
 - **Design note:** `WORKFLOW-KIVO-HUB.md` (Kivo repo, `docs/WORKFLOW-KIVO-HUB.md`).
+
+**Still tied to Kivo in the code (to be removed when the owner confirms the scope):** Tren's read of the company file for title blocks (`aad-office`), the one-time sign-in ticket Kivo passes to the apps it starts, the locked project that Myna chooses, and Falcon's push of a project summary and estimate drafts into the company file.
 
 ## 2. Hierarchy
 

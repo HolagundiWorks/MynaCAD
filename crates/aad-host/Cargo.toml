@@ -34,7 +34,6 @@ aad-engine = { workspace = true }
 aad-fonts = { workspace = true }
 aad-io = { workspace = true }
 aad-odp = { workspace = true }
-aad-dbconnect = { workspace = true }
 aad-dwg = { workspace = true }
 aad-geom = { workspace = true }
 aad-render = { workspace = true }

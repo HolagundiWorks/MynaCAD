@@ -65,16 +65,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aad-dbconnect"
-version = "0.6.0"
-dependencies = [
- "aad-odp",
- "serde_json",
- "tempfile",
- "ureq",
-]
-
-[[package]]
 name = "aad-doc"
 version = "0.6.0"
 dependencies = [
@@ -146,7 +136,6 @@ version = "0.6.0"
 dependencies = [
  "aad-agent",
  "aad-color",
- "aad-dbconnect",
  "aad-dwg",
  "aad-dxf",
  "aad-engine",
