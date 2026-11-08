@@ -24,6 +24,17 @@ internal static class PerfLog
         Last[watch] = now;
     }
 
+    /// <summary>A startup landmark: the time since the process began, so a slow launch can be split into its steps.</summary>
+    internal static void Phase(string name)
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+        var ms = (DateTime.Now - Process.GetCurrentProcess().StartTime).TotalMilliseconds;
+        Note($"phase {name} at {ms:F0} ms");
+    }
+
     /// <summary>A free-text line in the log (only when the log is on).</summary>
     internal static void Note(string text)
     {

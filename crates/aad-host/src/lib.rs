@@ -4019,6 +4019,44 @@ mod tests {
         }
         println!("12 zoom steps: worst {worst:.1} ms, mean {:.1} ms", total / 12.0);
     }
+    /// Making the host must not wait on the AI Core: with the suite launcher closed its health check can take the whole timeout, and it
+    /// used to run on the UI thread before the window could appear (2 s on every start).
+    #[test]
+    fn creating_the_host_does_not_wait_for_the_ai_core() {
+        // Nothing listens here, and a connection that is dropped rather than refused is what makes a check slow.
+        unsafe { std::env::set_var("OSTUDIO_AI_PORT", "9") };
+        unsafe { std::env::set_var("OSTUDIO_AI_TOKEN", "test-token") };
+        let start = std::time::Instant::now();
+        let host = Host::create(false);
+        let status = host.assistant.model_status();
+        assert!(start.elapsed() < std::time::Duration::from_millis(500), "host creation waited {:?}", start.elapsed());
+        assert!(!status.is_empty());
+    }
+
+    /// Where the time goes when the host is created (run with --ignored --nocapture).
+    #[test]
+    #[ignore]
+    fn create_cost_by_part() {
+        let t = std::time::Instant::now();
+        install_formats();
+        eprintln!("install_formats {:?}", t.elapsed());
+        let t = std::time::Instant::now();
+        let _ = aad_llm::available();
+        eprintln!("llm available {:?}", t.elapsed());
+        let t = std::time::Instant::now();
+        let _ = aad_llm::find_model();
+        eprintln!("llm find_model {:?}", t.elapsed());
+        let t = std::time::Instant::now();
+        let _ = osas_ai::status_label();
+        eprintln!("osas_ai status {:?}", t.elapsed());
+        let t = std::time::Instant::now();
+        let _ = assistant::Desk::new();
+        eprintln!("Desk::new {:?}", t.elapsed());
+        let t = std::time::Instant::now();
+        let _ = Host::create(false);
+        eprintln!("Host::create {:?}", t.elapsed());
+    }
+
     /// The side tabs ask for the panels about eight times a second. An unchanged drawing answers from the cache; a different
     /// drawing never gets the old answer.
     #[test]

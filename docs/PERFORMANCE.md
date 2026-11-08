@@ -348,3 +348,12 @@ references). Measured headlessly with the ignored probes `aad-host` `edit_latenc
   flatten into one list (an incremental flatten would remove most of it); the DWG parse is still about 1.1 s; a
   zoom that crosses a detail band still costs 20 to 40 ms per tick on a worker, mostly text fill. The Ask bar and
   O-CoreOp were not profiled. Numbers are from the headless host, not from timing the window.
+
+## Update: startup and idle (2026-11-08)
+
+Measured on the heavy 26 000-entity Working Drawing.dwg with `AAD_PERF=1` (new `PerfLog.Phase` markers write time since process start).
+
+- **Startup:** creating the native host took 2.05 s of a 4.6 s launch. `assistant::Desk::new` called `osas_ai::status_label`, a blocking health check of the AI Core on loopback with a 2 s timeout, on the UI thread. With the suite launcher closed it waited for the timeout on every start. The check now runs on a background thread (`osas_ai::warm`), the shell reads the last known state, and asking the assistant does one fresh check (`core_ready_now`). `Host::create` is 0.5 ms. Window: 4.6 s to 2.5 s (heavy), 3.5 s to 1.4 s (small file); drawing loaded about 4 to 5 s after launch.
+- **Idle CPU:** the 32 ms UI tick fetched and parsed the chrome and panels JSON repeatedly, each read built the JSON twice, and `panels_json` scanned every block reference each call. Now one read per tick, unchanged ticks skipped, the panels text cached in the host. Idle after load: 7.8 % to about 3 % of a core, the same for a small and a heavy drawing.
+- The "settle" figure of 23 to 31 s in earlier open timings was the old idle noise defeating the script's idle test, not load time.
+- Probes: `create_cost_by_part` (ignored test in `aad-host`) times the parts of host creation.

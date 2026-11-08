@@ -46,6 +46,8 @@ impl Desk {
                 None => "model file not found".into(),
             }
         } else {
+            // Starting the check here means the first answer is ready by the time the user asks; the window does not wait for it.
+            osas_ai::warm();
             osas_ai::status_label()
         };
         Desk {
@@ -89,8 +91,10 @@ impl Desk {
         &self.partial
     }
 
-    pub fn model_status(&self) -> &str {
-        &self.model
+    /// What the model line shows. Without an in-process model it follows the last known state of the AI Core, which a background
+    /// check keeps current, so it is read fresh each time rather than fixed when the desk was made.
+    pub fn model_status(&self) -> String {
+        if aad_llm::available() { self.model.clone() } else { osas_ai::status_label() }
     }
 
     pub fn ask(&mut self, session: &mut Session, text: &str) -> Result<(), String> {
@@ -98,6 +102,10 @@ impl Desk {
             let message = "The assistant is busy: wait, or press Escape to stop it.".to_string();
             session.echo(message.clone());
             return Err(message);
+        }
+        if !aad_llm::available() {
+            // The user is asking now: one real check, so a core that started a moment ago is not turned away on an old answer.
+            osas_ai::core_ready_now();
         }
         if !self.available() {
             let message = if aad_llm::available() {

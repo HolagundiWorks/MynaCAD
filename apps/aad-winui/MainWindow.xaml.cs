@@ -151,11 +151,13 @@ public sealed partial class MainWindow : Window
     {
         _launch = launch ?? LaunchArgs.Parse(Environment.GetCommandLineArgs().Skip(1));
         InitializeComponent();
+        PerfLog.Phase("InitializeComponent");
         ToolStripSlot.Child = ToolStrip;
         ArchBarSlot.Child = ArchBar;
         AppWindow.Closing += OnAppClosing;
         // Sample only when asked and no drawing path was given (paths replace the empty session).
         _host = Native.Create(sample: _launch.Sample && _launch.Files.Count == 0);
+        PerfLog.Phase("host created");
         // Sync GPU paper with the suite preference before the child is embedded (default host is dark).
         if (_host != IntPtr.Zero)
         {
@@ -182,21 +184,30 @@ public sealed partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        PerfLog.Phase("OnLoaded");
         SplashLogo.Source = ShellIcon.Logo();
         OpenCommandChrome();
+        PerfLog.Phase("command chrome");
         LoadShell();
+        PerfLog.Phase("LoadShell");
         BuildMenus();
+        PerfLog.Phase("BuildMenus");
         RefreshChrome();
         RefreshPanels();
+        PerfLog.Phase("first refresh");
         ApplyShellTheme();
+        PerfLog.Phase("ApplyShellTheme");
         Listen();
         _ = OpenLaunchFiles();
+        PerfLog.Phase("OpenLaunchFiles started");
         ApplyAccess();
+        PerfLog.Phase("ApplyAccess");
         EnsureUnitsBox();
         PlaceCommandBar();
         EnsureTimer();
         UpdateDyn();
         _chrome?.FocusCad();
+        PerfLog.Phase("OnLoaded done");
         _ = HideSplashSoon();
     }
 
@@ -230,11 +241,13 @@ public sealed partial class MainWindow : Window
                 _docKey = "";
                 continue;
             }
+            PerfLog.Phase("opening file");
             if (!await OpenFileAsync(path))
             {
                 History.Text = Native.LastError(_host);
                 continue;
             }
+            PerfLog.Phase("file opened");
             ShellPrefs.RememberRecent(path);
             any = true;
             _docKey = "";

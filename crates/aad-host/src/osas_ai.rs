@@ -34,8 +34,61 @@ fn base_url() -> String {
     format!("http://{host}:{port}")
 }
 
-/// True when AI Core answers /v1/health with a usable model.
+/// What the last health check found, and when. A check can take its whole timeout when the suite launcher is not running, so the
+/// shell never waits for one: it reads this, and a background thread keeps it fresh.
+struct Seen {
+    at: Option<std::time::Instant>,
+    ready: bool,
+    token: bool,
+}
+
+static SEEN: std::sync::Mutex<Seen> = std::sync::Mutex::new(Seen { at: None, ready: false, token: false });
+static CHECKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// How long an answer is trusted before a background check is started again.
+const FRESH: Duration = Duration::from_secs(10);
+
+fn record(ready: bool) {
+    if let Ok(mut seen) = SEEN.lock() {
+        *seen = Seen { at: Some(std::time::Instant::now()), ready, token: token().is_some() };
+    }
+}
+
+/// Start a background health check unless one is running. Returns at once.
+pub fn warm() {
+    use std::sync::atomic::Ordering;
+    if CHECKING.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    let spawned = std::thread::Builder::new().name("osas-ai-health".into()).spawn(|| {
+        record(check_core());
+        CHECKING.store(false, Ordering::Release);
+    });
+    if spawned.is_err() {
+        CHECKING.store(false, Ordering::Release);
+    }
+}
+
+/// A check now, on this thread (about to ask the assistant something). Updates what the shell shows.
+pub fn core_ready_now() -> bool {
+    let ready = check_core();
+    record(ready);
+    ready
+}
+
+/// The last known state, never waiting. Before the first check finishes it is false; an old answer starts a new check.
 pub fn core_ready() -> bool {
+    let (stale, ready) = match SEEN.lock() {
+        Ok(seen) => (seen.at.is_none_or(|at| at.elapsed() > FRESH), seen.ready),
+        Err(_) => (false, false),
+    };
+    if stale {
+        warm();
+    }
+    ready
+}
+
+/// True when AI Core answers /v1/health with a usable model. This is the check itself and can wait for the whole timeout.
+fn check_core() -> bool {
     let Some(token) = token() else {
         return false;
     };
@@ -51,10 +104,14 @@ pub fn core_ready() -> bool {
     ready || status == "ready"
 }
 
+/// The status line for the assistant, from the last known state (never waits on the network).
 pub fn status_label() -> String {
+    let (checked, has_token) = SEEN.lock().map(|seen| (seen.at.is_some(), seen.token)).unwrap_or((true, true));
     if core_ready() {
         "AI Core · local Olmo".into()
-    } else if token().is_none() {
+    } else if !checked {
+        "AI Core · checking…".into()
+    } else if !has_token {
         "AI Core token missing — start the suite launcher".into()
     } else {
         "AI Core not ready — start the suite launcher (it hosts the assistant)".into()
