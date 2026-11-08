@@ -30,6 +30,7 @@ aad-agent = { path = "crates/agent" }
 aad-auditor = { path = "crates/auditor" }
 aad-llm = { path = "crates/llm" }
 aad-odp = { path = "crates/odp" }
+aad-geodb = { path = "crates/geodb" }
 aad-param = { path = "crates/param" }
 aad-vello = { path = "crates/vello" }
 

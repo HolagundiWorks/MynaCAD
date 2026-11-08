@@ -18,6 +18,8 @@ aad-office = { workspace = true }
 # The project file (.osp); on the web build only its history model is used.
 aad-odp = { workspace = true }
 aad-param = { workspace = true }
+# The geometry database (tables of vectors in millimetres, rule-based classification).
+aad-geodb = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -1,0 +1,26 @@
+[package]
+name = "aad-geodb"
+description = "The geometry database: the drawing as tables of vectors in millimetres, and rule-based classification of walls, doors and windows by arithmetic on them"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+aad-geom = { workspace = true }
+aad-doc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = "0.10"
+# R-tree over segment bounding boxes for the incremental update (MIT OR Apache-2.0, already used by the engine).
+rstar = { version = "0.12", default-features = false }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# The tables live in the project file (.osp), a SQLite file; the same bundled engine as aad-odp.
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+[dev-dependencies]
+tempfile = "3"

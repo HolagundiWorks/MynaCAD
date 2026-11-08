@@ -510,6 +510,8 @@ pub struct Session {
     /// What flattening did to the drawing opened last (see [`flatten`]).
     pub last_flatten: Option<flatten::FlattenReport>,
     pub untitled_counter: u32,
+    /// Geometry database models by document uid (see `cmd::geodb`); derived and rebuildable.
+    pub(crate) geodb: std::collections::HashMap<u64, cmd::geodb::GeoState>,
     /// The last dimension created (DIMCONTINUE / DIMBASELINE).
     pub last_dim: Option<Handle>,
     /// Options remembered between invocations of interactive commands.
@@ -581,6 +583,7 @@ impl Session {
             form_preset: None,
             last_flatten: None,
             untitled_counter: 0,
+            geodb: std::collections::HashMap::new(),
             last_dim: None,
             last_used: LastUsed::default(),
             clipboard_source: None,
@@ -594,7 +597,9 @@ impl Session {
     }
     pub fn new_drawing(&mut self, metric: bool) -> usize {
         self.untitled_counter += 1;
-        let d = if metric { Drawing::new_metric() } else { Drawing::new_imperial() };
+        let mut d = if metric { Drawing::new_metric() } else { Drawing::new_imperial() };
+        // A drawing made in Tren records its drafting units and carries the Tren origin stamp.
+        cmd::geodb::stamp_new(&mut d, metric);
         let mut st = DocState::new(d, &format!("Drawing{}", self.untitled_counter), None);
         st.set_view_quiet(if metric { View { center: Vec2::new(210.0, 148.5), height: 297.0 } } else { View::default() });
         self.docs.push(st);

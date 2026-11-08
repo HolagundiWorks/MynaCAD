@@ -1,163 +1,142 @@
 # Geometry database: turn the drawing into numbers
 
-Status: **architecture draft, 2026-11-08.** Nothing in this file is built. It answers: how do we make Tren understand a plan by arithmetic on stored coordinates (two parallel lines 230 mm apart are a wall) instead of by looking at it, and how do the AI and Falcon use the result.
+Status: **phases 0 and 1 are built** (crate `aad-geodb`, commands `geodb.*`); phases 2 to 5 are planned. Measured results and what is not handled yet: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md). The owner's decisions of 2026-11-08 are in section 2 and are part of the design.
 
 ## 1. Idea in one paragraph
 
-A 2D plan is lines, arcs, circles, blocks, hatches and text, each with coordinates. Convert the drawing, once and incrementally, into **tables of vectors in millimetres** (start point, end point, length, angle, layer, bounding box). Then every question becomes a query over numbers: "pairs of parallel segments whose gap is 230 mm ± 5 and that overlap by at least half their length" is a wall; "a closed 230 x 230 rectangle" is a column; "a block named `WC*` within 20 mm of a pipe end" is a water closet on that pipe. The rules are parameters in a table, not code and not a model. The language model never sees the picture; it reads counts and the short list of items the rules could not decide, and proposes parameter changes or labels.
+A 2D plan is lines, arcs, circles, blocks, hatches and text, each with coordinates. The drawing is converted, once and then incrementally, into **tables of vectors in millimetres** (start point, end point, length, angle, layer, bounding box). Every question then becomes arithmetic over numbers: "two parallel segments 230 mm apart that share at least 100 mm of length and chain into a run of 600 mm" is a wall; "a quarter-circle of radius 500 to 1300 mm whose centre sits on a wall" is a door swing. The rules are parameters in a table, not code and not a model. The language model never sees the picture (phase 5).
 
-## 2. Principles
+## 2. Decisions (owner, 2026-11-08)
 
-1. **Numbers first, pictures never.** The classifier input is coordinates. Layers, block names, linetypes and text are extra evidence with weights, because real drawings put everything on layer `0`.
-2. **Derived, rebuildable, never the source of truth.** The drawing bytes in the `.osp` stay exactly as they are. The geometry tables can be dropped and rebuilt at any time and are rebuilt from the drawing, so there is no migration problem and no second truth.
-3. **Deterministic and explainable.** Same drawing and same rule set give the same result. Every classified item records the rule, the rule version, a confidence and the primitives it was built from.
-4. **Nothing changes the drawing silently.** Classification writes only to the geometry tables. Moving objects to layers is a separate step: a preview table (handle, from layer, to layer, rule, confidence), then one undoable command.
-5. **Parameters live in a table.** Wall thicknesses, tolerances and name patterns are rows a person (or the AI, through a proposal) can edit; each change bumps `rules_version` and reclassifies.
-6. **Fast on the heavy file.** The 232,212 entity drawing is the test: the build is bulk, off the UI thread and incremental after edits.
+1. **Units, not a fixed thickness list.** The drawing carries the unit it was drafted in. Metric drawings use 230 mm for a full-brick wall, imperial drawings 9 in (228.6 mm). Wall types are three: **half brick** (115 mm / 4.5 in), **full brick** (230 mm / 9 in) and **cavity wall** (default overall 300 mm / 12 in = 115 leaf + 70 cavity + 115 leaf; **the 300 mm default is an assumption about local practice, not a code value**, and is an editable rule parameter). Walls are always drawn as two lines: the single-line-with-width and solid-hatch wall rules are dropped. All geometry tables are stored in millimetres whatever the drawing unit.
+2. **Storage.** All files stay local. The tables live in the project `.osp` (Tren and Falcon share this local database). Nothing from `geo_*` is synced anywhere: the tables are not written to the `change` log and no push reads them. Only Kivo syncs to the cloud, and company data reaches Kivo only through the CSV Falcon exports.
+3. **Apply policy: review first, then approve.** Classification never moves anything. `geodb.apply` makes a preview (handle, from layer, to layer, rule, confidence); only an explicit `approve: true` runs the layer changes, as one undo step. No auto-apply.
+4. **Layers.** The standard layer set is fixed in the app and not user-configurable (section 8).
+5. **Foreign drawings.** A drawing from another CAD program is detected by origin and must go through the layer mapper before anything is applied (section 9).
 
-## 3. Where it lives
+## 3. Principles
 
-Recommended: **tables in the project `.osp`** (SQLite, prefix `geo_`), so Tren, Falcon and Kivo's importer read one file with no second database to keep in step. The `change` log and the cloud push skip `geo_*` (they are derived and large); Myna's service syncs the drawing and the take-off, not the geometry. Open decision in section 11: a sidecar `<name>.osp-geo` instead.
+1. **Numbers first, pictures never.** The classifier input is coordinates. Layers, block names and linetypes are extra evidence with weights, because real drawings put everything on layer `0`.
+2. **Derived, rebuildable, never the source of truth.** The drawing in the `.osp` is untouched. The derived tables can be dropped and rebuilt at any time (`geo_schema` version mismatch drops them). Only `geo_rule` and `geo_review` hold a person's data and survive.
+3. **Deterministic and explainable.** Same drawing and same rules give the same result. Each feature records its rule, rule version, confidence and the primitives it came from.
+4. **Nothing changes the drawing silently.** Build and report write only to the tables.
+5. **Parameters live in a table.** Editing a rule bumps `rules_version` and reclassifies.
+6. **Fast on the heavy file.** Bulk build, off the UI thread (`aad_engine::cmd::geodb::spawn_build`), incremental after edits.
 
-## 4. Pipeline
+## 4. Units and the scale check
+
+`aad_geodb::units`. The drafting unit comes from, in order: an explicit `units` argument of `geodb.build` (confirms), the drawing's own record (project key `draftingUnits`, written by Tren), `INSUNITS` (1 in, 2 ft, 4 mm, 5 cm, 6 m), and last the **scale check**. A drawing with no units is **never guessed**: the scale check proposes a unit, the run is marked `units_confirmed = 0`, a warning is returned and `geodb.apply` refuses until `geodb.build {units}` confirms it.
+
+Scale check: for each candidate unit (mm, in, m, cm, ft) the sampled line length (the 40,000 longest segments) is paired at that unit's wall thicknesses; the score is the share of line length that pairs up. The best score names the unit when it is clearly ahead (1.5 times the runner-up, at least 1 %); the median pair gap in millimetres is reported. A declared unit whose score is far below the best is flagged ("the drawing says in but its wall thicknesses fit mm much better").
+
+Where the unit is recorded: new drawings in Tren get `draftingUnits` (`{"system":"metric","unit":"mm"}` or inches) and the Tren stamp at creation; every save writes the stamp and, when the drawing declares its units, `draftingUnits`; saving into an `.osp` also writes `drafting_units`, `drafting_unit` and `origin` into the project `meta` table (`write_project_meta`). Imported drawings read `INSUNITS` / `MEASUREMENT`.
+
+## 5. Pipeline
 
 ```
  drawing (Arc<Entity> store, chunked, persistent)
         |
-  [1 extract]   walk model space, expand blocks with their transforms, units to mm,
-        |       polylines to segments, bulge to arcs, text and inserts kept
+  [1 extract]   model space; blocks expanded with their transforms; units to mm;
+        |       polyline edges to one geo_seg each, bulges to geo_arc, inserts, text, hatches
         v
-  geo_prim / geo_seg / geo_arc / geo_insert / geo_text      (+ R-tree on bounding boxes)
+  geo_prim / geo_seg / geo_arc / geo_insert / geo_text / geo_hatch   (+ geo_rtree, quantised twins)
         |
-  [2 derive]    parallel pairs, closed loops, endpoint graph, collinear runs   (pure geometry)
+  [2 derive]    parallel pairs: angle buckets + sorted normal offsets (no quadratic compare)
         v
-  geo_pair / geo_loop / geo_node / geo_edge
+  geo_pair
         |
-  [3 classify]  rules (table) turn derived shapes into features with confidence
+  [3 classify]  wall runs, joins, door swings and blocks, windows            (rules from geo_rule)
         v
-  geo_feature / geo_feature_member      walls, openings, columns, beams, slabs, rooms,
-        |                                hatches, electrical points, plumbing fixtures and pipes
-  [4 network]   endpoint snapping (20 mm), fixture-to-pipe-to-source graphs, circuits
-        v
-  geo_conn
+  geo_feature / geo_feature_member
         |
-  [5 report / apply]   report tables, preview of layer moves, take-off rows, AI tools
+  [5 report / apply]   geodb.report, geodb.apply preview and approve
 ```
 
-Incremental update: `EntityStore::changed_since` and `removed_since` already give the changed and erased handles from chunk pointers. Stage 1 re-extracts only those handles; stages 2 to 4 re-run only inside the affected bounding boxes (found through the R-tree), so an edit costs the edit, not the drawing.
+(Stage 4, networks, is phase 3.) Incremental update: `EntityStore::changed_since` / `removed_since` give the changed and erased handles; only those entities are re-extracted. Features touching the edit (inflated by what one face can pair across) are dropped and re-derived whole inside a window around them; nothing else is touched. Changed block definitions mark their inserts dirty. A change of `INSUNITS` / `MEASUREMENT` triggers a full rebuild. The stored copy is updated with `store::write_update` (delete the dirty handles' rows, insert the new ones).
 
-## 5. Schema (draft)
+## 6. Schema (version 1)
 
-All lengths in **millimetres, REAL**. Every coordinate also has a quantised twin (`round(x * 10)`, 0.1 mm integer) used for exact joins and hashes, written `qx1` and so on; they are omitted below.
+All lengths millimetres, REAL. Coordinates also have a quantised twin (`round(v * 10)`, 0.1 mm integer): `qx1 qy1 qx2 qy2` on `geo_seg`, `qcx qcy qr` on `geo_arc`. A block's expanded geometry carries the **top-level insert's handle** (the thing that can be moved) and the block path.
 
-| Table | Columns | Meaning |
+| Table | Columns | Notes |
 |---|---|---|
-| `geo_run` | id, built_utc, drawing, drawing_sha256, revision, unit_scale, rules_version | one row per build; tells whether the tables match the drawing |
-| `geo_prim` | id, handle, kind (`line`,`arc`,`circle`,`poly`,`hatch`,`point`), layer, color, linetype, lineweight, closed, space, block_path, minx, miny, maxx, maxy | one row per source entity (or per entity inside an expanded block) |
-| `geo_seg` | id, prim_id, seq, **x1, y1, x2, y2**, len, angle (0 to 180), nx, ny | **every straight piece as a vector**: a line is one row, a polyline is one row per edge; `angle` is the direction folded to 0..180, `nx, ny` the unit normal |
-| `geo_arc` | id, prim_id, cx, cy, r, a0, a1 | arcs and circles (door swings, round columns, bends) |
-| `geo_insert` | id, prim_id, block, x, y, rot, sx, sy, width, depth, shape_hash, attrs_json | blocks as placed: footprint size and a hash of the block's own geometry for matching |
-| `geo_text` | id, prim_id, text, x, y, height, rot | tags like `D1`, `W2`, `WC`, `S1`, room names |
-| `geo_hatch` | id, prim_id, pattern, solid, area, loops_json | hatch boundary loops as polygons |
-| `geo_rtree` | virtual `rtree(id, minx, maxx, miny, maxy)` | spatial index over `geo_prim` |
-| `geo_pair` | id, seg_a, seg_b, **gap**, overlap, overlap_ratio, axis_x1, axis_y1, axis_x2, axis_y2 | two parallel segments close enough to be the two faces of something, with their shared centre line |
-| `geo_loop` | id, kind, area, perimeter, w, h, points_json | closed rings (rectangles, rooms) found from the segment graph |
-| `geo_node` / `geo_edge` | node: id, x, y; edge: id, seg_id, a, b, length | endpoint graph after snapping (tolerance in the rule table) |
-| `geo_rule` | id, kind, enabled, params_json, version, weight | the parameter table (section 6) |
-| `geo_feature` | id, kind, subkind, confidence, rule_id, rules_version, x1, y1, x2, y2, width, depth, length, area, level, props_json | **the answer**: one row per wall, door, window, column, beam, slab, room, floor hatch, switch, fixture, pipe ... |
-| `geo_feature_member` | feature_id, prim_id, role | which primitives built the feature (`face_a`, `face_b`, `swing`, `frame`, `tag`) |
-| `geo_conn` | feature_id, to_feature_id, service, kind | fixture on pipe, pipe to source, switch to light |
-| `geo_review` | feature_key, state (`accepted`,`rejected`,`edited`), note, by, at | a person's decision, keyed by the geometry hash so it survives a rebuild |
+| `geo_schema` | key, value | schema version |
+| `geo_run` | id, built_utc, drawing, drawing_sha256, revision, unit_scale, unit, system, units_confirmed, rules_version, info_json | one row; the sha256 is a fingerprint of the geometry rows |
+| `geo_prim` | id, handle, kind, layer, color, linetype, lineweight, closed, space, block_path, minx miny maxx maxy | one row per entity or per entity inside an expanded block |
+| `geo_seg` | id, prim_id, seq, **x1 y1 x2 y2**, len, angle (0..180), nx, ny, q* | every straight piece as a vector |
+| `geo_arc` | id, prim_id, cx, cy, r, a0, a1, q* | arcs and circles (degrees, counter-clockwise) |
+| `geo_insert` | id, prim_id, block, x, y, rot, sx, sy, width, depth, shape_hash, attrs_json, nested | blocks as placed, with attributes (`OKIND`, `OWIDTH`) |
+| `geo_text` | id, prim_id, text, x, y, height, rot | |
+| `geo_hatch` | id, prim_id, pattern, solid, area, loops_json | hatch boundaries are not segments (they would double the wall faces) |
+| `geo_rtree` | virtual `rtree(id, minx, maxx, miny, maxy)` | over `geo_prim` |
+| `geo_pair` | id, seg_a, seg_b, gap, overlap, overlap_ratio, axis_x1.., band, ladder | two parallel faces and their centre line |
+| `geo_rule` | id, kind, enabled, params_json, version, weight | one row per rule section; **survives a rebuild** |
+| `geo_feature` | id, feature_key, kind, subkind, confidence, rule_id, rules_version, x1 y1 x2 y2, width, depth, length, props_json | wall, door, window |
+| `geo_feature_member` | feature_id, prim_id, handle, role | `face`, `cap`, `swing`, `leaf`, `block`, `sill` |
+| `geo_review` | feature_key, state, note, by, at | accepted / rejected / edited, keyed by the geometry hash; **survives a rebuild** |
 
-Segments are stored as **vectors with a start and an end point**, exactly as asked, so a line is two points and nothing is lost; direction, length and normal are precomputed because the rules compare them constantly.
+Not yet built: `geo_loop`, `geo_node`, `geo_edge`, `geo_conn` (phases 2 and 3).
 
-## 6. Rules (all parametric, defaults in millimetres)
+## 7. Rules (`geo_rule`, defaults in millimetres)
 
-**Wall (double-line).** A `geo_pair` is built from segments that are
-- parallel: `|angle_a - angle_b| <= 1.0` degree,
-- a nominal gap apart: `|gap - t| <= 5 mm` for one thickness `t` in the thickness list, default **230** (9 in), **115** (4.5 in), 150, 200, 300 (12 in); the list is a rule parameter,
-- overlapping along their length: `overlap >= max(2 * t, 600 mm)` and `overlap_ratio >= 0.6` of the shorter one.
+Sections: `wall_types`, `cavity_parts`, `pair`, `door`, `window`, `evidence`. `geodb.rules` shows and edits them; every edit is validated (finite, bands of the wall types must not overlap) and bumps the version.
 
-Pairs on one axis that touch end to end merge into one **wall run** (a centre line, a thickness, a length). Corners and T-junctions join where face endpoints meet within `t`. Evidence that raises confidence: a layer named like `*WALL*`, a continuous linetype, a thickness that matches the drawing's majority thickness. Evidence that lowers it: a dashed linetype (then it is a **beam**, below), a pair shorter than 2 t, a pair crossing a larger wall.
+**Wall pair.** Two segments are a pair when they are parallel (`angle_tol_deg` 1.0), their gap is within `tolerance_mm` (8) of a wall type's thickness for the drawing's unit system, they share at least `min_overlap_mm` (100) along the axis and at least `min_overlap_ratio` (0.6) of the shorter one, and they are not two parts of one block. The gap must hold at both ends of the shared part. Real plans draw walls in many short pieces, so the pair threshold is low and the length test is on the **run**.
 
-**Wall (single line with a polyline width, or a solid hatch).** Treated as a wall when a polyline has a constant width equal to a thickness in the list, or a hatch of a solid pattern is a thin rectangle with a side equal to a thickness.
+**Wall run.** Pairs with the same type, direction (half a degree) and centre line (within 6 mm) whose intervals touch within `join_gap_mm` (25) merge into one run: centre line, measured and nominal thickness, type, length. Runs shorter than `min_run_mm` (600) are dropped. Joins: the end of a run within `node_tol_mm` of another run's rectangle is a **corner** or a **T** (recorded in `props.joins` by feature key). Lines across the wall (end caps and jambs: as long as the wall is thick, square to it, both ends on the faces) become members with role `cap`.
 
-**Opening in a wall.** A wall run broken by a gap of 600 to 2400 mm. Door: a quarter-circle `geo_arc` with radius 600 to 1200 mm whose centre is on a wall face at the gap's end, or a block named `AADOPEN-*` / matching the smart-block door shapes. Window: the gap holds 2 to 4 thin parallel lines across the wall thickness (sill and glass lines), or an `AADOPEN-*` window block. Width, wall and offset from the nearest corner are stored.
+**Confidence.** `base_wall` 0.55; plus `layer_match` for a layer named like `*WALL*`, `long_run_factor` for a run of at least 3 thicknesses (otherwise `short_penalty`), `joined` for corners; minus `ladder_penalty` (a face with partners on both sides at the same gap: stair treads, hatch), `dashed_penalty` (dashed or hidden faces: a beam or centre line), `nested_penalty` (a run wholly inside a thicker one: window sill lines), `column_penalty` (both faces are sides of one small closed rectangle), `block_penalty` (default 0). Features under `classify_min` (0.5) are kept and listed as ambiguous but are not classified.
 
-**Column.** A closed loop that is a rectangle or circle with both sides between 150 and 900 mm (aspect <= 2.5), often hatched solid; or a block whose footprint fits that.
+**Door.** A quarter-circle (sweep within 12 degrees of 90) of radius 500 to 1300 mm whose centre (hinge) lies within 25 mm of a wall run's rectangle (confidence 0.70, +0.20 when a swing end also lies on a wall, +0.10 for a leaf line of the radius length from the hinge; without a wall at the hinge it stays below the threshold). Or a block whose attribute `OKIND` is `door`, or whose name matches `door.block_patterns` (`*DOOR*`, `DR-*`). Width, wall and offset from the run end are recorded.
 
-**Beam.** A pair like a wall (gap 150 to 450) drawn **dashed**, or on a layer matching `*BEAM*`; also a long thin rectangle with a text tag `B1`.
+**Window.** A block with `OKIND` `window` or a name matching `window.block_patterns`; or, along a wall run, 2 to 5 thin lines parallel to it, 450 to 3000 mm long, that start and stop at the same places, span at least half the thickness and either include a line between the two faces (a sill) or fill the gap between two wall ends. A door leaf in the opening is not a window. The contents of door and window blocks are the symbol and take no part in wall or swing detection.
 
-**Slab / floor.** A room loop (a closed face of the wall graph, section 7) with a floor hatch inside it; slab edge from the loop. **Floor hatch** versus **wall hatch**: a hatch whose boundary lies inside a room loop is a floor hatch; a hatch that covers a wall run's rectangle is a wall poche. The pattern name is evidence only.
+## 8. Layers (fixed standard set)
 
-**Rooms.** Faces of the planar graph formed by wall faces and opening gaps closed across their width; area and perimeter stored; the nearest `geo_text` inside is the room name.
+`geodb.apply` targets the app's existing standard layers (`crates/engine/src/cmd/hcw.rs`, `STANDARD_LAYERS`): walls `A-WALL`, doors `A-DOOR`, windows `A-WIND`. They are created with the standard look when missing. Phase 2 targets: columns `A-COL` (there is no `S-COLS` in the standard set; the earlier draft's name is not used), beams `S-BEAM`. `S-BEAM` was only created by the beam layout of the project wizard; this change adds it to a small extra list in `cmd/geodb.rs` (`EXTRA_LAYERS`) so it counts as standard and can be a target. Nothing else was added. The list is not user-configurable.
 
-**Electrical.** An insert is an electrical point when its block id or name matches the electrical block map (`electrical.blocks`), or its footprint and shape hash match a known symbol (switch, socket, light, fan, DB), with the nearest `geo_text` tag (`S1`, `L2`) as the label. Stored with the wall it sits on and its offset from the wall corner. Wiring: lines on the electrical layers between points, snapped at 20 mm, give circuits.
+## 9. Foreign drawings and the layer mapper
 
-**Plumbing.** Fixtures from `plumbing.blocks` (water closet, basin, sink, shower, trap, tank, chamber, riser); pipes are segments on the service layers (cold, hot, drain) with the width as the diameter; nodes snapped at 20 mm; `geo_conn` links fixture to pipe to source per service, the same result `plumbing.connect` computes today but from the stored numbers.
+`geodb.origin` (and `origin` in the `open` result, and a command-line notice on open) reports whether a drawing is **foreign**: no `trenOrigin` stamp in the drawing, and either objects on layers outside the standard set (the union of the standard, presentation, permit and VH sets plus the room and layout layers) or every object on layer `0`. `$ACADVER` and `$DWGCODEPAGE` are reported as evidence but do not decide: Tren writes `AC1032` itself. Every drawing Tren saves carries the stamp (project key `trenOrigin`, also `origin` in the `.osp` `meta`); a drawing from an older Tren is foreign until it is saved once.
 
-**Scale check (runs first).** The median of the pair gaps is compared with the thickness list. A median near 0.23 means metres, near 9 means inches, near 0.0075 means a scaled sheet: the build warns and offers the unit scale instead of classifying nonsense.
+For a foreign drawing `geodb.build` still classifies (geometry does not need the layers) but returns `needsLayerMapping`, and `geodb.apply` refuses until the layer mapper has run. The mapper is the existing `layermap` command (`{map: {old: new}, create?, purge?}` moves objects, skips locked layers). This change adds `layermap {suggest: true}`, which lists candidate targets by keyword for the non-standard layers and changes nothing, and a project key `layerMapDone` that a mapping run sets. What the mapper still lacks is in the results document.
 
-## 7. Finding pairs without comparing everything
+## 10. Using the result
 
-Comparing every segment with every other is quadratic and would not finish on 232,000 entities. Instead:
+- **Move to layers.** `geodb.apply` (no `approve`) builds the preview from `geo_feature_member`. Rules: only features at or above `minConfidence` (default 0.6, never below `classify_min`), none rejected in `geo_review`; wall faces inside blocks are left alone (moving them would move the block); an object claimed by an opening and a wall goes to the opening; rows already on the target layer are dropped. `approve: true` applies the preview (optionally a subset by `handles`), refuses when the drawing changed since the preview, when units are unconfirmed or the drawing is foreign, skips objects on locked layers, and is one undo step. `BuildingElement` stamping through `classify.set` is not done yet.
+- **Report.** `geodb.report` returns counts by kind, units, scale check, timings, warnings; `detail: ambiguous` lists the features just under the threshold with their numbers. `build` writes a one-line summary to the command log (the shell's status text).
+- **Take-off and AI (later).** Wall length, thickness and opening counts to `takeoff_row`; read-only agent tools `geo_summary`, `geo_ambiguous`, `geo_propose` over the tables. Planned, not built.
 
-1. Bucket segments by folded angle (0.5 degree buckets).
-2. Within a bucket, project each segment onto its normal: `d = x * nx + y * ny`; sort by `d`.
-3. Slide a window of width `max gap + tolerance` along the sorted list; only segments inside the window are candidates.
-4. For each candidate pair, check overlap along the axis with a sorted interval test, and look up the R-tree only to exclude pairs separated by other geometry.
-
-That is `O(n log n)` plus the candidates actually found. The result is one `geo_pair` per true pair; the merge into runs and the corner joins use the node graph.
-
-## 8. Using the result
-
-- **Move to layers.** `geodb.apply` builds a preview from `geo_feature_member`: handle, current layer, target layer (`A-WALL`, `A-DOOR`, `A-WIND`, `S-COLS`, `S-BEAM`, `A-FLOR-HATCH`, `E-LITE`, `P-FIXT` ...), rule, confidence. A person accepts all above a confidence threshold or picks rows; the engine runs the existing layer commands as one undo step and stamps `BuildingElement` through `classify.set`.
-- **Take-off.** Wall length, thickness, area, opening counts and sizes go to the existing `takeoff_row` kinds, so Falcon reads numbers it already understands.
-- **AI.** The assistant gets read-only tools over the tables: `geo_summary` (counts by feature kind, mean confidence, the median thickness), `geo_ambiguous` (features under the threshold with their numbers), and `geo_propose` (a change to a rule parameter or a label for one feature, which goes through the same preview and confirmation). Because the input is a short table of numbers, a 7B model is enough for the part left to it; it never has to find a wall in a picture.
-- **Checks.** Fixtures not connected, doors wider than their wall run, columns off a grid, walls thinner than the minimum: all plain queries.
-
-## 9. Code layout
-
-New crate `aad-geodb` (depends on `aad-doc`, `aad-geom`, `rusqlite` as `aad-odp` already does):
+## 11. Code layout
 
 ```
 crates/geodb/src/
-  schema.rs     create/drop the geo_* tables, versioned
-  extract.rs    entity store -> prims, segs, arcs, inserts, text, hatches (blocks expanded, units to mm)
-  derive.rs     pairs (angle buckets + sorted offsets), loops, node graph
-  rules.rs      the parameter table, defaults, validation
-  classify.rs   walls, openings, columns, beams, rooms, hatches, electrical, plumbing
-  network.rs    snapping, connectivity
-  update.rs     incremental rebuild from changed/removed handles
-  apply.rs      preview and the layer/classify commands
-  report.rs     summaries for the status bar, the AI tools and the take-off
+  units.rs     drafting units, INSUNITS, project key
+  rules.rs     the parameter table, validation, wildcard matching
+  model.rs     in-memory rows and features, quantised coordinates
+  extract.rs   entity -> rows (blocks, transforms, caps and depth limits)
+  derive.rs    parallel pairs
+  classify.rs  wall runs, joins, caps, doors, windows
+  origin.rs    Tren stamp and foreign-drawing detection
+  store.rs     the geo_* tables in the .osp (bulk write, incremental write, rules, reviews, meta)
+  lib.rs       GeoModel: build, update, reclassify, scale check, summary
+crates/engine/examples/geodb_groundtruth.rs  the ground-truth harness
+crates/engine/src/cmd/geodb.rs         geodb.build / report / rules / review / origin / apply
 ```
 
-Engine commands: `geodb.build`, `geodb.report`, `geodb.rules`, `geodb.apply`. Agent tools in `aad-agent`: `geo_summary`, `geo_ambiguous`, `geo_propose`.
+`aad-geodb` sits at layer 2 (depends on `aad-geom`, `aad-doc`); persistence is compiled out on wasm.
 
-## 10. How we will know it works (before any model is judged)
+## 12. How it is measured
 
-1. **Ground truth from real drawings.** Take drawings whose layers are already right (the demo villa, `Working Drawing.dwg`, the 232k-entity file), keep a copy of each object's true layer, set every layer to `0`, run the classifier and score: precision and recall per class (wall, door, window, column, beam, floor hatch, room, electrical point, plumbing fixture).
-2. **Targets to agree before building:** for example wall recall and precision both at least 95 % on double-line plans, doors and windows at least 90 %, with every miss listed so the rule can be improved.
-3. **Golden files.** A few small drawings with an expected `geo_feature` dump, checked in, so a rule change shows exactly what moved.
-4. **Speed.** Build time and memory on the 232k file, and the cost of one edit through the incremental path.
-5. **Only then the model.** The AI is measured on the leftover items (what the rules marked ambiguous): how often its label agrees with the ground truth, and whether it ever proposes something unsafe.
+`cargo run --release -p aad-engine --example geodb_groundtruth -- <file> [--units u] [--keep-linetype] [--sweep] [--edit] [--tol mm] [--min-run mm] [--diag] [--near x y half] [--shot png n half]`: records each object's layer, sets every layer to `0` (blocks too), builds from geometry alone and scores walls, doors and windows against the recorded layers (`*WALL*`, `*DOOR*`, `*WIND*`), then optionally measures one incremental edit. Golden files: `crates/geodb/tests/golden/` (rewrite with `GEODB_BLESS=1` after checking a change). The engine test `a_plan_drawn_with_the_wall_commands_is_recovered_from_geometry_alone` scores Tren's own plans the same way. Numbers: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md).
 
-## 11. Open decisions
+## 13. Phases
 
-1. **Thickness list.** Is `230, 115, 150, 200, 300 mm` right, and which wins when a gap fits two? Should 9 in and 230 mm be one entry (they differ by 0.2 mm)?
-2. **Storage.** In the `.osp` (one file, simple) or a sidecar next to it (keeps the project file small and the sync light)? Recommendation: in the `.osp`, excluded from sync.
-3. **Apply policy.** Accept above a confidence automatically after the first review, or always ask?
-4. **Single-line walls.** Do your drawings draw walls as two lines mostly, or sometimes as one centre line with a width? The rules above handle both, but the tests should use your real files.
-5. **Layer names.** Which layer standard should `apply` target: the existing `A-WALL`, `A-DOOR` style, or a new list?
-
-## 12. Phases
-
-| Phase | Delivers | Done when |
+| Phase | Delivers | State |
 |---|---|---|
-| 0 | schema, extract, R-tree, scale check | the 232k file builds in a bulk transaction and the tables match entity counts |
-| 1 | pairs, wall runs, openings | wall and opening scores on the ground-truth set reach the agreed target |
-| 2 | columns, beams, rooms, hatches, slab | same, per class |
-| 3 | electrical and plumbing points and networks | `plumbing.connect` and the stored graph agree |
-| 4 | apply with preview, review states, status-bar summary | a drawing with every layer `0` becomes correctly layered in one undoable step |
-| 5 | AI tools over the tables, model comparison | measured on the ambiguous items; decide the model from numbers |
+| 0 | schema, extract, R-tree, scale check, incremental update, bulk write | built, tested |
+| 1 | pairs, wall runs (three types), doors, windows, rules table, review keys, `geodb.*` commands | built; accuracy on real plans below the 95 % target, see results |
+| 2 | columns, beams, rooms, hatches, slab | planned |
+| 3 | electrical and plumbing points and networks | planned |
+| 4 | status-bar summary panel, `classify.set` stamping, review UI | planned |
+| 5 | AI tools over the tables, model comparison | planned |
