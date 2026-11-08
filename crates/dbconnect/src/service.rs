@@ -119,9 +119,13 @@ impl Service {
         })
     }
 
-    /// Send the saved revision. The service reads the file from the path registered at connect.
-    pub fn push(&self, token: &str, project_id: &str, revision: i64) -> Result<i64, ServiceError> {
+    /// Send the saved revision. The service reads the file from the path registered at connect. `None` means the service keeps project
+    /// files on this PC (`local_only`): there is nothing to send and the local file is the shared database.
+    pub fn push(&self, token: &str, project_id: &str, revision: i64) -> Result<Option<i64>, ServiceError> {
         let v = self.post(&format!("/v1/projects/{project_id}/push"), token, &json!({ "revision": revision }))?;
-        Ok(v.get("remote_revision").and_then(Value::as_i64).unwrap_or(revision))
+        if v.get("local_only").and_then(Value::as_bool) == Some(true) {
+            return Ok(None);
+        }
+        Ok(Some(v.get("remote_revision").and_then(Value::as_i64).unwrap_or(revision)))
     }
 }

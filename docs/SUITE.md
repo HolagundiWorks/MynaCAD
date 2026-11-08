@@ -8,7 +8,7 @@ The suite is the **Kivo family of apps** (Kivo, Falcon, Tren, Finch, Myna, and O
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
-| **Kivo** | Office and projects; **suite hub** (company file, users, launch Falcon/Tren, approvals, Neon `.osp` sync settings) | Ember `#B83E16` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
+| **Kivo** | Office and projects; **suite hub** (company file, users, launch Falcon/Tren, approvals; the one app that is synced to the cloud) | Ember `#B83E16` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
 | **Falcon** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Dusk `#5630A0` | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
 | **Tren** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Midnight `#102C80` | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
@@ -39,7 +39,7 @@ Draw in **Tren**, measure in **Falcon**, both on **one `.osp` file** connected t
 
 | App | Owns | No longer owns |
 |---|---|---|
-| **Myna** | The **AI Core** (Olmo, loopback `127.0.0.1:8742`) and the **database service** (loopback `127.0.0.1:8743`, a local database that syncs to Neon). Tray icon. | Company sign-in |
+| **Myna** | The **AI Core** (Olmo, loopback `127.0.0.1:8742`) and the **database service** (loopback `127.0.0.1:8743`, the local shared project database; project files are not synced). Tray icon. | Company sign-in |
 | **Kivo** | **Company sign-in** and the session; estimates, running bills, **approvals, revisions**; **Import from Falcon (CSV)** | |
 | **Tren** | The drawing and its take-off rows, written into the `.osp` | Sign-in, approvals, revisions |
 | **Falcon** | Quantities, rates, the estimate; **Export for Kivo (CSV)** | Sign-in, approvals, revisions |
@@ -47,7 +47,7 @@ Draw in **Tren**, measure in **Falcon**, both on **one `.osp` file** connected t
 How the pieces connect:
 
 - **Sign-in on demand.** When Tren or Falcon first needs the database it asks Kivo for a session over the local named pipe `\\.\pipe\osas-session-broker`. Kivo opens, the person signs in once, and a session token (32 random bytes, held in memory, 8 hours idle, 24 hours at most) is handed back. The apps never store company credentials. Contract: `contracts/session-broker.md` (Kivo repo, `docs/contracts/session-broker.md`).
-- **Database.** Myna's database service checks every request's Bearer token with Kivo's broker. Work continues offline; the service pushes and pulls to Neon when it can.
+- **Database.** Myna's database service checks every request's Bearer token with Kivo's broker. Project files stay on this PC, so the service reports state `local` and sends nothing; the local `.osp` is the shared database.
 - **CSV.** Falcon writes `osas-falcon-csv/1` (20 columns; rows `meta`, `estimate`, `measured`, `takeoff`, `total`; UTF-8 with BOM, RFC 4180, CRLF). Kivo previews it and imports it in one transaction onto estimate versions and draft running bills. Contracts: `contracts/falcon-csv.md` (Kivo repo, `docs/contracts/falcon-csv.md`), `contracts/falcon-csv-import.md` (Kivo repo, `docs/contracts/falcon-csv-import.md`); a running bill locks its measured-to-date once certified.
 - **Design note:** `WORKFLOW-KIVO-HUB.md` (Kivo repo, `docs/WORKFLOW-KIVO-HUB.md`).
 

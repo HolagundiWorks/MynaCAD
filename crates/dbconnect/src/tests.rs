@@ -305,6 +305,24 @@ fn a_conflict_on_push_keeps_both_copies_and_says_so() {
 }
 
 #[test]
+fn a_service_that_keeps_files_local_is_not_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, _) = project(&dir);
+    let service = myna(|req, _| match req.path.as_str() {
+        "/v1/projects/connect" => (200, json!({ "connected": true, "remote_revision": null, "action": "none" })),
+        p if p.ends_with("/push") => (200, json!({ "remote_revision": null, "local_only": true })),
+        _ => (200, json!({ "local_revision": 1, "remote_revision": null, "state": "synced", "pending": 0 })),
+    });
+    let c = Connector::new(cfg(kivo(token_reply), &service.url), true);
+    c.connect_blocking(&path);
+    c.push_now(4);
+    let snap = c.snapshot();
+    assert_eq!(snap.state, State::Connected);
+    assert!(snap.detail.contains("stay on this PC"), "{}", snap.detail);
+    assert_eq!(snap.label(), "Database: connected");
+}
+
+#[test]
 fn several_saves_in_a_row_go_as_one_push() {
     let dir = tempfile::tempdir().unwrap();
     let (path, _) = project(&dir);

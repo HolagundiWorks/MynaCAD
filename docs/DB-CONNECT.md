@@ -1,12 +1,12 @@
 # Database connect (Tren and Falcon)
 
-Tren and Falcon share one `.osp` file. From the suite build after 1.5.5 that file is **connected to the suite database**: Myna hosts the database service, Kivo signs the company in, and each saved revision goes to the shared copy in the background. Design and contract: Kivo `docs/WORKFLOW-KIVO-HUB.md` and `docs/contracts/session-broker.md`.
+Tren and Falcon share one `.osp` file. From the suite build after 1.5.5 that file is **connected to the suite database**: Myna hosts the database service, Kivo signs the company in, and the project file stays on this PC (the local `.osp` is the shared database; nothing is pushed to Neon). Design and contract: Kivo `docs/WORKFLOW-KIVO-HUB.md` and `docs/contracts/session-broker.md`.
 
 ## What happens
 
 1. **Open a project file.** Tren (`crates/dbconnect`, crate `aad-dbconnect`) reads the file's `meta` (project id, name, revision) and asks **Kivo** for a session over the named pipe `\\.\pipe\osas-session-broker` (`ask_session`, app `tren`, purpose `db_connect`). If the pipe is not there it starts `O-Studio.exe --broker` and waits up to 60 s. If nobody is signed in, Kivo opens its sign-in.
 2. **Connect.** Tren sends `POST /v1/projects/connect` to **Myna** (`127.0.0.1:8743`, or `OSAS_DB_URL`) with the session token as a Bearer token.
-3. **Save.** Each save into the `.osp` marks the project dirty; one push (`POST /v1/projects/{id}/push`) goes out about 1.5 s after the last save.
+3. **Save.** Each save into the `.osp` marks the project dirty; one push (`POST /v1/projects/{id}/push`) goes out about 1.5 s after the last save. Myna answers `local_only` while project files stay on this PC: nothing is sent and the status reads connected. Only if a machine opts in (`OSAS_PUSH_PROJECT_FILES=1`) does the revision go to the shared cloud copy.
 4. **A refused token** is replaced once by asking Kivo again.
 
 ## What it will not do

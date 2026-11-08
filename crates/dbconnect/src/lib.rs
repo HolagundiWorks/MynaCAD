@@ -277,7 +277,10 @@ impl Connector {
                     let mut g = lock(&self.inner);
                     g.snap.state = State::Connected;
                     g.snap.pending = pending;
-                    g.snap.detail = format!("{name}: revision {remote} sent to the suite database.");
+                    g.snap.detail = match remote {
+                        Some(r) => format!("{name}: revision {r} sent to the suite database."),
+                        None => format!("{name}: saved. Project files stay on this PC; the local file is the shared database."),
+                    };
                     return;
                 }
                 Err(ServiceError::Unauthorized) if !fresh => fresh = true,
