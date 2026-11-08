@@ -357,3 +357,11 @@ Measured on the heavy 26 000-entity Working Drawing.dwg with `AAD_PERF=1` (new `
 - **Idle CPU:** the 32 ms UI tick fetched and parsed the chrome and panels JSON repeatedly, each read built the JSON twice, and `panels_json` scanned every block reference each call. Now one read per tick, unchanged ticks skipped, the panels text cached in the host. Idle after load: 7.8 % to about 3 % of a core, the same for a small and a heavy drawing.
 - The "settle" figure of 23 to 31 s in earlier open timings was the old idle noise defeating the script's idle test, not load time.
 - Probes: `create_cost_by_part` (ignored test in `aad-host`) times the parts of host creation.
+
+## Update: heavy drawings (2026-11-08)
+
+Test file: a 115.7 MB DWG with 232,212 entities.
+
+- Open (DWG read to scene ready): 16.8 s to about 9-10 s. Reading the DXF text now borrows sections and records instead of copying them, and a large ASCII DXF is cut at record starts and parsed on every core.
+- Edit latency: 720 ms to about 205 ms per edit. A small edit patches the scene from the changed chunks of the entity store (`rebuild_scene_delta`) and builds mesh tiles in parallel.
+- Still slow: `flatten_scene` (about 86 ms) and coarse mesh tiles (about 90 ms) per edit; move/copy of everything (about 1 s); the third-party DWG-to-DXF step (about 3 s).
