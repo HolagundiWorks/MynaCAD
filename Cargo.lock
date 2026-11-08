@@ -149,6 +149,7 @@ dependencies = [
  "acadrust",
  "pollster 0.4.0",
  "raw-window-handle",
+ "rayon",
  "serde",
  "serde_json",
  "ureq",

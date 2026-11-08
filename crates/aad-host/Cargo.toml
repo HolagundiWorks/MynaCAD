@@ -29,6 +29,7 @@ assistant = ["aad-llm/llama"]
 
 [dependencies]
 aad-color = { workspace = true }
+rayon = { workspace = true }
 aad-engine = { workspace = true }
 aad-fonts = { workspace = true }
 aad-io = { workspace = true }

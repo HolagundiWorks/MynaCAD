@@ -66,6 +66,8 @@ pub struct Scene {
     pub expanded: usize,
     /// Tiles tessellated on the last [`build_scene`] / [`rebuild_scene`] (tests / inspect).
     pub tiles_rebuilt: usize,
+    /// The view window the `included` flags were decided against. An edit can patch the scene only while the window is the same.
+    pub cull: Option<Bounds2>,
 }
 
 /// World-space tile edge for the scene grid (same policy as mesh tiles).
@@ -262,7 +264,7 @@ pub fn build_scene(d: &Drawing, opts: &Options) -> Scene {
     let extents = list.bounds;
     let expanded = list.expanded;
     tiles.insert(GLOBAL_TILE, SceneTile { id: GLOBAL_TILE, list: Arc::new(list) });
-    Scene { info: HashMap::new(), edge, tiles, assignment, extents, expanded, tiles_rebuilt: 1 }
+    Scene { info: HashMap::new(), edge, tiles, assignment, extents, expanded, tiles_rebuilt: 1, cull: None }
 }
 
 /// [`build_scene`] when tiling is worthwhile for this drawing, else `None`. The entities are measured once for both
@@ -287,7 +289,7 @@ pub fn build_scene_if_viable(d: &Drawing, opts: &Options) -> Option<Scene> {
     }
     let (map, assignment, extents) = assemble(d, &infos);
     let (tiles, expanded, rebuilt) = tessellate_tiles(d, &map, &opts, false);
-    Some(Scene { info: info_map(d, &infos), edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt })
+    Some(Scene { info: info_map(d, &infos), edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt, cull })
 }
 
 /// Flatten a scene into a single display list in document order (handle assignment order).
@@ -364,7 +366,120 @@ pub fn flatten_scene(scene: &Scene) -> DisplayList {
 /// Update `old` for `new_doc`: unchanged tiles keep their `Arc` lists; only dirty tiles retessellate. Only the entities
 /// that changed (or are new) are measured; every other entity keeps the tile and bounds stored on `old`.
 /// `None` when the environment changed or the scene cannot be reused (caller should [`build_scene`]).
+///
+/// A small edit takes the delta path ([`rebuild_scene_delta`]): the changed and erased entities come from comparing the shared
+/// chunks of the two entity stores, so the cost follows the edit and not the size of the drawing.
 pub fn rebuild_scene(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &Options) -> Option<Scene> {
+    if let Some(scene) = rebuild_scene_delta(old, old_doc, new_doc, opts) {
+        return Some(scene);
+    }
+    rebuild_scene_full(old, old_doc, new_doc, opts)
+}
+
+/// The edit-sized rebuild. `None` (use [`rebuild_scene_full`]) when the environment or the view window changed, the scene keeps
+/// no per-entity data, or so much changed that comparing everything is no dearer.
+pub(crate) fn rebuild_scene_delta(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &Options) -> Option<Scene> {
+    if old.info.is_empty() || old.expanded >= MAX_BLOCK_EXPANSION / 2 || !crate::same_environment(old_doc, new_doc) {
+        return None;
+    }
+    if new_doc.header.f64("PDSIZE", 0.0) <= 0.0 && crate::point::sized(new_doc.header.i64("PDMODE", 0)) {
+        return None;
+    }
+    let opts = with_point_view(new_doc, &Space::Model, opts);
+    let edge = old.edge;
+    if !(edge.is_finite() && edge > 0.0) || new_doc.model.is_empty() {
+        return None;
+    }
+    let cull = model_cull_window(&opts);
+    if cull != old.cull {
+        return None;
+    }
+    let changed = new_doc.model.changed_since(&old_doc.model);
+    let gone = new_doc.model.removed_since(&old_doc.model);
+    if changed.len() + gone.len() > (old.info.len() / 8).max(256) {
+        return None;
+    }
+    // Patch the per-entity data: erased entities go, changed and new ones are measured again, the rest is kept as it was.
+    let mut info = old.info.clone();
+    let mut dirty: HashSet<TileId> = HashSet::new();
+    for h in &gone {
+        if let Some(prev) = info.remove(h)
+            && prev.included
+        {
+            dirty.insert(prev.tile);
+        }
+    }
+    let measured: Vec<EntInfo> = if changed.len() >= 256 {
+        changed.par_iter().map(|e| classify(new_doc, e, edge, cull.as_ref())).collect()
+    } else {
+        changed.iter().map(|e| classify(new_doc, e, edge, cull.as_ref())).collect()
+    };
+    for (e, now) in changed.iter().zip(measured) {
+        if let Some(prev) = old.info.get(&e.handle)
+            && prev.included
+        {
+            dirty.insert(prev.tile);
+        }
+        if now.included {
+            dirty.insert(now.tile);
+        }
+        info.insert(e.handle, now);
+    }
+    if info.len() != new_doc.model.len() {
+        return None;
+    }
+    // Draw-order assignment and, for the dirty tiles only, their entities in draw order: one parallel pass over the chunks.
+    let slices: Vec<&[Arc<Entity>]> = new_doc.model.chunk_slices().map(|(_, s)| s).collect();
+    let parts: Vec<(Vec<(Handle, TileId)>, Vec<(TileId, &Entity)>)> = slices
+        .par_iter()
+        .map(|chunk| {
+            let mut assigned = Vec::with_capacity(chunk.len());
+            let mut members = Vec::new();
+            for e in *chunk {
+                if let Some(i) = info.get(&e.handle)
+                    && i.included
+                {
+                    assigned.push((e.handle, i.tile));
+                    if dirty.contains(&i.tile) {
+                        members.push((i.tile, e.as_ref()));
+                    }
+                }
+            }
+            (assigned, members)
+        })
+        .collect();
+    let mut assignment = Vec::with_capacity(old.assignment.len() + changed.len());
+    let mut members: BTreeMap<TileId, Vec<&Entity>> = BTreeMap::new();
+    for (assigned, mem) in parts {
+        assignment.extend(assigned);
+        for (tile, e) in mem {
+            members.entry(tile).or_default().push(e);
+        }
+    }
+    let extents = info.values().filter(|i| !i.bounds.is_empty()).fold(Bounds2::default(), |a, i| a.union(&i.bounds));
+    // The tile set after the edit: untouched tiles stay, dirty tiles stay only if something is left in them.
+    let mut live: HashSet<TileId> = old.tiles.keys().copied().filter(|id| !dirty.contains(id)).collect();
+    live.extend(members.keys().copied());
+    if !tile_count_ok(live.iter().copied()) {
+        return None;
+    }
+    let budget = AtomicUsize::new(old.expanded.min(MAX_BLOCK_EXPANSION / 2));
+    let todo: Vec<(&TileId, &Vec<&Entity>)> = members.iter().collect();
+    let rebuilt: Vec<(TileId, DisplayList)> = todo.par_iter().map(|(id, ents)| (**id, tessellate_one(new_doc, ents, &opts, false, &budget))).collect();
+    let rebuilt_count = rebuilt.len();
+    let mut tiles = old.tiles.clone();
+    for id in &dirty {
+        tiles.remove(id);
+    }
+    for (id, list) in rebuilt {
+        tiles.insert(id, SceneTile { id, list: Arc::new(list) });
+    }
+    let expanded = tiles.values().fold(0usize, |a, t| a.saturating_add(t.list.expanded));
+    Some(Scene { info, edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt_count, cull })
+}
+
+/// The rebuild that looks at every entity: the fallback of [`rebuild_scene`], and the reference the delta path is tested against.
+pub(crate) fn rebuild_scene_full(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &Options) -> Option<Scene> {
     if old.expanded >= MAX_BLOCK_EXPANSION / 2 || !crate::same_environment(old_doc, new_doc) {
         return None;
     }
@@ -455,7 +570,7 @@ pub fn rebuild_scene(old: &Scene, old_doc: &Drawing, new_doc: &Drawing, opts: &O
         }
     }
     let expanded = tiles.values().fold(0usize, |a, t| a.saturating_add(t.list.expanded));
-    Some(Scene { info: info_map(new_doc, &infos), edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt_parts.len() })
+    Some(Scene { info: info_map(new_doc, &infos), edge, tiles, assignment, extents, expanded, tiles_rebuilt: rebuilt_parts.len(), cull })
 }
 
 #[cfg(test)]
@@ -500,6 +615,99 @@ mod tests {
         assert!(!near.extents.is_empty(), "extents still cover the model");
         // Extents should still span the far geometry.
         assert!(near.extents.width() > 1000.0, "extents width {}", near.extents.width());
+    }
+
+    /// Everything that decides what is drawn, in a form two scenes can be compared by.
+    fn same_scene(a: &Scene, b: &Scene) {
+        assert_eq!(a.info.len(), b.info.len(), "entity count");
+        for (h, ia) in &a.info {
+            let ib = b.info.get(h).unwrap_or_else(|| panic!("{h:?} missing"));
+            assert_eq!((ia.tile, ia.included), (ib.tile, ib.included), "{h:?}");
+            assert_eq!(ia.bounds, ib.bounds, "{h:?}");
+        }
+        assert_eq!(a.assignment, b.assignment, "draw-order assignment");
+        assert_eq!(a.extents, b.extents, "extents");
+        assert_eq!(a.tiles.keys().collect::<Vec<_>>(), b.tiles.keys().collect::<Vec<_>>(), "tile set");
+        let (fa, fb) = (flatten_scene(a), flatten_scene(b));
+        assert_eq!(fa.prims.len(), fb.prims.len(), "prims");
+        for (x, y) in fa.prims.iter().zip(&fb.prims) {
+            assert_eq!((x.handle, x.kind, x.start, x.len), (y.handle, y.kind, y.start, y.len));
+        }
+        assert_eq!((fa.verts.len(), fa.tris.len()), (fb.verts.len(), fb.tris.len()));
+    }
+
+    /// The delta rebuild must give exactly what the rebuild that looks at every entity gives, across moves, additions, erasures
+    /// and draw-order changes, applied in runs and undone.
+    #[test]
+    fn the_delta_rebuild_equals_the_full_rebuild() {
+        let opts = Options { view_height: 100.0, tolerance: 0.01, ..Default::default() };
+        let mut doc = line_drawing(60, 500.0);
+        let mut scene = build_scene(&doc, &opts);
+        assert!(scene.tiles.len() >= 20);
+        let mut seed = 0x2545_F491_4F6C_DD1Du64;
+        let mut next = move |n: u64| {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed % n
+        };
+        let mut history: Vec<(Drawing, Scene)> = Vec::new();
+        let mut taken = 0;
+        for round in 0..60 {
+            let before = doc.clone();
+            let handles: Vec<Handle> = doc.model.iter().map(|e| e.handle).collect();
+            for _ in 0..(1 + next(4)) {
+                let h = handles[next(handles.len() as u64) as usize];
+                match next(5) {
+                    0 | 1 => {
+                        // move (sometimes far, into another tile)
+                        let dx = if next(2) == 0 { 3.0 } else { 700.0 * next(9) as f64 };
+                        doc.model.modify(h, |e| {
+                            if let EntityKind::Line(l) = &mut e.kind {
+                                l.a.x += dx;
+                                l.b.x += dx;
+                            }
+                        });
+                    }
+                    2 => {
+                        let x = 500.0 * next(80) as f64;
+                        let _ = doc.add(&Space::Model, Common::default(), EntityKind::Line(Line { a: Vec3::new(x, 40.0, 0.0), b: Vec3::new(x + 1.0, 40.0, 0.0) }));
+                    }
+                    3 => {
+                        if doc.model.len() > 30 {
+                            doc.model.remove(h);
+                        }
+                    }
+                    _ => {
+                        doc.model.bring_to_front(h);
+                    }
+                }
+            }
+            let delta = rebuild_scene_delta(&scene, &before, &doc, &opts);
+            let full = rebuild_scene_full(&scene, &before, &doc, &opts);
+            match (delta, full) {
+                (Some(d), Some(f)) => {
+                    same_scene(&d, &f);
+                    taken += 1;
+                    scene = d;
+                }
+                (None, Some(f)) => scene = f,
+                (d, f) => panic!("round {round}: delta {} full {}", d.is_some(), f.is_some()),
+            }
+            history.push((before, scene.clone()));
+            // Now and then step back to an earlier state (undo): the delta path must handle a jump over several edits.
+            if round % 11 == 10 {
+                let (old_doc, old_scene) = history.remove(history.len() - 4);
+                let delta = rebuild_scene_delta(&scene, &doc, &old_doc, &opts);
+                let full = rebuild_scene_full(&scene, &doc, &old_doc, &opts);
+                if let (Some(d), Some(f)) = (&delta, &full) {
+                    same_scene(d, f);
+                }
+                doc = old_doc;
+                scene = delta.or(full).unwrap_or(old_scene);
+            }
+        }
+        assert!(taken >= 45, "the delta path should take nearly every small edit, took {taken} of 60");
     }
 
     #[test]

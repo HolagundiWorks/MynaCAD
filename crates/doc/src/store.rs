@@ -231,6 +231,19 @@ impl EntityStore {
         }
         out
     }
+    /// The handles that were in `before` and are not in `self`: what an edit erased. Only the chunks of `before` that `self` no
+    /// longer shares are looked at, so an edit costs its changed chunks, not the drawing.
+    pub fn removed_since(&self, before: &EntityStore) -> Vec<Handle> {
+        let shared: std::collections::HashSet<*const Chunk> = self.chunks.iter().map(Arc::as_ptr).collect();
+        let mut out = Vec::new();
+        for c in &before.chunks {
+            if shared.contains(&Arc::as_ptr(c)) {
+                continue;
+            }
+            out.extend(c.items.iter().map(|e| e.handle).filter(|h| !self.contains(*h)));
+        }
+        out
+    }
     /// The last entity in draw order (AutoCAD's "Last" selection).
     pub fn last(&self) -> Option<&Arc<Entity>> {
         self.chunks.last().and_then(|c| c.items.last())

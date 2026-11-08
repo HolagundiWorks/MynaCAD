@@ -37,6 +37,7 @@ use aad_engine::doc::{Drawing, Space};
 use aad_geom::Vec2;
 use aad_render::DisplayList;
 use aad_render::mesh::{self, MeshData, TileId};
+use rayon::prelude::*;
 use serde_json::Value;
 
 /// uid, revision, tessellation band, lwdisplay, space, packed LOD bits, packed model pan cell.
@@ -2351,15 +2352,23 @@ impl Host {
                 let parts = mesh::partition_prims(list, edge);
                 let keep: std::collections::HashSet<TileId> = parts.iter().map(|(id, _)| *id).collect();
                 self.frame.tiles.retain(|id, _| keep.contains(id));
-                let mut remeshed = 0usize;
-                for (id, indices) in &parts {
-                    let content = mesh::tile_content_fingerprint(list, indices);
-                    let tile_key = content ^ mesh_basis;
-                    let needs = self.frame.tiles.get(id).is_none_or(|t| t.key != tile_key);
-                    if needs {
-                        let mesh = mesh::build_mesh_prims(list, indices, origin, paper, lw_mode);
-                        self.frame.tiles.insert(*id, TileMesh { key: tile_key, mesh });
-                        remeshed = remeshed.saturating_add(1);
+                // Tiles are independent: fingerprint them all, then remesh the ones whose content changed, each on its own thread.
+                let keys: Vec<u64> = parts.par_iter().map(|(_, indices)| mesh::tile_content_fingerprint(list, indices) ^ mesh_basis).collect();
+                let stale: Vec<usize> = parts
+                    .iter()
+                    .zip(&keys)
+                    .enumerate()
+                    .filter(|(_, ((id, _), key))| self.frame.tiles.get(id).is_none_or(|t| t.key != **key))
+                    .map(|(i, _)| i)
+                    .collect();
+                let rebuilt: Vec<(usize, MeshData)> = stale
+                    .par_iter()
+                    .filter_map(|&i| parts.get(i).map(|(_, indices)| (i, mesh::build_mesh_prims(list, indices, origin, paper, lw_mode))))
+                    .collect();
+                let remeshed = rebuilt.len();
+                for (i, mesh) in rebuilt {
+                    if let (Some((id, _)), Some(key)) = (parts.get(i), keys.get(i)) {
+                        self.frame.tiles.insert(*id, TileMesh { key: *key, mesh });
                     }
                 }
                 let tiles_total = parts.len();
