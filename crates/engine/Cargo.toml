@@ -14,7 +14,6 @@ aad-color = { workspace = true }
 aad-doc = { workspace = true }
 aad-fonts = { workspace = true }
 aad-render = { workspace = true }
-aad-office = { workspace = true }
 # The project file (.osp); on the web build only its history model is used.
 aad-odp = { workspace = true }
 aad-param = { workspace = true }

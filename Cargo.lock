@@ -100,7 +100,6 @@ dependencies = [
  "aad-geom",
  "aad-io",
  "aad-odp",
- "aad-office",
  "aad-param",
  "aad-render",
  "criterion",
@@ -205,14 +204,6 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "aad-office"
-version = "0.6.0"
-dependencies = [
- "serde_json",
  "thiserror 2.0.21",
 ]
 

@@ -516,8 +516,6 @@ pub struct Session {
     pub last_used: LastUsed,
     /// Where `clipboard` came from and the layers, styles and blocks its objects need.
     pub clipboard_source: Option<cmd::clipboard::ClipSource>,
-    /// The link to the OSAS company file, once `companyfile` has opened it. Read-only.
-    pub(crate) office: Option<aad_office::Link>,
     /// A plot window chosen by `plot.window` for the application to finish (it asks where to save,
     /// then calls `plot`). Taken with [`Session::take_plot_request`].
     pub plot_request: Option<PlotRequest>,
@@ -584,7 +582,6 @@ impl Session {
             last_dim: None,
             last_used: LastUsed::default(),
             clipboard_source: None,
-            office: None,
             plot_request: None,
             param_cache: aad_param::Cache::default(),
             companion: cmd::companion::CompanionState::default(),

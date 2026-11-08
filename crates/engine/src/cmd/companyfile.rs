@@ -33,7 +33,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("companyfile", "Company File Details", run_companyfile)
             .menu(&["Architecture", "Project", "Company File Details"])
-            .params("{context?: a `document_context` answer, open?: true (open the company file Kivo gave this start), projects?: true, project_id?: n (read that project), refresh?: true (read the drawing's project again)} → {connected, linked, company, details, projects?, suite?}"),
+            .params("{context?: a `document_context` answer, projects?: true, project_id?: n (read that project), refresh?: true (read the drawing's project again)} → {connected, linked, company, details, projects?, suite?}"),
         CommandSpec::new("company.pack.import", "Import Company Details", run_pack_import)
             .menu(&["Architecture", "Project", "Import Company Details"])
             .params("{path: an osas-company-pack JSON exported from Kivo} → {company, details}. Fills title-block fields from the file. Does not open the company file or talk to Kivo."),
@@ -89,66 +89,20 @@ fn text(v: Option<&Value>, what: &str) -> Result<String> {
     }
 }
 
-fn office_error(e: aad_office::Error) -> crate::EngineError {
-    bad("companyfile", e.to_string())
-}
-
-/// Where the link keeps its small working files (the recent-files list and temporary copies); never the company's data.
-fn link_folder() -> std::path::PathBuf {
-    std::env::var_os("LOCALAPPDATA").map_or_else(std::env::temp_dir, std::path::PathBuf::from).join("O-Draft").join("office")
-}
-
-fn connect(s: &mut Session) -> Result<()> {
-    if s.office.is_none() {
-        let link = aad_office::Link::open(&aad_office::Settings::from_environment(), &link_folder()).map_err(office_error)?;
-        s.office = Some(link);
-    }
-    Ok(())
-}
-
 fn run_companyfile(s: &mut Session, p: &Value) -> Result<Value> {
-    let wants = |key: &str| p.get(key).and_then(Value::as_bool).unwrap_or(false);
     if let Some(ctx) = p.get("context") {
         apply(s, ctx)?;
-    }
-    let mut projects = Value::Null;
-    if wants("open") || wants("projects") || wants("refresh") || p.get("project_id").is_some() {
-        connect(s)?;
-    }
-    if let Some(link) = s.office.as_ref() {
-        if wants("projects") {
-            projects = link.projects().map_err(office_error)?;
-        }
-        let chosen = match p.get("project_id") {
-            None | Some(Value::Null) => None,
-            Some(v) => Some(v.as_i64().ok_or_else(|| bad("companyfile", "`project_id` must be a whole number"))?),
-        };
-        let context = if let Some(id) = chosen {
-            Some(link.document_context(Some(id)).map_err(office_error)?)
-        } else if wants("refresh") {
-            // The drawing remembers which project it belongs to; the company file says what that project is now.
-            let reference = company(s.doc()?).get("project_ref").filter(|r| r.is_object()).cloned();
-            let id = match reference {
-                Some(r) => Some(link.resolve(&r).map_err(office_error)?),
-                None => None,
-            };
-            Some(link.document_context(id).map_err(office_error)?)
-        } else {
-            None
-        };
-        if let Some(context) = context {
-            apply(s, &context)?;
-        }
     }
     let d = s.doc()?;
     let held = company(d);
     let suite = suite_status(d);
     Ok(json!({
-        "connected": s.office.is_some(),
+        // Tren never opens the company file: details arrive as a context from the host or as an imported pack.
+        "connected": false,
         "linked": suite["project_linked"].as_bool().unwrap_or(false),
         "company": held,
         "details": get(d, "details"),
-        "projects": projects,
+        "projects": Value::Null,
         "suite": suite,
     }))
 }
@@ -384,17 +338,14 @@ mod tests {
     }
 
     #[test]
-    fn opening_without_an_osas_start_says_how_to_get_the_details() {
+    fn the_company_file_is_never_opened() {
         let mut s = Session::new();
-        // This test machine is not started from Kivo, so no company file or ticket is in the environment.
-        if std::env::var_os("OSTUDIO_COMPANY").is_none() {
-            let message = s.execute("companyfile", &json!({ "open": true })).err().map(|e| e.to_string()).unwrap_or_default();
-            assert!(message.contains("Kivo"), "{message}");
-            assert!(s.execute("companyfile", &json!({ "projects": true })).is_err());
-            assert!(s.execute("companyfile", &json!({ "refresh": true })).is_err());
+        // Older callers may still pass the live-link switches; they do nothing and Tren stays disconnected.
+        for switches in [json!({ "open": true }), json!({ "projects": true }), json!({ "refresh": true }), json!({ "project_id": 3 })] {
+            let shown = s.execute("companyfile", &switches).unwrap();
+            assert_eq!(shown["connected"], false);
+            assert!(shown["projects"].is_null());
         }
-        let shown = s.execute("companyfile", &json!({})).unwrap();
-        assert_eq!(shown["connected"], false);
     }
 
     #[test]

@@ -21,7 +21,6 @@ aad-doc = { path = "crates/doc" }
 aad-fonts = { path = "crates/fonts" }
 aad-render = { path = "crates/render" }
 aad-io = { path = "crates/io" }
-aad-office = { path = "crates/office" }
 aad-engine = { path = "crates/engine" }
 aad-ui-egui = { path = "crates/ui-egui" }
 aad-host = { path = "crates/aad-host" }
