@@ -6,7 +6,7 @@ use crate::backend::Backend;
 
 pub fn tool_definitions(has_ui: bool) -> Value {
     let mut tools = vec![
-        json!({"name": "command_line", "description": "Type one line at the O-Draft command line, exactly as a user would at the interactive prompt. Starts commands by name or alias (LINE, L, CIRCLE, C, PLINE, RECTANG, MOVE, TRIM, OFFSET, ZOOM…) and answers the active prompt: points `x,y`, relative `@dx,dy`, polar `@dist<angle`, distances, keywords (e.g. `c` for Close), empty text = Enter. Spaces act as Enter, so `circle 0,0 5` works in one call. Returns the new prompt and command-line output, and `error` when the line was refused.",
+        json!({"name": "command_line", "description": "Type one line at the Tren command line, exactly as a user would at the interactive prompt. Starts commands by name or alias (LINE, L, CIRCLE, C, PLINE, RECTANG, MOVE, TRIM, OFFSET, ZOOM…) and answers the active prompt: points `x,y`, relative `@dx,dy`, polar `@dist<angle`, distances, keywords (e.g. `c` for Close), empty text = Enter. Spaces act as Enter, so `circle 0,0 5` works in one call. Returns the new prompt and command-line output, and `error` when the line was refused.",
             "inputSchema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}),
         json!({"name": "script", "description": "Run a multi-line script (one or more inputs per line, blank line = Enter), like a `.scr` command script.",
             "inputSchema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}),
@@ -31,15 +31,15 @@ pub fn tool_definitions(has_ui: bool) -> Value {
             "inputSchema": {"type": "object", "properties": {}}}),
         json!({"name": "validate_drawing", "description": "Auditor v0 detect-only: validate the open drawing (audit plus counts; never repairs).",
             "inputSchema": {"type": "object", "properties": {}}}),
-        json!({"name": "check_command_parity", "description": "Auditor v0 detect-only: compare the reference menu catalog to registered commands (same breadth as cargo xtask parity). Needs the O-Draft source tree.",
+        json!({"name": "check_command_parity", "description": "Auditor v0 detect-only: compare the reference menu catalog to registered commands (same breadth as cargo xtask parity). Needs the Tren source tree.",
             "inputSchema": {"type": "object", "properties": {}}}),
-        json!({"name": "check_ui_tokens", "description": "Auditor v0 detect-only: scan WinUI sources for template/token problems (same rules as cargo xtask ui). Needs the O-Draft source tree.",
+        json!({"name": "check_ui_tokens", "description": "Auditor v0 detect-only: scan WinUI sources for template/token problems (same rules as cargo xtask ui). Needs the Tren source tree.",
             "inputSchema": {"type": "object", "properties": {}}}),
         json!({"name": "auditor_report", "description": "Auditor v0: one JSON detect report (audit, validate, parity, UI tokens). Never repairs. Screenshot capture is documented in the report; use screenshot / ui_inspect on a live Windows shell separately.",
             "inputSchema": {"type": "object", "properties": {"checks": {"type": "string", "description": "comma list: audit,validate,parity,ui (default all)"}}}}),
     ];
     if has_ui {
-        tools.push(json!({"name": "screenshot", "description": "Screenshot the O-Draft window (PNG). Auditor v0 capture hook on Windows (live shell / --connect).", "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}}}));
+        tools.push(json!({"name": "screenshot", "description": "Screenshot the Tren window (PNG). Auditor v0 capture hook on Windows (live shell / --connect).", "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}}}));
         tools.push(json!({"name": "ui_inspect", "description": "UI state: panels, canvas rect, view, cursor and snap, performance.", "inputSchema": {"type": "object", "properties": {}}}));
         tools.push(json!({"name": "ui_click", "description": "Click in the drawing area at world coordinates (or screen with space:\"screen\"). Right button = Enter.", "inputSchema": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "space": {"type": "string"}, "button": {"type": "string"}}, "required": ["x", "y"]}}));
     }

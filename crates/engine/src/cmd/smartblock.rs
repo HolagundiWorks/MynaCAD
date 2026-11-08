@@ -1,4 +1,4 @@
-//! Smart blocks: parametric block definitions (O-Draft's own format, `osas-smartblocks` v1).
+//! Smart blocks: parametric block definitions (Tren's own format, `osas-smartblocks` v1).
 //!
 //! A definition names its parameters (number, range, whole number or a list of choices), derived
 //! values (`vars`, formulas of the parameters) and the geometry as items whose coordinates are
@@ -1173,7 +1173,7 @@ fn smart_ref(s: &Session, h: aad_doc::Handle) -> Result<Option<(String, String, 
     Ok(smart_of(b).map(|(id, p)| (i.block.clone(), id, p)))
 }
 
-/// The O-CoreOp element page a reinforced concrete block is the detail of, if it is one.
+/// The Falcon element page a reinforced concrete block is the detail of, if it is one.
 fn detail_kind(id: &str) -> Option<&'static str> {
     Some(match id {
         "rcc.beam.section" | "rcc.beam.elevation" => "beams",
@@ -1186,7 +1186,7 @@ fn detail_kind(id: &str) -> Option<&'static str> {
 }
 
 /// The structural details of a drawing: every reference to a reinforced concrete block in the model, with the parameters it was placed with.
-/// The Windows app records them in the project file when the drawing is saved into it, for O-CoreOp to draw (read only).
+/// The Windows app records them in the project file when the drawing is saved into it, for Falcon to draw (read only).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn structural_details(doc: &aad_doc::Drawing, drawing: &str) -> Vec<aad_odp::Detail> {
     let mut out = Vec::new();

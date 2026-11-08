@@ -127,7 +127,7 @@ lengths, areas and volumes and a Pomodoro timer are floating widgets under Tools
 
 ## Local AI assistant
 
-An offline assistant can call a fixed set of validated tools (summary, flatten, audit, purge, recover, units, plot configuration). It runs a local Qwen3-1.7B model through llama.cpp and is **not part of the default build**: build with `--features assistant` (`cargo build --release -p aad --features assistant`; needs CMake, a C++ toolchain and LLVM) and put the model file in `%APPDATA%\O-Draft\models`. Type a request in the command bar (a leading `/`, a `/reference` such as `/layers`, or a plain sentence; see [docs/COMMAND_BAR.md](docs/COMMAND_BAR.md)), or use `aad-cli ask "request"`. A tool that changes the drawing asks first. The Windows **AI installer** bundles the runtime and model: `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/package.ps1 -Arch x64 -Assistant` (needs the model at `%APPDATA%\O-Draft\models\Qwen3-1.7B-Q4_K_M.gguf` or `AAD_MODEL_FILE`). Output: `dist/release/o-draft-ai-<version>-windows-x64.msi` and a portable zip. The plain installer (`package.ps1` without `-Assistant`) stays drafting-only. Both are open source (MIT OR Apache-2.0); the wizard shows `packaging/windows/EULA.rtf`. See [docs/ai-agent.md](docs/ai-agent.md).
+An offline assistant can call a fixed set of validated tools (summary, flatten, audit, purge, recover, units, plot configuration). It runs a local Qwen3-1.7B model through llama.cpp and is **not part of the default build**: build with `--features assistant` (`cargo build --release -p aad --features assistant`; needs CMake, a C++ toolchain and LLVM) and put the model file in `%APPDATA%\Tren\models`. Type a request in the command bar (a leading `/`, a `/reference` such as `/layers`, or a plain sentence; see [docs/COMMAND_BAR.md](docs/COMMAND_BAR.md)), or use `aad-cli ask "request"`. A tool that changes the drawing asks first. The Windows **AI installer** bundles the runtime and model: `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/package.ps1 -Arch x64 -Assistant` (needs the model at `%APPDATA%\Tren\models\Qwen3-1.7B-Q4_K_M.gguf` or `AAD_MODEL_FILE`). Output: `dist/release/o-draft-ai-<version>-windows-x64.msi` and a portable zip. The plain installer (`package.ps1` without `-Assistant`) stays drafting-only. Both are open source (MIT OR Apache-2.0); the wizard shows `packaging/windows/EULA.rtf`. See [docs/ai-agent.md](docs/ai-agent.md).
 
 ## Configuration
 
@@ -137,7 +137,7 @@ An offline assistant can call a fixed set of validated tools (summary, flatten, 
   fonts tried first for characters a font lacks. `.` clears either.
 - Logs: the desktop app writes to standard error and to `logs/aad.log` in the settings
   directory (`~/.config/aad/` on Linux and the BSDs, `~/Library/Application Support/AAD/`
-  on macOS, `%APPDATA%\O-Draft\` on Windows). `AAD_CONFIG_DIR` overrides the directory and
+  on macOS, `%APPDATA%\Tren\` on Windows). `AAD_CONFIG_DIR` overrides the directory and
   `RUST_LOG` sets the levels (default `info` for Tren's crates, `warn` for the rest). Each launch
   rotates the previous log; the file stops growing at 16 MiB.
 - Theme: one light/dark toggle (View menu, status bar). Dark has a black drawing area, light a

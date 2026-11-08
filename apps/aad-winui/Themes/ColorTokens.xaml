@@ -4,7 +4,7 @@
     <!--
       Premium CAD + Fluent surfaces. The neutrals, the accent and the Fluent system-control overrides come from the shared O.Ui theme
       (SuiteLight.Mirage / SuiteDark.Mirage), so stock WinUI controls (Expander, ListView, TextBox, NavigationView, ...) take the suite colours;
-      what is left here are O-Draft's own keys, with the suite palette values written out (a Color alias would resolve in the wrong theme when read from code), and the CAD chrome that stays independent.
+      what is left here are Tren's own keys, with the suite palette values written out (a Color alias would resolve in the wrong theme when read from code), and the CAD chrome that stays independent.
       Dark: graphite/charcoal. Light: neutral off-white.
       Accent: Midnight #102C80 (brand guide, docs/BRANDING.md): ink and accent in light, a lighter Midnight tint in dark. Canvas stays independently black/white.
       Command chrome stays opaque (no acrylic) so the HWND drawing child stays readable.

@@ -1,7 +1,7 @@
-//! O-Draft's read-only link to the O-Studio company file.
+//! Tren's read-only link to the Kivo company file.
 //!
-//! The company file holds practice-wide details; O-Studio chooses it and signs sibling apps in. This crate loads
-//! `office.dll` at run time, redeems the one-time ticket O-Studio passes, and asks for the `document_context` answer:
+//! The company file holds practice-wide details; Kivo chooses it and signs sibling apps in. This crate loads
+//! `office.dll` at run time, redeems the one-time ticket Kivo passes, and asks for the `document_context` answer:
 //! the company profile, the date, and a project's details. It never writes to the company file.
 //! Product path signs in with a one-time ticket (`OSTUDIO_TICKET`); password login is for tests and tools only.
 //!
@@ -37,13 +37,13 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// From the environment O-Studio starts an app with.
+    /// From the environment Kivo starts an app with.
     pub fn from_environment() -> Self {
         let get = |name: &str| std::env::var(name).ok().filter(|v| !v.trim().is_empty());
         Settings { company: get(ENV_COMPANY).map(PathBuf::from), ticket: get(ENV_TICKET), library: get(ENV_OFFICE_DLL).map(PathBuf::from) }
     }
 
-    /// The library to load: the one named, else `office.dll` beside the program, else the one O-Studio is installed with.
+    /// The library to load: the one named, else `office.dll` beside the program, else the one Kivo is installed with.
     pub fn find_library(&self) -> Option<PathBuf> {
         if let Some(path) = &self.library {
             return path.is_file().then(|| path.clone());

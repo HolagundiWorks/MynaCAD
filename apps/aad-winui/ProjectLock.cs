@@ -4,7 +4,7 @@ using Microsoft.Win32;
 namespace Aad.WinUi;
 
 /// <summary>
-/// O-Draft opens its own drawing and the shared project file (<c>.osp</c>) with O-CoreOp. It does not ask the launcher or O-Studio.
+/// Tren opens its own drawing and the shared project file (<c>.osp</c>) with Falcon. It does not ask the launcher or Kivo.
 /// A start that still carries <c>OSTUDIO_PROJECT_OSP</c> opens that file. Company details for title blocks come from an imported pack
 /// (<c>company.pack.import</c>), not from a live company-file session.
 /// </summary>
@@ -25,7 +25,7 @@ internal static class ProjectLock
 
     internal static bool Active => Path != null;
 
-    /// <summary>O-Draft keeps New, Open and Save as. A leftover launcher lock does not hide them.</summary>
+    /// <summary>Tren keeps New, Open and Save as. A leftover launcher lock does not hide them.</summary>
     internal static bool IsHidden(string? commandId)
     {
         _ = commandId;
@@ -35,7 +35,7 @@ internal static class ProjectLock
     internal static bool IsLockedFile(string path) =>
         Path is { } locked && string.Equals(System.IO.Path.GetFullPath(locked), System.IO.Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>O-Draft does not hand off to the launcher.</summary>
+    /// <summary>Tren does not hand off to the launcher.</summary>
     internal static bool NeedsLauncher(LaunchArgs launch)
     {
         _ = launch;
@@ -49,7 +49,7 @@ internal static class ProjectLock
         {
             return given;
         }
-        var registered = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\O-Studio", "InstallLocation", null) as string;
+        var registered = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\Kivo", "InstallLocation", null) as string;
         var programs = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "O-Studio");
         foreach (var folder in new[] { registered, programs })
         {
@@ -66,7 +66,7 @@ internal static class ProjectLock
         return null;
     }
 
-    /// <summary>Ask the launcher to start O-Draft when a project is locked. False when there is no launcher to ask.</summary>
+    /// <summary>Ask the launcher to start Tren when a project is locked. False when there is no launcher to ask.</summary>
     internal static bool RequestLauncher()
     {
         var exe = LauncherPath();
@@ -76,7 +76,7 @@ internal static class ProjectLock
         }
         try
         {
-            Process.Start(new ProcessStartInfo(exe, "--launch O-Draft") { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(exe)! });
+            Process.Start(new ProcessStartInfo(exe, "--launch Tren") { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(exe)! });
             return true;
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)

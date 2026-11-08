@@ -8,7 +8,7 @@ namespace Aad.WinUi;
 
 /// <summary>
 /// The take-off phase pickers: the estimation phase and the running-bill phase that dimensions drawn or tagged next
-/// belong to. The lists live in the drawing (<c>takeoff.phases</c>); O-CoreOp shows the choice as table columns.
+/// belong to. The lists live in the drawing (<c>takeoff.phases</c>); Falcon shows the choice as table columns.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -58,7 +58,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// A text-only tool for the take-off bar: the label on a flat button, no icon. O-CoreOp's take-off bar is drawn the
+    /// A text-only tool for the take-off bar: the label on a flat button, no icon. Falcon's take-off bar is drawn the
     /// same way (flat text buttons in groups with dividers), so the two read alike.
     /// </summary>
     private static Button MakeTextTool(string label)

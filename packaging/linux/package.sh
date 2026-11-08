@@ -42,7 +42,7 @@ esac
 export AAD_MAINTAINER="${AAD_MAINTAINER:-AAD maintainers <noreply@users.noreply.github.com>}"
 BASENAME="aad-$VERSION-linux-$ARCH"
 
-echo "==> O-Draft $VERSION for Linux $ARCH ($FORMATS)"
+echo "==> Tren $VERSION for Linux $ARCH ($FORMATS)"
 
 if [ "$SKIP_BUILD" = 0 ]; then
   if [ -n "${CROSS_TARGET:-}" ]; then

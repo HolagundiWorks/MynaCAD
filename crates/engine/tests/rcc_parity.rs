@@ -1,7 +1,7 @@
-//! The RCC smart blocks are drawn by two programs: this engine (O-Draft) and the C# reader in O-CoreOp (`Office.Shared.SmartBlocks`), from the same
+//! The RCC smart blocks are drawn by two programs: this engine (Tren) and the C# reader in Falcon (`Office.Shared.SmartBlocks`), from the same
 //! `rcc.json`. This pins what the engine makes (how many lines, polylines, dots, circles, arcs, texts and hatches each block has, for defaults and
-//! for changed parameters) in `fixtures/rcc_counts.json`; O-CoreOp's `SmartBlockTests` holds a copy and checks its own evaluation against it.
-//! Run with `UPDATE_FIXTURES=1` to write the file again after a block changes, then copy it to O-CoreOp.
+//! for changed parameters) in `fixtures/rcc_counts.json`; Falcon's `SmartBlockTests` holds a copy and checks its own evaluation against it.
+//! Run with `UPDATE_FIXTURES=1` to write the file again after a block changes, then copy it to Falcon.
 
 use std::collections::BTreeMap;
 
@@ -71,5 +71,5 @@ fn the_engine_makes_what_the_pinned_counts_say() {
     }
     let pinned: Value =
         serde_json::from_str(&std::fs::read_to_string(&path).expect("tests/fixtures/rcc_counts.json (UPDATE_FIXTURES=1 writes it)")).unwrap();
-    assert_eq!(now, pinned, "a block changed: run with UPDATE_FIXTURES=1 and copy the file to O-CoreOp's test fixtures");
+    assert_eq!(now, pinned, "a block changed: run with UPDATE_FIXTURES=1 and copy the file to Falcon's test fixtures");
 }

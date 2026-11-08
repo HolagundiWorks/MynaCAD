@@ -61,8 +61,8 @@ pub fn title_and_toolbar(app: &mut CadApp, ui: &mut egui::Ui) {
         let r = ui.max_rect();
         if title_h > 0.0 {
             let title = match app.session.state() {
-                Ok(st) if !app.ui.start_tab => format!("O-Draft  {}{}", st.title, if st.title.contains('.') { "" } else { ".dwg" }),
-                _ => format!("O-Draft  {}", crate::tl!("Start")),
+                Ok(st) if !app.ui.start_tab => format!("Tren  {}{}", st.title, if st.title.contains('.') { "" } else { ".dwg" }),
+                _ => format!("Tren  {}", crate::tl!("Start")),
             };
             // Centred on the traffic lights' centre line (the row's middle): with the system font
             // the capitals' middle is the text box's middle, so no optical nudge.

@@ -12,8 +12,8 @@ fn main() {
     if std::path::Path::new("../../assets/app-icon/aad.ico").exists() {
         res.set_icon("../../assets/app-icon/aad.ico");
     }
-    res.set("ProductName", "O-Draft")
-        .set("FileDescription", "O-Draft drafting")
+    res.set("ProductName", "Tren")
+        .set("FileDescription", "Tren drafting")
         .set("CompanyName", "HolagundiWorks")
         .set("LegalCopyright", "Copyright (c) 2026 HolagundiWorks and the AAD contributors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "o-draft.exe")

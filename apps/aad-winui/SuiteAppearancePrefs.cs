@@ -5,7 +5,7 @@ namespace Aad.WinUi;
 
 /// <summary>
 /// Shared suite theme preference (<c>%LOCALAPPDATA%\O-Studio\appearance.json</c>),
-/// same file as O.Ui.SuiteAppearance so O-Studio, O-CoreOp and O-Draft stay in sync.
+/// same file as O.Ui.SuiteAppearance so Kivo, Falcon and Tren stay in sync.
 /// </summary>
 internal static class SuiteAppearancePrefs
 {

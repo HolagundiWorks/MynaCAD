@@ -14,9 +14,9 @@
 //!   updated in place when their number is unchanged.
 //! * `param.status` reports each wall as linked, stale or detached; `param.detach` keeps a wall's
 //!   lines as plain drawing geometry; `param.deps` lists what a node depends on and drives.
-//! * `param.takeoff` gives the measured facts of the committed walls (the O-CoreOp take-off
+//! * `param.takeoff` gives the measured facts of the committed walls (the Falcon take-off
 //!   contract's wall row plus provenance). `bridge.export` and `takeoff.record` include the
-//!   rows of linked, current walls; finishes, net areas and costs stay with O-CoreOp.
+//!   rows of linked, current walls; finishes, net areas and costs stay with Falcon.
 
 use aad_doc::{Drawing, EntityKind, Handle};
 use aad_geom::Vec2;

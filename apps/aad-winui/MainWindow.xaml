@@ -28,7 +28,7 @@
                         Padding="{StaticResource PaddingControl}"
                         Click="OnTakeoffMode"
                         AutomationProperties.Name="Take-off mode"
-                        ToolTipService.ToolTip="Take-off mode: shows the take-off tools (walls, beams, floors, record to O-CoreOp)" />
+                        ToolTipService.ToolTip="Take-off mode: shows the take-off tools (walls, beams, floors, record to Falcon)" />
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -454,7 +454,7 @@
                         <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="Tren" />
                     </Border>
                     <TextBlock
-                        Text="Start a drawing or open the project file (.osp) shared with O-CoreOp. Company details for title blocks come from a file exported in O-Studio."
+                        Text="Start a drawing or open the project file (.osp) shared with Falcon. Company details for title blocks come from a file exported in Kivo."
                         TextWrapping="WrapWholeWords"
                         FontSize="{StaticResource FontSizeBody}"
                         Foreground="{ThemeResource TextPrimaryBrush}" />

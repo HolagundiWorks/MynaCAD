@@ -308,7 +308,7 @@ vertices at full detail (text fill, hatch lines, block references). Machine as a
   looked like a mesh cost.
 - **Still slow:** DWG parse about 1.1 s; a zoom that crosses a detail band costs 20 to 40 ms per tick, mostly the
   triangle volume of text fill (10 M+ vertices at close zoom; glyph curves are already flattened to about 0.2 px).
-  A GPU glyph atlas is the proposed fix and is not started. O-CoreOp and the Ask bar were not profiled.
+  A GPU glyph atlas is the proposed fix and is not started. Falcon and the Ask bar were not profiled.
 
 ## Update: editing a large drawing (2026-11-07)
 
@@ -347,7 +347,7 @@ references). Measured headlessly with the ignored probes `aad-host` `edit_latenc
 - **Still open:** the frame after a small edit is about 43 ms, of which about 32 ms is the scene rebuild and the
   flatten into one list (an incremental flatten would remove most of it); the DWG parse is still about 1.1 s; a
   zoom that crosses a detail band still costs 20 to 40 ms per tick on a worker, mostly text fill. The Ask bar and
-  O-CoreOp were not profiled. Numbers are from the headless host, not from timing the window.
+  Falcon were not profiled. Numbers are from the headless host, not from timing the window.
 
 ## Update: startup and idle (2026-11-08)
 

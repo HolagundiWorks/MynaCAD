@@ -18,7 +18,7 @@ impl App {
         let result = if final_attempt { self.workspace.save_on_exit(&self.cad.ui) } else { self.workspace.save_if_changed(&self.cad.ui) };
         if let Err(error) = result {
             if self.workspace_error.as_ref() != Some(&error) {
-                eprintln!("O-Draft workspace: {error}");
+                eprintln!("Tren workspace: {error}");
                 self.cad.set_status(format!("Workspace could not be saved: {error}"));
                 self.workspace_error = Some(error);
             }
@@ -129,7 +129,7 @@ pub fn run(control_port: Option<u16>, sample: bool, files: Vec<String>) -> efram
         // swapchains hold two frames back under vsync (`AAD_VSYNC=1` restores vsync).
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration::default().with_surface_config(surface),
         viewport: egui::ViewportBuilder::default()
-            .with_title("O-Draft")
+            .with_title("Tren")
             .with_inner_size([1600.0, 1000.0])
             .with_min_inner_size([900.0, 560.0])
             .with_drag_and_drop(true)
@@ -166,7 +166,7 @@ pub fn run(control_port: Option<u16>, sample: bool, files: Vec<String>) -> efram
                 app.ui = ui;
             }
             if let Some(error) = &workspace_error {
-                eprintln!("O-Draft workspace: {error}");
+                eprintln!("Tren workspace: {error}");
                 app.set_status(error);
             }
             if let Some(prefs) = cc.storage.and_then(|s| s.get_string(aad_ui_egui::PREFS_KEY).or_else(|| s.get_string(aad_ui_egui::LEGACY_PREFS_KEY)))

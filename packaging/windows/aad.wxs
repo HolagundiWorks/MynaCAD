@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  O-Draft MSI (WiX Toolset v5: `dotnet tool install -g wix`, plus the WixUI extension:
+  Tren MSI (WiX Toolset v5: `dotnet tool install -g wix`, plus the WixUI extension:
   `wix extension add -g WixToolset.UI.wixext/5.0.2`). Built by package.ps1:
 
-    wix build aad.wxs -arch x64 -ext WixToolset.UI.wixext -d Version=1.2.3 -d ProductName=O-Draft -d BinDir=... -d IconPath=... -o out.msi
+    wix build aad.wxs -arch x64 -ext WixToolset.UI.wixext -d Version=1.2.3 -d ProductName=Tren -d BinDir=... -d IconPath=... -o out.msi
 
   Per-machine install into Program Files, a Start Menu shortcut, an optional desktop shortcut, and
-  O-Draft offered under "Open with" for .dxf and .dwg drawings (without taking over the user's
+  Tren offered under "Open with" for .dxf and .dwg drawings (without taking over the user's
   default app).
 
   Desktop shortcut: the setup wizard asks (unchecked by default). Silent installs leave it out
@@ -22,11 +22,11 @@
       Scope="perMachine"
       Compressed="yes"
       Language="1033">
-    <SummaryInformation Description="O-Draft — architectural drafting with O-Studio and O-CoreOp." Manufacturer="Human Centric Works" />
+    <SummaryInformation Description="Tren — architectural drafting with Kivo and Falcon." Manufacturer="Human Centric Works" />
     <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
          (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
     <MajorUpgrade AllowSameVersionUpgrades="yes"
-        DowngradeErrorMessage="A newer version of O-Draft is already installed." />
+        DowngradeErrorMessage="A newer version of Tren is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="AadIcon.ico" SourceFile="$(var.IconPath)" />
@@ -70,7 +70,7 @@
 
     <UIRef Id="AadUI" />
 
-    <Feature Id="Main" Title="O-Draft" Level="1">
+    <Feature Id="Main" Title="Tren" Level="1">
       <ComponentGroupRef Id="AadFiles" />
       <?ifdef WinUiDir?>
       <ComponentGroupRef Id="AadWinUi" />
@@ -88,8 +88,8 @@
     <ComponentGroup Id="AadFiles" Directory="INSTALLFOLDER">
       <Component Id="AadApp" Guid="2AC18056-48DE-4079-AB79-4FDEF4FBB075">
         <File Id="AadExe" Source="$(var.BinDir)\o-draft.exe" KeyPath="yes">
-          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="O-Draft"
-              Description="O-Draft — architectural drafting." WorkingDirectory="INSTALLFOLDER" Advertise="yes"
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Tren"
+              Description="Tren — architectural drafting." WorkingDirectory="INSTALLFOLDER" Advertise="yes"
               Icon="AadIcon.ico" IconIndex="0" />
         </File>
 
@@ -118,7 +118,7 @@
            Public desktop) must be under HKCU (ICE38, ICE43, ICE57). -->
       <Component Id="DesktopShortcut" Directory="DesktopFolder" Guid="76029CD7-EBDB-420F-AC34-FF0E82A99E32"
           Condition="DESKTOPSHORTCUT = &quot;1&quot;">
-        <Shortcut Id="DesktopShortcut" Name="O-Draft" Description="O-Draft — architectural drafting."
+        <Shortcut Id="DesktopShortcut" Name="Tren" Description="Tren — architectural drafting."
             Target="[INSTALLFOLDER]o-draft.exe" WorkingDirectory="INSTALLFOLDER" Icon="AadIcon.ico" IconIndex="0" />
         <RegistryValue Root="HKCU" Key="Software\Human Centric Works\AAD" Name="DesktopShortcut"
             Value="1" Type="string" KeyPath="yes" />

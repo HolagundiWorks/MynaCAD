@@ -578,7 +578,7 @@ fn after_save(s: &mut Session, r: &mut Value, lost: &std::collections::BTreeMap<
     }
 }
 
-/// After a successful drawing save, record take-off / openings / electrical rows for O-CoreOp.
+/// After a successful drawing save, record take-off / openings / electrical rows for Falcon.
 /// Failure is reported and never fails the save.
 fn record_takeoff_if_any(s: &mut Session) {
     let worth = s.doc().is_ok_and(|d| {

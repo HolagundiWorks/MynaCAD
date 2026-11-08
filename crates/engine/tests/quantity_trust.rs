@@ -3,7 +3,7 @@
 //! `wall_ref`, and thickness regressions.
 //!
 //! Expected numbers are also published as
-//! `crates/engine/tests/fixtures/quantity-trust-checklist.json` for O-CoreOp
+//! `crates/engine/tests/fixtures/quantity-trust-checklist.json` for Falcon
 //! CadImport tests and the clean-VM runbook.
 //!
 //! Optional export for CoreOp hand-off:

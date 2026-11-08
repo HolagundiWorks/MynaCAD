@@ -1,4 +1,4 @@
-//! After a DXF/DWG save, take-off is recorded for O-CoreOp when the drawing has measured
+//! After a DXF/DWG save, take-off is recorded for Falcon when the drawing has measured
 //! take-off (or schedule / electrical) data. Failure is echoed and never fails the save.
 
 use aad_engine::Session;

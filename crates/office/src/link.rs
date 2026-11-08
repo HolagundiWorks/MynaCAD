@@ -18,13 +18,13 @@ impl Link {
         let company = settings
             .company
             .as_ref()
-            .ok_or_else(|| Error::Unavailable("No company file was given. Open O-Draft from OSAS so it can read the company's details.".into()))?;
+            .ok_or_else(|| Error::Unavailable("No company file was given. Open Tren from Kivo so it can read the company's details.".into()))?;
         let ticket = settings
             .ticket
             .as_deref()
-            .ok_or_else(|| Error::Unavailable("OSAS gave no sign-in with this start. Open O-Draft from OSAS, signed in.".into()))?;
+            .ok_or_else(|| Error::Unavailable("Kivo gave no sign-in with this start. Open Tren from Kivo, signed in.".into()))?;
         let library = settings.find_library().ok_or_else(|| {
-            Error::Unavailable("office.dll was not found beside O-Draft or in the OSAS folder, so the company file cannot be read.".into())
+            Error::Unavailable("office.dll was not found beside Tren or in the Kivo folder, so the company file cannot be read.".into())
         })?;
         let link = Link { inner: imp::Session::start(&library, app_dir)? };
         link.call("company.open", &json!({ "path": company.to_string_lossy(), "secret": "", "unlock": "" }))?;
@@ -32,7 +32,7 @@ impl Link {
         Ok(link)
     }
 
-    /// Opens the company file with a user name and password. For tests and tools; OSAS starts the app with a ticket instead.
+    /// Opens the company file with a user name and password. For tests and tools; Kivo starts the app with a ticket instead.
     pub fn open_with_password(
         library: &std::path::Path,
         app_dir: &std::path::Path,
@@ -122,7 +122,7 @@ mod imp {
     fn symbol(module: *mut c_void, name: &str) -> Result<*mut c_void> {
         let c = CString::new(name).map_err(|_| Error::Unavailable("bad symbol name".into()))?;
         let p = unsafe { GetProcAddress(module, c.as_ptr()) };
-        if p.is_null() { Err(Error::Unavailable(format!("office.dll has no `{name}`; it is not a version this O-Draft can use."))) } else { Ok(p) }
+        if p.is_null() { Err(Error::Unavailable(format!("office.dll has no `{name}`; it is not a version this Tren can use."))) } else { Ok(p) }
     }
 
     /// Frees the result and returns its status, data and error text.
@@ -160,7 +160,7 @@ mod imp {
             let found = unsafe { version() };
             if found != ABI {
                 return Err(Error::Unavailable(format!(
-                    "office.dll speaks version {found} of the company file interface; this O-Draft speaks {ABI}."
+                    "office.dll speaks version {found} of the company file interface; this Tren speaks {ABI}."
                 )));
             }
             let create: Create = unsafe { std::mem::transmute::<*mut c_void, Create>(symbol(module, "office_session_create")?) };

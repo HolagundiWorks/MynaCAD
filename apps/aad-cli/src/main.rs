@@ -166,7 +166,7 @@ fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_
         .unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
     let bytes = aad_io::write(drawing, &name).map_err(|e| e.to_string())?;
     let same = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.is_some_and(|d| d.sha256 == aad_odp::sha256_hex(&bytes));
-    // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for O-CoreOp to draw read only.
+    // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for Falcon to draw read only.
     let details = aad_engine::structural_details(drawing, &name);
     let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
     if !same {

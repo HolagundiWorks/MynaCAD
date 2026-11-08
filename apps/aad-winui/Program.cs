@@ -11,7 +11,7 @@ public static class Program
     public static void Main(string[] args)
     {
         Launch = LaunchArgs.Parse(args);
-        // Started on its own: ask the launcher to start O-Draft once a company is signed in and a project is locked, and stop.
+        // Started on its own: ask the launcher to start Tren once a company is signed in and a project is locked, and stop.
         // With no launcher installed the app runs as before.
         if (ProjectLock.NeedsLauncher(Launch) && ProjectLock.RequestLauncher())
         {

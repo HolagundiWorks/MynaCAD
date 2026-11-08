@@ -30,7 +30,7 @@ checked in the code or by running a command, not taken from another document.
 3. **The kind list has no services or circulation.** There is no pipe, fitting, fixture, cable, light or socket
    kind, and no stair, roof, railing or furnishing. Pipes and fittings (added 2026-11-07) therefore cannot be
    classified except as `other`.
-4. **Two taxonomies.** Finch (O-Form) has 16 IFC classes in `bim/taxonomy.py`, including stair, roof, railing,
+4. **Two taxonomies.** Finch (Finch) has 16 IFC classes in `bim/taxonomy.py`, including stair, roof, railing,
    member, plate and furnishing, and an IFC4 exporter (`bim/ifc4.py`). Tren has 12 kinds, including footing,
    plaster, paint, flooring and grill, which Finch lacks. Nothing keeps the two lists in step.
 5. **The note is silent on smart blocks and names a type that is not the plan.** "Parametric types beyond

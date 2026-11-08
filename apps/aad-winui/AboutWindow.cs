@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace Aad.WinUi;
 
-/// <summary>About O-Draft. The version comes from the host.</summary>
+/// <summary>About Tren. The version comes from the host.</summary>
 internal static class AboutWindow
 {
     private static Window? _window;

@@ -209,8 +209,8 @@ const NOTICE: &str = include_str!("../../../NOTICE");
 fn about(ctx: &egui::Context, open: &mut bool) {
     let t = Tokens::get();
     let tab_id = egui::Id::new("about_tab");
-    egui::Window::new(crate::tl!("About O-Draft"))
-        .id(egui::Id::new("About O-Draft"))
+    egui::Window::new(crate::tl!("About Tren"))
+        .id(egui::Id::new("About Tren"))
         .open(open)
         .default_size(vec2(640.0, 420.0))
         .collapsible(false)
@@ -239,7 +239,7 @@ fn about(ctx: &egui::Context, open: &mut bool) {
                 }
                 _ => {
                     ui.heading("Tren");
-                    ui.label("Drafting with O-Studio and O-CoreOp.");
+                    ui.label("Drafting with Kivo and Falcon.");
                     ui.label(crate::tf!("Version {version}", version = env!("CARGO_PKG_VERSION")));
                     ui.add_space(6.0);
                     ui.label(crate::tl!("2D architectural drafting. Open source, written in Rust."));

@@ -51,7 +51,7 @@ fn saving_over_a_file_keeps_the_first_version_as_bak() {
     assert!(bak.is_file(), "no .bak beside {}", out.display());
 }
 
-/// `--save` to a project file puts the drawing in it as a revision, with the structural details O-CoreOp draws; the file opens again.
+/// `--save` to a project file puts the drawing in it as a revision, with the structural details Falcon draws; the file opens again.
 #[test]
 fn saving_into_a_project_file_records_the_drawing_and_its_structural_details() {
     let osp = temp("details.osp");

@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Aad.WinUi;
 
-/// <summary>The O-Draft mark from <c>assets/app-icon</c>, copied beside the program.</summary>
+/// <summary>The Tren mark from <c>assets/app-icon</c>, copied beside the program.</summary>
 internal static class ShellIcon
 {
     /// <summary>Apply shell chrome (solid theme + title bar) and the window icon.</summary>
@@ -30,7 +30,7 @@ internal static class ShellIcon
         }
     }
 
-    /// <summary>The suite lockup (mark, name, role, suite line) the welcome screen shows, as O-Studio's does.</summary>
+    /// <summary>The suite lockup (mark, name, role, suite line) the welcome screen shows, as Kivo's does.</summary>
     public static ImageSource? Lockup()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "lockup.png");

@@ -1,6 +1,6 @@
 [package]
 name = "aad-odp"
-description = "The .osp project file: one SQLite file holding a drawing, its take-off, the O-CoreOp project, assets and markups"
+description = "The .osp project file: one SQLite file holding a drawing, its take-off, the Falcon project, assets and markups"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

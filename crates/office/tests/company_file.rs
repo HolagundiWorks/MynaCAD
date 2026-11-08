@@ -21,7 +21,7 @@ fn scratch(name: &str) -> PathBuf {
     dir
 }
 
-/// A company with one project, made through the library the way OSAS and O-Studio make them. Returns the file.
+/// A company with one project, made through the library the way OSAS and Kivo make them. Returns the file.
 fn company(dir: &std::path::Path, library: &std::path::Path) -> PathBuf {
     let file = dir.join("Studio.osas");
     let maker = Link::bare(library, &dir.join("maker-app")).unwrap();

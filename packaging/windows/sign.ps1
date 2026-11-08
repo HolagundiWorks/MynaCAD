@@ -89,7 +89,7 @@ function Ensure-SelfSignedPfx {
     $cert = New-SelfSignedCertificate `
       -Type CodeSigningCert `
       -Subject $subject `
-      -FriendlyName 'O-Draft development code signing' `
+      -FriendlyName 'Tren development code signing' `
       -CertStoreLocation 'Cert:\CurrentUser\My' `
       -KeyExportPolicy Exportable `
       -KeySpec Signature `
@@ -107,7 +107,7 @@ function Ensure-SelfSignedPfx {
 
 function Invoke-SignWithPfx([string] $PfxPath, [string] $Password, [string[]] $Paths, [string] $Label) {
   $script:SignTool = Find-SignTool
-  $common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'O-Draft', '/du', 'https://github.com/HolagundiWorks/O-DRAFT')
+  $common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'Tren', '/du', 'https://github.com/HolagundiWorks/O-DRAFT')
   Write-Output "Signing with $Label`: $($Paths -join ', ')"
   $ts = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { 'http://timestamp.digicert.com' }
   $withTs = $common + @('/tr', $ts, '/f', $PfxPath)
@@ -199,7 +199,7 @@ try {
     }
     else {
       $script:SignTool = Find-SignTool
-      $common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'O-Draft', '/du', 'https://github.com/HolagundiWorks/O-DRAFT')
+      $common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'Tren', '/du', 'https://github.com/HolagundiWorks/O-DRAFT')
       Write-Output "Signing with Azure Trusted Signing via signtool ($env:AZURE_SIGNING_ACCOUNT / $env:AZURE_CERT_PROFILE): $($Files -join ', ')"
       $pkg = Join-Path $script:Tmp 'trusted-signing.zip'
       Invoke-WebRequest -Uri 'https://www.nuget.org/api/v2/package/Microsoft.Trusted.Signing.Client' -OutFile $pkg

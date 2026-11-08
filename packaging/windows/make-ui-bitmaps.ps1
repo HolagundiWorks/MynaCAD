@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Regenerate the WiX installer splash bitmaps from the O-Draft logo.
+  Regenerate the WiX installer splash bitmaps from the Tren logo.
 
 .DESCRIPTION
   Writes WixUIDialogBmp.bmp (493x312) and WixUIBannerBmp.bmp (493x58) as 24-bit BMPs
@@ -15,7 +15,7 @@ $LogoPath = Join-Path $Root 'assets\app-icon\aad-256.png'
 if (-not (Test-Path $LogoPath)) { throw "logo missing: $LogoPath (run cargo xtask logo)" }
 
 $logo = [System.Drawing.Image]::FromFile($LogoPath)
-$blue = [System.Drawing.Color]::FromArgb(255, 23, 24, 27)   # the O-Draft plate, #17181B
+$blue = [System.Drawing.Color]::FromArgb(255, 23, 24, 27)   # the Tren plate, #17181B
 $white = [System.Drawing.Color]::White
 $brush = New-Object System.Drawing.SolidBrush $white
 $sf = New-Object System.Drawing.StringFormat
@@ -40,8 +40,8 @@ $y = [int]((312 - $mark) / 2) - 24
 $g.DrawImage($logo, $x, $y, $mark, $mark)
 $fontTitle = New-Object System.Drawing.Font 'Segoe UI', 18, ([System.Drawing.FontStyle]::Bold)
 $fontSub = New-Object System.Drawing.Font 'Segoe UI', 10
-$g.DrawString('O-Draft', $fontTitle, $brush, (New-Object System.Drawing.RectangleF 0, ($y + $mark + 8), 493, 32), $sf)
-$g.DrawString('Architectural drafting with O-Studio and O-CoreOp.', $fontSub, $brush, (New-Object System.Drawing.RectangleF 0, ($y + $mark + 40), 493, 24), $sf)
+$g.DrawString('Tren', $fontTitle, $brush, (New-Object System.Drawing.RectangleF 0, ($y + $mark + 8), 493, 32), $sf)
+$g.DrawString('Architectural drafting with Kivo and Falcon.', $fontSub, $brush, (New-Object System.Drawing.RectangleF 0, ($y + $mark + 40), 493, 24), $sf)
 $g.DrawString('Open source  ·  MIT OR Apache-2.0', $fontSub, $brush, (New-Object System.Drawing.RectangleF 0, ($y + $mark + 64), 493, 24), $sf)
 Save-Bmp24 $dialog (Join-Path $Out 'WixUIDialogBmp.bmp')
 $g.Dispose(); $dialog.Dispose(); $fontTitle.Dispose(); $fontSub.Dispose()
@@ -52,7 +52,7 @@ $gb.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
 $gb.Clear($blue)
 $gb.DrawImage($logo, 12, 9, 40, 40)
 $fontB = New-Object System.Drawing.Font 'Segoe UI', 12, ([System.Drawing.FontStyle]::Bold)
-$gb.DrawString('O-Draft Setup', $fontB, $brush, 60, 18)
+$gb.DrawString('Tren Setup', $fontB, $brush, 60, 18)
 Save-Bmp24 $banner (Join-Path $Out 'WixUIBannerBmp.bmp')
 $gb.Dispose(); $banner.Dispose(); $fontB.Dispose()
 

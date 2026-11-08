@@ -1,7 +1,7 @@
 //! Building-element classification for 2D plan objects (structural, finish, shop).
 //!
 //! Spec references are **code ids** from our open Indian index (and IFC type names), not
-//! copyrighted BIS/CPWD/IS body text. Rates stay outside this crate (O-CoreOp).
+//! copyrighted BIS/CPWD/IS body text. Rates stay outside this crate (Falcon).
 
 use serde::{Deserialize, Serialize};
 

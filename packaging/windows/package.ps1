@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Build, sign and package O-Draft for Windows.
+  Build, sign and package Tren for Windows.
 
 .DESCRIPTION
   Produces, in $env:DIST (default: dist/release):
@@ -58,7 +58,7 @@ New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 if (-not $env:AAD_BUILD_SHA) { $env:AAD_BUILD_SHA = (git -C $Root rev-parse HEAD 2>$null) }
 if (-not $env:AAD_BUILD_DATE) { $env:AAD_BUILD_DATE = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') }
 
-Write-Output "O-Draft $Version for Windows $Arch ($Target)"
+Write-Output "Tren $Version for Windows $Arch ($Target)"
 
 if (-not $SkipBuild) {
   # Static CRT: no VC++ redistributable needed. Scoped to the target so host build scripts and
@@ -195,7 +195,7 @@ if ($Assistant) {
 # assistant and its model). They are alternatives of one product: installing either replaces the
 # other in the same folder.
 $Edition = if ($Assistant) { "o-draft-ai" } else { "o-draft" }
-$ProductName = if ($Assistant) { "O-Draft with AI assistant" } else { "O-Draft" }
+$ProductName = if ($Assistant) { "Tren with AI assistant" } else { "Tren" }
 $Msi = Join-Path $Dist "$Edition-$Version-windows-$Arch.msi"
 $LicenseRtf = Join-Path $PSScriptRoot 'EULA.rtf'
 $DialogBmp = Join-Path $PSScriptRoot 'WixUIDialogBmp.bmp'

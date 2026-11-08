@@ -278,7 +278,7 @@ pub fn registry() -> Vec<ToolDef> {
         },
         ToolDef {
             name: "check_command_parity",
-            description: "Detect-only: compare the reference menu catalog to registered commands (same breadth metric as cargo xtask parity). Needs the O-Draft source tree (AAD_REPO_ROOT or cwd). Does not rewrite docs/parity-checklist.md.",
+            description: "Detect-only: compare the reference menu catalog to registered commands (same breadth metric as cargo xtask parity). Needs the Tren source tree (AAD_REPO_ROOT or cwd). Does not rewrite docs/parity-checklist.md.",
             schema: empty_schema,
             risk: |_| Risk::Read,
             summary: |_| "Check command/menu parity (detect only)".into(),
@@ -300,7 +300,7 @@ pub fn registry() -> Vec<ToolDef> {
         },
         ToolDef {
             name: "check_ui_tokens",
-            description: "Detect-only: scan apps/aad-winui for window-template and hard-coded dimension problems (same rules as cargo xtask ui). Needs the O-Draft source tree.",
+            description: "Detect-only: scan apps/aad-winui for window-template and hard-coded dimension problems (same rules as cargo xtask ui). Needs the Tren source tree.",
             schema: empty_schema,
             risk: |_| Risk::Read,
             summary: |_| "Check WinUI design-system tokens (detect only)".into(),

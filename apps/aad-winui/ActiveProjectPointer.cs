@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Aad.WinUi;
 
 /// <summary>
-/// Tells the other suite apps which drawing is open here, so O-CoreOp can open the same project file. It keeps
+/// Tells the other suite apps which drawing is open here, so Falcon can open the same project file. It keeps
 /// <c>%LOCALAPPDATA%\O-Studio\active-project.json</c> current: written when the active drawing changes (opened, saved under a new name, another tab
 /// chosen), deleted when no saved drawing is active or the app closes. <c>project</c> is the drawing's path when it is a project file (<c>.osp</c>), else null.
 /// <code>{ "format": "studio-active-project", "version": 1, "app": "O-Draft", "drawing": "C:\p\house.osp", "project": "C:\p\house.osp", "updated_utc": "…" }</code>
@@ -15,7 +15,7 @@ internal static class ActiveProjectPointer
     internal static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "O-Studio", "active-project.json");
 
-    /// <summary>A project file (<c>.osp</c>): the drawing and its take-off are one file, so O-CoreOp opens the same file and needs no server.</summary>
+    /// <summary>A project file (<c>.osp</c>): the drawing and its take-off are one file, so Falcon opens the same file and needs no server.</summary>
     internal static bool IsProjectFile(string path) =>
         string.Equals(System.IO.Path.GetExtension(path), ".osp", StringComparison.OrdinalIgnoreCase);
 
@@ -53,7 +53,7 @@ internal static class ActiveProjectPointer
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
-            // the pointer is a convenience for O-CoreOp; never let it disturb drawing work
+            // the pointer is a convenience for Falcon; never let it disturb drawing work
         }
     }
 }

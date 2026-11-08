@@ -37,7 +37,7 @@ The weights are not in the repository. Place `Qwen3-1.7B-Q4_K_M.gguf` (about 1.1
 `unsloth/Qwen3-1.7B-GGUF`) where the runtime looks ([ai-agent.md](ai-agent.md)):
 
 1. `AAD_MODEL` (full path to the `.gguf`), or
-2. `%APPDATA%\O-Draft\models\Qwen3-1.7B-Q4_K_M.gguf`, or
+2. `%APPDATA%\Tren\models\Qwen3-1.7B-Q4_K_M.gguf`, or
 3. `models\Qwen3-1.7B-Q4_K_M.gguf` beside the program or in the working directory.
 
 Without the `assistant` feature, or without a model file, `/` requests and natural-language

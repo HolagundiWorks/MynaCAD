@@ -1,5 +1,5 @@
 //! The company file's details in the drawing. The company's own details (name, address, registrations) are kept in Studio
-//! (OSAS company file) and a project's details (name, site, client) in Studio / O-Studio; a drawing's title block and schedules
+//! (OSAS company file) and a project's details (name, site, client) in Studio / Kivo; a drawing's title block and schedules
 //! print them instead of keeping their own copies. A host that has opened the company file reads the engine call
 //! `document_context` and hands the answer to this command: the project details of the drawing (title, owner, architect,
 //! address, date, project id) are set from it, and the company's details are kept in the drawing so a title block can print
@@ -10,8 +10,8 @@
 //!
 //! `companyfile` does no file input of its own. It only reads the JSON it is given, so the engine stays free of the company
 //! file's library. `company.pack.import` / `company.pack.export` read and write an `osas-company-pack` JSON file (firm fields
-//! only). That pack is how O-Draft receives company details for title blocks. O-Draft does not open the company file and does
-//! not call O-Studio or the launcher.
+//! only). That pack is how Tren receives company details for title blocks. Tren does not open the company file and does
+//! not call Kivo or the launcher.
 
 use serde_json::{Map, Value, json};
 
@@ -33,7 +33,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("companyfile", "Company File Details", run_companyfile)
             .menu(&["Architecture", "Project", "Company File Details"])
-            .params("{context?: a `document_context` answer, open?: true (open the company file OSAS gave this start), projects?: true, project_id?: n (read that project), refresh?: true (read the drawing's project again)} → {connected, linked, company, details, projects?, suite?}"),
+            .params("{context?: a `document_context` answer, open?: true (open the company file Kivo gave this start), projects?: true, project_id?: n (read that project), refresh?: true (read the drawing's project again)} → {connected, linked, company, details, projects?, suite?}"),
         CommandSpec::new("company.pack.import", "Import Company Details", run_pack_import)
             .menu(&["Architecture", "Project", "Import Company Details"])
             .params("{path: an osas-company-pack JSON exported from Kivo} → {company, details}. Fills title-block fields from the file. Does not open the company file or talk to Kivo."),
@@ -167,7 +167,7 @@ fn run_pack_import(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("company.pack.import", "this file is not a Kivo company pack"));
     }
     let firm = pack.get("company").filter(|c| c.is_object()).ok_or_else(|| bad("company.pack.import", "`company` is missing"))?;
-    // Firm identity only: no project link, so O-Draft does not call O-Studio.
+    // Firm identity only: no project link, so Tren does not call Kivo.
     let ctx = json!({ "v": 1, "prepared_on": pack.get("exported_utc").and_then(Value::as_str).unwrap_or(""), "company": firm });
     apply(s, &ctx)?;
     let d = s.doc()?;
@@ -386,10 +386,10 @@ mod tests {
     #[test]
     fn opening_without_an_osas_start_says_how_to_get_the_details() {
         let mut s = Session::new();
-        // This test machine is not started from OSAS, so no company file or ticket is in the environment.
+        // This test machine is not started from Kivo, so no company file or ticket is in the environment.
         if std::env::var_os("OSTUDIO_COMPANY").is_none() {
             let message = s.execute("companyfile", &json!({ "open": true })).err().map(|e| e.to_string()).unwrap_or_default();
-            assert!(message.contains("OSAS"), "{message}");
+            assert!(message.contains("Kivo"), "{message}");
             assert!(s.execute("companyfile", &json!({ "projects": true })).is_err());
             assert!(s.execute("companyfile", &json!({ "refresh": true })).is_err());
         }

@@ -28,7 +28,7 @@ impl NativeMenu {
         let menu = Menu::new();
         let mut items = HashMap::new();
         let mut counter = 0usize;
-        let app_menu = Submenu::new("O-Draft", true);
+        let app_menu = Submenu::new("Tren", true);
         let about = MenuItem::with_id("cc-about", "About AAD", true, None);
         let predefined = vec![
             ("Services", PredefinedMenuItem::services(Some("Services"))),

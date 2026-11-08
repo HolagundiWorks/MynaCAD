@@ -96,7 +96,7 @@ fn winui_executable() -> Option<std::path::PathBuf> {
 fn launch_winui(control_port: Option<u16>, sample: bool, files: &[String]) -> Result<(), i32> {
     let Some(path) = winui_executable() else {
         eprintln!(
-            "O-Draft: WinUI shell not found (build apps/aad-winui into target/aad-winui, or set AAD_WINUI).\n\
+            "Tren: WinUI shell not found (build apps/aad-winui into target/aad-winui, or set AAD_WINUI).\n\
              Optional egui shell: cargo build -p aad --features egui && aad --egui"
         );
         return Err(1);
@@ -115,7 +115,7 @@ fn launch_winui(control_port: Option<u16>, sample: bool, files: &[String]) -> Re
     match cmd.spawn() {
         Ok(_) => Ok(()),
         Err(error) => {
-            eprintln!("O-Draft: WinUI shell ({}): {error}", path.display());
+            eprintln!("Tren: WinUI shell ({}): {error}", path.display());
             Err(1)
         }
     }
@@ -171,7 +171,7 @@ fn main() {
     #[cfg(all(windows, not(feature = "egui")))]
     {
         let _ = (control_port, sample, files, want_egui);
-        eprintln!("O-Draft: this Windows build has no egui shell. Rebuild with:\n  cargo build -p aad --features egui\nthen run: aad --egui …");
+        eprintln!("Tren: this Windows build has no egui shell. Rebuild with:\n  cargo build -p aad --features egui\nthen run: aad --egui …");
         std::process::exit(2);
     }
 
@@ -179,7 +179,7 @@ fn main() {
     {
         let _ = want_egui;
         if let Err(error) = egui_shell::run(control_port, sample, files) {
-            eprintln!("O-Draft: {error}");
+            eprintln!("Tren: {error}");
             std::process::exit(1);
         }
     }

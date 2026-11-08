@@ -328,7 +328,7 @@ fn bridge_window(app: &mut CadApp, ctx: &egui::Context) {
                 if b.result["otherDrawing"].as_bool() == Some(true) {
                     ui.checkbox(&mut b.accept_other, crate::tl!("This file came from a different drawing; apply anyway"));
                 }
-                if ui.checkbox(&mut b.overwrite, crate::tl!("Overwrite fields already filled in O-Draft")).changed() {
+                if ui.checkbox(&mut b.overwrite, crate::tl!("Overwrite fields already filled in Tren")).changed() {
                     rerun = true;
                 }
                 ui.separator();

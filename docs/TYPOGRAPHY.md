@@ -29,7 +29,7 @@ planned ([status.md](status.md)).
   Drafting Utility (Fira Sans, Fira Sans Condensed, Fira Mono). Licences other than IBM Plex are
   marked "verify": each release's licence files are checked before packaging.
 - **Where fonts are found**: `ttf.rs` searches `AAD_FONT_DIR`, `<exe folder>\fonts` and
-  `%APPDATA%\O-Draft\fonts` before the system folders, so fonts placed by the installer or the user win.
+  `%APPDATA%\Tren\fonts` before the system folders, so fonts placed by the installer or the user win.
 - **Interface**: `UiState.font_preset` (saved in the workspace file, an unknown value falls back to
   the default). The preset's Sans is the Proportional font, Mono is the Monospace font (command
   bar, values) and Condensed is the egui family `aad-condensed`; a system font stays behind them for
@@ -67,7 +67,7 @@ Regular, Medium, SemiBold; Mono Regular, Medium), with each family's licence (SI
 copyright IBM Corp., Reserved Font Name "Plex") as `OFL-<family>.txt` and a `SOURCES.txt` recording
 the release tags, the archive hashes and each font file's size and SHA-256. `AAD_FONTS_DIR` points
 at that folder. A development run searches `AAD_FONTS_DIR` and `AAD_FONT_DIR` first, then
-`<exe folder>\fonts`, `%APPDATA%\O-Draft\fonts` and the system folders; `package.ps1` copies the files,
+`<exe folder>\fonts`, `%APPDATA%\Tren\fonts` and the system folders; `package.ps1` copies the files,
 licences and `SOURCES.txt` into the MSI and the portable zip, and refuses a folder with no font
 files or no licence file.
 

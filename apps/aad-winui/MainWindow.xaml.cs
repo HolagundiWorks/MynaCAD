@@ -1819,7 +1819,7 @@ public sealed partial class MainWindow : Window
 
     private void OnNewDrawing(object sender, RoutedEventArgs e) => _ = NewDrawingReplacingAsync();
 
-    /// <summary>A new drawing replaces the open one (after offering to save it): O-Draft holds one drawing.</summary>
+    /// <summary>A new drawing replaces the open one (after offering to save it): Tren holds one drawing.</summary>
     private async Task NewDrawingReplacingAsync()
     {
         if (_host == IntPtr.Zero || !await ConfirmReplaceDrawingAsync())
@@ -1890,7 +1890,7 @@ public sealed partial class MainWindow : Window
     private string _activeLayerPrefix = "";
 
     /// <summary>
-    /// O-Draft holds one drawing. Before a file is opened or a new drawing started, offer to save what is open; false when the
+    /// Tren holds one drawing. Before a file is opened or a new drawing started, offer to save what is open; false when the
     /// person cancels. <see cref="KeepOnlyActiveDrawingAsync"/> then closes the old drawing once the new one is there.
     /// </summary>
     private async Task<bool> ConfirmReplaceDrawingAsync()
@@ -1934,7 +1934,7 @@ public sealed partial class MainWindow : Window
         Native.Execute(_host, "layout.set", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = "Model" }));
     }
 
-    /// <summary>Import an O-Studio company pack into the drawing for title blocks. Does not open the company file.</summary>
+    /// <summary>Import an Kivo company pack into the drawing for title blocks. Does not open the company file.</summary>
     private async Task ImportCompanyPackAsync()
     {
         if (_host == IntPtr.Zero)
@@ -2070,7 +2070,7 @@ public sealed partial class MainWindow : Window
         await dlg.ShowAsync();
     }
 
-    // The saved file behind each open drawing, by the name its tab shows, so the active one can be published to O-CoreOp.
+    // The saved file behind each open drawing, by the name its tab shows, so the active one can be published to Falcon.
     private readonly Dictionary<string, string> _docPaths = new(StringComparer.OrdinalIgnoreCase);
 
     private void RememberDrawing(string path)
@@ -2079,7 +2079,7 @@ public sealed partial class MainWindow : Window
         _docPaths[System.IO.Path.GetFileName(path)] = path;
     }
 
-    /// <summary>Publish the active drawing so O-CoreOp can find the same project file (the pointer; a project file needs no server).</summary>
+    /// <summary>Publish the active drawing so Falcon can find the same project file (the pointer; a project file needs no server).</summary>
     private void PublishActiveProject(string? drawing) => ActiveProjectPointer.Set(drawing);
 
     private string? ActiveDrawingPath(DocTab? active) =>
@@ -2875,7 +2875,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        // Open, New and Save as stay available. O-Draft does not hand the file to the launcher.
+        // Open, New and Save as stay available. Tren does not hand the file to the launcher.
         foreach (var menu in menus)
         {
             PruneLocked(menu);
@@ -2928,7 +2928,7 @@ public sealed partial class MainWindow : Window
         BindAccel(commands, "F1", ShowCommands, mapId: "");
         var updates = new MenuFlyoutItem { Text = "Check for updates?", Tag = "shell.updates", FontSize = Density.FontBody };
         updates.Click += async (_, _) => await ShowUpdateCheckAsync();
-        var about = new MenuFlyoutItem { Text = "About O-Draft", Tag = "shell.about", FontSize = Density.FontBody };
+        var about = new MenuFlyoutItem { Text = "About Tren", Tag = "shell.about", FontSize = Density.FontBody };
         about.Click += (_, _) => AboutWindow.Show(this, VersionText());
         help.Items.Add(commands);
         help.Items.Add(updates);

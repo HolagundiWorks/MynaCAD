@@ -3,7 +3,7 @@
 //! Where `underlay.attach` draws a PDF's paths as grey polylines to measure over, this brings the page in as
 //! drawing objects: lines, polylines, circles, solid hatches for filled shapes and text, each with the colour,
 //! line weight and layer the PDF gave it. A PDF written by a CAD program keeps its layers as optional-content
-//! groups (O-Draft's own PDF export does), and those become drawing layers; any other path goes on a layer named for
+//! groups (Tren's own PDF export does), and those become drawing layers; any other path goes on a layer named for
 //! its colour (`PDF-FF0000`), which sorts a plan by pen colour. The result is ordinary geometry that snaps, edits and
 //! saves, but a PDF holds no scale, units or object types: the page arrives at `scale` (default 1: a paper
 //! millimetre is a drawing millimetre) and `underlay.calibrate`-style rescaling is the user's `scale` command.

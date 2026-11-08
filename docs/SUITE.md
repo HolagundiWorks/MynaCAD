@@ -4,15 +4,15 @@
 
 ## 1. Names
 
-The suite is the **Kivo family of apps** (Kivo, Falcon, Tren, Finch, Myna, and O-UI). **Kivo** is the hub: company sign-in, users, and the Neon sync settings. **Myna** hosts the Olmo AI Core, runs the Neon sync, signs in, loads the project and starts the apps. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
+The suite is the **Kivo family of apps** (Kivo, Falcon, Tren, Finch, Myna, and O-UI). **Kivo** is the hub: **company sign-in** (the session every other app asks for), users, estimates, running bills, **approvals and revisions**, and the Neon sync settings. **Myna** hosts only the **Olmo AI Core** and the **database service** (a local database that syncs to Neon); it does not sign anyone in. **Tren** and **Falcon** share one `.osp` file connected to that database. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
-| **Kivo** | Office and projects; **suite hub** (company file, users, launch Falcon/Tren, approvals, Neon `.osp` sync settings) | Flame Orange `#FF5B04` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
-| **Falcon** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Wild Sand `#E4EEF0` | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
-| **Tren** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Dark Slate Blue (Mirage) `#16232B` | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
+| **Kivo** | Office and projects; **suite hub** (company file, users, launch Falcon/Tren, approvals, Neon `.osp` sync settings) | Ember `#B83E16` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
+| **Falcon** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Dusk `#5630A0` | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
+| **Tren** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Midnight `#102C80` | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
-| **Finch**, **O-Dynamo** | Planned, not built | Finch: Deep Sea Green `#075056` | `Finch`, `O-Dynamo` | |
+| **Finch**, **O-Dynamo** | Planned, not built | Finch: Grove `#166040` | `Finch`, `O-Dynamo` | |
 
 **Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). Kivo starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`, `OSTUDIO_PROJECT_NAME`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (Kivo), `aad-office::wire` (Tren).
 
@@ -31,10 +31,30 @@ Other names:
 | **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). **Myna** hosts **Olmo 3 7B** for as long as it runs; **Kivo**, **Falcon** and **Tren** are clients only |
 | **Olmo 3 7B** | The shared local assistant model (GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`). Not Tulu and not in-process in Falcon or Tren |
 
+## 1a. The workflow (from suite 1.5.0)
+
+**Built in 1.5.0:** Kivo's sign-in and session broker, the slimmed Myna with the database service, Falcon's CSV export and Kivo's CSV import. **Not built yet:** Tren and Falcon connecting to the database service from their `.osp`, and moving approvals and revisions fully into Kivo.
+
+Draw in **Tren**, measure in **Falcon**, both on **one `.osp` file** connected to the suite database. **Falcon exports a CSV; Kivo imports it** for estimates and running bills. **Approvals and revisions live in Kivo.**
+
+| App | Owns | No longer owns |
+|---|---|---|
+| **Myna** | The **AI Core** (Olmo, loopback `127.0.0.1:8742`) and the **database service** (loopback `127.0.0.1:8743`, a local database that syncs to Neon). Tray icon. | Company sign-in |
+| **Kivo** | **Company sign-in** and the session; estimates, running bills, **approvals, revisions**; **Import from Falcon (CSV)** | |
+| **Tren** | The drawing and its take-off rows, written into the `.osp` | Sign-in, approvals, revisions |
+| **Falcon** | Quantities, rates, the estimate; **Export for Kivo (CSV)** | Sign-in, approvals, revisions |
+
+How the pieces connect:
+
+- **Sign-in on demand.** When Tren or Falcon first needs the database it asks Kivo for a session over the local named pipe `\\.\pipe\osas-session-broker`. Kivo opens, the person signs in once, and a session token (32 random bytes, held in memory, 8 hours idle, 24 hours at most) is handed back. The apps never store company credentials. Contract: `contracts/session-broker.md` (Kivo repo, `docs/contracts/session-broker.md`).
+- **Database.** Myna's database service checks every request's Bearer token with Kivo's broker. Work continues offline; the service pushes and pulls to Neon when it can.
+- **CSV.** Falcon writes `osas-falcon-csv/1` (20 columns; rows `meta`, `estimate`, `measured`, `takeoff`, `total`; UTF-8 with BOM, RFC 4180, CRLF). Kivo previews it and imports it in one transaction onto estimate versions and draft running bills. Contracts: `contracts/falcon-csv.md` (Kivo repo, `docs/contracts/falcon-csv.md`), `contracts/falcon-csv-import.md` (Kivo repo, `docs/contracts/falcon-csv-import.md`); a running bill locks its measured-to-date once certified.
+- **Design note:** `WORKFLOW-KIVO-HUB.md` (Kivo repo, `docs/WORKFLOW-KIVO-HUB.md`).
+
 ## 2. Hierarchy
 
 ```
-Kivo (company, users, practice records, Neon sync settings); Myna (sign-in, project, AI Core host, cloud sync)   <- which company, who is signed in
+Kivo (company sign-in, users, practice records, estimates, bills, approvals, revisions); Myna (AI Core host, database service, Neon sync)   <- which company, who is signed in
  |
  +-- Company file (.osas)                                 <- the practice: clients, projects, users, accounts
  |     |
@@ -101,7 +121,7 @@ Details: `docs/WINUI-SHELL.md`.
 
 | Region | Contents |
 |---|---|
-| Sign-in / company | New or open company file (`.osas`) **in Myna**; sign in once; remember path in `suite.json`; admin password and **Users** (in Kivo) |
+| Sign-in / company | New or open company file (`.osas`) **in Kivo**; sign in once (Kivo serves the session to Falcon and Tren on request); remember path in `suite.json`; admin password and **Users** (in Kivo) |
 | Left pane | Practice (Pulse, Clients, Projects, enquiries, site records, permits, proposals, meetings); Documents (letters, templates); Billing (invoices, receipts, reconciliation); Books (expenses, income, salaries, assets, journals); Reports and tax; Office (firm profile, staff, leave, attendance, library, security, backup); **Suite** (dashboard, **Cloud sync**, approvals) |
 | Shortcuts | Ctrl+N new record, Ctrl+S save, Ctrl+P print, Ctrl+F search, Ctrl+K go to page |
 | Bottom shell | Same status row and Ask pill as Tren and Falcon (`O.Ui`); **launch Falcon, Tren, Finch** from the status row |
@@ -138,13 +158,13 @@ Saving: Tren writes the drawing back into the `.osp` only when its bytes changed
 | Kivo assistant and Neon sync | Kivo `docs/AI_RUNTIME.md`, `docs/CLOUD-NEON.md`, `docs/ODP-PROJECT-FILE-AND-SYNC.md` |
 | Shared WinUI chrome | O-UI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |
 | ShilpiDB → `.osp` migration (historical) | Each app repo `docs/MIGRATION-OSP.md` — do not use **ShilpiDB** in new user text |
-| Installers | **Unified:** Kivo `installer/suite/README.md` (`O-Suite-Setup-<version>.exe`, install and remove modes). Per-app: Kivo `docs/packaging.md`, Falcon `docs/PACKAGING.md`, Tren `docs/RELEASE_AND_PACKAGING.md` |
+| Installers | **Unified:** Kivo `installer/suite/README.md` (`Kivo-Suite-Setup-<version>.exe`, install and remove modes). Per-app: Kivo `docs/packaging.md`, Falcon `docs/PACKAGING.md`, Tren `docs/RELEASE_AND_PACKAGING.md` |
 | Testing | Kivo `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
 | Brand (palette, the mark, the AI agent orb, type) | Kivo `docs/BRANDING.md`; artwork and colour files in `o-ui` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
 
 ## 7. Conventions
 
-- **App names (user-visible):** Kivo, Falcon, Tren, Finch, Myna, and O-UI. Spell exactly. Finch is planned. Myna is the launcher. Do not use the earlier names Kivo, Falcon, Tren, or Finch in menus, dialogs, or user-facing sentences. Those names remain ticket ids, install folders, and executable names.
+- **App names (user-visible):** Kivo, Falcon, Tren, Finch, Myna, and O-UI. Spell exactly. Finch is planned. Myna is the launcher. Do not use the earlier names O-Studio, O-CoreOp, O-Draft, or O-Form in menus, dialogs, or user-facing sentences. Those names remain ticket ids, install folders, and executable names.
 - **Suite hub:** say **Kivo**. The launcher is **Myna**. Do not say OSAS or "the OSAS suite" in user text.
 - **Never in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, **OSAS** as a product name, **OSAS.exe** (assistant is **Olmo 3 7B**). Legacy exe names (`AQCCore.exe`, `aad-host.dll`) belong in migration or identifier columns only.
 - **Files:** project file = **`.osp`**; company file = **`.osas`**. Do not call the project file ODP or `.odp` in user text.

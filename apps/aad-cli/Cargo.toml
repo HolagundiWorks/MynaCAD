@@ -1,6 +1,6 @@
 [package]
 name = "aad-cli"
-description = "O-Draft command-line tool: info, convert, run scripts, export, commands, MCP server, auditor"
+description = "Tren command-line tool: info, convert, run scripts, export, commands, MCP server, auditor"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

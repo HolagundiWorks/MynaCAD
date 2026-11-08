@@ -29,11 +29,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/package.ps
 5. Optional SBOM (any host): `cargo xtask sbom --out dist/release/o-draft-<version>.cdx.json`
    (CycloneDX JSON from `cargo metadata`; no secrets). The release workflow attaches this artifact.
 
-## Suite install (O-Suite)
+## Suite install (Kivo Suite)
 
 For practice machines that run the whole Kivo family, ship the **portable zip** output of
 `package.ps1` into Kivo’s `installer/suite/build-single.ps1` (not the per-machine MSI).
-End users normally run **`O-Suite-Setup-<version>.exe`** (Kivo repo): install or remove
+End users normally run **`Kivo-Suite-Setup-<version>.exe`** (Kivo repo): install or remove
 Kivo, Falcon, and Tren from one wizard. See Kivo `installer/suite/README.md` and
 [docs/SUITE.md](SUITE.md).
 
@@ -48,7 +48,7 @@ Output: `dist/release/o-draft-<version>-windows-x64.msi` and `...-portable.zip`,
 |---|---|---|
 | Org PFX | `WINDOWS_CERTIFICATE` (base64 `.pfx`) and optional `WINDOWS_CERTIFICATE_PASSWORD` | Production / CI vault |
 | Azure Trusted Signing | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_SIGNING_ACCOUNT`, `AZURE_CERT_PROFILE`, plus `AZURE_SIGNING_ENDPOINT` **or** `AZURE_SIGNING_REGION`; optional `SIGN_BACKEND=ossign\|signtool`, `OSSIGN` | Prefer OSSign when `ossign.exe` is present; copy `ossign.config.example.yaml` locally — never commit filled secrets. Same secret names as OSAS / Kivo / Falcon packaging workflows |
-| Dev self-sign | `SIGN_SELF_SIGNED=1` | Creates or reuses `CN=Tren Development (self-signed)` under `%LOCALAPPDATA%\O-Draft\dev-codesign\`; SmartScreen still warns |
+| Dev self-sign | `SIGN_SELF_SIGNED=1` | Creates or reuses `CN=O-Draft Development (self-signed)` under `%LOCALAPPDATA%\O-Draft\dev-codesign\`; SmartScreen still warns |
 
 With none of the above, the script warns and leaves files unsigned (exit 0). **Never** commit `.pfx`,
 `.p12`, client secrets, or a filled `ossign.config.yaml`. Threat model: [threat-model.md](threat-model.md).
@@ -79,7 +79,7 @@ moved to `dist/release`):
 | Build: `package.ps1 -Arch x64` | passed (release build 3.5 minutes); MSI 17 846 272 bytes, zip 22 689 850 bytes |
 | Portable zip, extracted to an empty folder | contains `o-draft.exe`, `aad-cli.exe`, `LICENSE-APACHE`, `LICENSE-MIT`, `README.md`; the CLI reports 0.6.0, reads a DXF, draws, saves and exports a PNG; the GUI starts on the GPU canvas, answers the control channel and quits; a damaged DWG (the BUG-001 fixture) is refused with a message by both the CLI and the GUI and the program stays up (the DWG worker works from the packaged executable) |
 | MSI administrative extract | the same two executables as the previous build |
-| MSI real install (silent, elevated) | exit 0; `C:\Program Files\O-Draft\` with both executables; "Add or remove programs" entry "Tren 0.6.0" by Human Centric Works; Start Menu shortcut; no desktop shortcut (opt-in) |
+| MSI real install (silent, elevated) | exit 0; `C:\Program Files\Tren\` with both executables; "Add or remove programs" entry "Tren 0.6.0" by Human Centric Works; Start Menu shortcut; no desktop shortcut (opt-in) |
 | Installed programs | CLI runs and saves a DXF; GUI starts, shows 46 entities on the GPU canvas, exits cleanly |
 | MSI uninstall (silent) | exit 0; install folder, Start Menu entry and uninstall entry all removed |
 

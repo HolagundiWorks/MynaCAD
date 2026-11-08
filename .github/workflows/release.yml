@@ -1,5 +1,5 @@
 # Release pipeline: every push to `release` builds signed installers for every platform and
-# creates or updates the draft GitHub Release "O-Draft v<version>". See docs/releasing.md.
+# creates or updates the draft GitHub Release "Tren v<version>". See docs/releasing.md.
 #
 # Pushes to `release` trigger the run; pushing there is limited by a repository ruleset to org
 # admins and the release-managers team. The jobs that sign (macOS, Windows) and the one that
@@ -443,7 +443,7 @@ jobs:
         working-directory: artifacts
         run: |
           tag="v$VERSION"
-          title="O-Draft v$VERSION"
+          title="Tren v$VERSION"
           pre=()
           if [ "$PRERELEASE" = true ]; then pre=(--prerelease); fi
           if draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)"; then

@@ -144,7 +144,7 @@ pub(crate) struct Collected {
     pub counts: Value,
 }
 
-/// The kinds of take-off record (O-CoreOp `OspTakeoff` / `.osp` takeoff rows).
+/// The kinds of take-off record (Falcon `OspTakeoff` / `.osp` takeoff rows).
 pub(crate) const KIND_WALL: u8 = 3;
 pub(crate) const KIND_OPENING: u8 = 4;
 pub(crate) const KIND_COLUMN: u8 = 5;
@@ -336,7 +336,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
             warnings.push("the drawing has unsaved changes: this export reflects them, the saved revision does not".into());
         }
     }
-    // The project in the company file that this drawing was linked to (`companyfile`): O-CoreOp matches the take-off to its project by it.
+    // The project in the company file that this drawing was linked to (`companyfile`): Falcon matches the take-off to its project by it.
     if let Some(reference) = super::companyfile::company(s.doc()?).get("project_ref").filter(|r| r.is_object()) {
         source["project_ref"] = reference.clone();
     }

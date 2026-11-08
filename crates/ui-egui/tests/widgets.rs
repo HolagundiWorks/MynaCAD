@@ -122,13 +122,13 @@ fn importing_an_aqc_file_previews_then_applies_on_the_button() {
     .unwrap();
     aad_ui_egui::widgets::start_bridge_import(h.state_mut(), path.to_str().unwrap());
     h.run_steps(5);
-    assert!(has(&h, "Overwrite fields already filled in O-Draft"), "the preview window is open");
+    assert!(has(&h, "Overwrite fields already filled in Tren"), "the preview window is open");
     assert_eq!(h.state_mut().run("project", json!({})).unwrap()["details"]["title"], serde_json::Value::Null, "nothing applied yet");
     h.query_all_by_label("Apply").last().unwrap().click();
     h.run_steps(5);
     std::fs::remove_file(&path).ok();
     assert_eq!(h.state_mut().run("project", json!({})).unwrap()["details"]["title"], "Rao House");
-    assert!(!has(&h, "Overwrite fields already filled in O-Draft"), "the window closes");
+    assert!(!has(&h, "Overwrite fields already filled in Tren"), "the window closes");
 }
 
 #[test]

@@ -1,4 +1,4 @@
-//! `takeoff.record`: the take-off as records in the project file (layout shared with O-CoreOp `OspTakeoff`, version 1).
+//! `takeoff.record`: the take-off as records in the project file (layout shared with Falcon `OspTakeoff`, version 1).
 //! The tests follow the hand-off list: the records match the bridge rows, recording
 //! again replaces, a removed item is deleted, ids carry the kind, everything is in millimetres, a rectangular slab
 //! has its spans, and refs survive a rebuilt take-off.
@@ -410,7 +410,7 @@ fn the_annotated_drawing_marks_what_was_measured_and_is_stored_in_chunks() {
     cleanup(&path);
 }
 
-/// What O-CoreOp asked for after reading the first recording: rooms carry their level and sides, openings name their
+/// What Falcon asked for after reading the first recording: rooms carry their level and sides, openings name their
 /// wall, walls carry a thickness, and a ventilator is a window.
 #[test]
 fn rows_carry_what_o_coreop_needs_to_use_them_without_guessing() {

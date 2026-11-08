@@ -105,7 +105,7 @@ fn run_make(s: &mut Session, p: &Value) -> Result<Value> {
             "base": [base.x, base.y],
             "handles": hex,
             "keep": keep,
-            "description": "O-Draft component",
+            "description": "Tren component",
         }),
     )?;
     let mut building: Option<BuildingElement> = None;
