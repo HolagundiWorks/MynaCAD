@@ -3845,6 +3845,30 @@ mod tests {
         assert!(menu.contains("measuregeom") || menu.contains("\"id\":\"measuregeom\""));
     }
     /// Timing probe, not a pass/fail test: `AAD_PERF_FILE=<drawing> cargo test --release -p aad-host --lib edit_latency -- --ignored --nocapture`.
+    /// Splits the DWG read: the DWG reader and DXF writer (aad_dwg, in this process), then our DXF reader.
+    #[test]
+    #[ignore]
+    fn dwg_read_pipeline_stages() {
+        let Ok(path) = std::env::var("AAD_PERF_FILE") else { return };
+        let ms = |t: std::time::Instant| t.elapsed().as_secs_f64() * 1000.0;
+        let bytes = std::fs::read(&path).unwrap();
+        let t = std::time::Instant::now();
+        let doc = acadrust::DwgReader::from_stream(std::io::Cursor::new(&bytes[..])).read().unwrap();
+        println!("acadrust DWG read: {:.0} ms", ms(t));
+        let t = std::time::Instant::now();
+        let mut out = Vec::new();
+        acadrust::DxfWriter::new(&doc).write_to_writer(&mut out).unwrap();
+        println!("acadrust DXF write: {:.0} ms, {} MB of DXF", ms(t), out.len() >> 20);
+        drop(doc);
+        let t = std::time::Instant::now();
+        let tags = aad_dxf::parse(&out).unwrap();
+        println!("  tag parse only (aad_dxf::parse): {:.0} ms, {} tags", ms(t), tags.len());
+        drop(tags);
+        let t = std::time::Instant::now();
+        let drawing = aad_io::read(&out, "x.dxf").unwrap();
+        println!("our DXF read: {:.0} ms, entities {}", ms(t), drawing.entity_count());
+    }
+
     /// Where the time goes when a large drawing file is opened, stage by stage (AAD_PERF_FILE=path, --ignored --nocapture).
     #[test]
     #[ignore]

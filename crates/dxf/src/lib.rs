@@ -207,9 +207,9 @@ fn escape_at(chars: &[char], i: usize) -> Option<u32> {
 /// Unescape the `\U+XXXX` sequences pre-R2007 DXF uses for characters outside the file's code
 /// page (four hex digits, one UTF-16 code unit; characters above U+FFFF are a surrogate pair of
 /// escapes). Malformed escapes and unpaired surrogates are kept as literal text.
-fn unescape_unicode(s: &str) -> String {
+fn unescape_unicode(s: String) -> String {
     if !s.contains("\\U+") {
-        return s.to_string();
+        return s;
     }
     let mut out = String::with_capacity(s.len());
     let chars: Vec<char> = s.chars().collect();
@@ -241,11 +241,119 @@ pub fn parse_ascii(text: &str) -> Result<Vec<Tag>> {
 }
 
 #[allow(clippy::while_let_loop)]
-fn parse_ascii_with_limit(text: &str, max_tags: usize) -> Result<Vec<Tag>> {
+/// Text smaller than this is parsed on one thread: cutting it up costs more than it saves.
+#[cfg(not(target_arch = "wasm32"))]
+const PARALLEL_MIN_BYTES: usize = 8 << 20;
+
+/// Where a record starts: a line that is exactly the group code 0 and is followed by a line that begins with a letter (the record
+/// type). A value line equal to `0` (a layer named `0`) is followed by a group code, a number, so it never matches.
+#[cfg(not(target_arch = "wasm32"))]
+fn record_start_at(text: &str, line_start: usize) -> bool {
+    let rest = text.get(line_start..).unwrap_or("");
+    let mut lines = rest.split('\n');
+    let Some(first) = lines.next() else { return false };
+    if first.trim() != "0" {
+        return false;
+    }
+    lines.next().is_some_and(|next| next.trim_start().chars().next().is_some_and(|c| c.is_ascii_alphabetic()))
+}
+
+/// Byte offsets that cut `text` into about `parts` pieces, each starting at a record. None when no safe cut is found.
+#[cfg(not(target_arch = "wasm32"))]
+fn record_cuts(text: &str, parts: usize) -> Option<Vec<usize>> {
+    let mut cuts = vec![0usize];
+    for k in 1..parts {
+        let mut pos = text.len() / parts * k;
+        let floor = cuts.last().copied().unwrap_or(0);
+        if pos <= floor {
+            continue;
+        }
+        // Move to the start of the next line (a byte scan: the offset may fall inside a multi-byte character, and a line
+        // start never does), then look for a record start within a bounded distance.
+        let bytes = text.as_bytes();
+        let next_line = |from: usize| bytes.get(from..).and_then(|b| b.iter().position(|&c| c == b'\n')).map(|n| from + n + 1);
+        pos = next_line(pos)?;
+        let limit = (pos + (4 << 20)).min(text.len());
+        let mut found = None;
+        let mut at = pos;
+        while at < limit {
+            if record_start_at(text, at) {
+                found = Some(at);
+                break;
+            }
+            at = next_line(at)?;
+        }
+        // A record bigger than the search window (one huge object): leave this cut out, the neighbours still divide the work.
+        let Some(cut) = found else { continue };
+        if cut > floor {
+            cuts.push(cut);
+        }
+    }
+    cuts.push(text.len());
+    Some(cuts)
+}
+
+/// Parse a large ASCII DXF on every core. The cuts are only trusted when each piece parses cleanly; otherwise None, and the caller
+/// parses sequentially (which also gives the exact error line).
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_ascii_parallel(text: &str, max_tags: usize) -> Option<Vec<Tag>> {
+    use rayon::prelude::*;
+    let parts = rayon::current_num_threads().clamp(1, 32);
+    if parts < 2 || text.len() < PARALLEL_MIN_BYTES {
+        return None;
+    }
+    let cuts = record_cuts(text, parts * 2)?;
+    let pieces: Vec<&str> = cuts.windows(2).filter_map(|w| text.get(*w.first()?..*w.get(1)?)).collect();
+    let parsed: Vec<Vec<Tag>> = pieces.par_iter().map(|piece| parse_ascii_piece(piece).ok()).collect::<Option<Vec<_>>>()?;
+    let total: usize = parsed.iter().map(Vec::len).sum();
+    if total > max_tags {
+        return None;
+    }
+    let mut tags = Vec::with_capacity(total);
+    for mut part in parsed {
+        tags.append(&mut part);
+    }
+    // The sequential reader stops after the first EOF record.
+    if let Some(eof) = tags.iter().position(|t| t.code == 0 && t.str() == "EOF") {
+        tags.truncate(eof + 1);
+    }
+    if tags.is_empty() { None } else { Some(tags) }
+}
+
+/// One piece of ASCII DXF: pairs of lines, with the sequential reader's rules (blank code lines are skipped).
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_ascii_piece(text: &str) -> Result<Vec<Tag>> {
     let mut tags = Vec::new();
     let mut lines = text.lines().enumerate();
-    loop {
-        let Some((ln, code_line)) = lines.next() else { break };
+    while let Some((ln, code_line)) = lines.next() {
+        let ct = code_line.trim();
+        if ct.is_empty() {
+            continue;
+        }
+        let code: i32 = ct.parse().map_err(|_| DxfError::BadCode { line: ln + 1, text: ct.chars().take(40).collect() })?;
+        let Some((_, val)) = lines.next() else { return Err(DxfError::Eof) };
+        let v = match typed(code, val) {
+            Value::Str(s) => Value::Str(unescape_unicode(s)),
+            o => o,
+        };
+        tags.push(Tag { code, value: v });
+    }
+    Ok(tags)
+}
+
+fn parse_ascii_with_limit(text: &str, max_tags: usize) -> Result<Vec<Tag>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(tags) = parse_ascii_parallel(text, max_tags) {
+        return Ok(tags);
+    }
+    parse_ascii_sequential(text, max_tags)
+}
+
+/// The reference reader: one thread, line by line. It defines what the parallel reader must produce, and gives the exact error line.
+fn parse_ascii_sequential(text: &str, max_tags: usize) -> Result<Vec<Tag>> {
+    let mut tags = Vec::new();
+    let mut lines = text.lines().enumerate();
+    while let Some((ln, code_line)) = lines.next() {
         let ct = code_line.trim();
         if ct.is_empty() {
             continue;
@@ -254,7 +362,7 @@ fn parse_ascii_with_limit(text: &str, max_tags: usize) -> Result<Vec<Tag>> {
         let Some((_, val)) = lines.next() else { return Err(DxfError::Eof) };
         let v = typed(code, val);
         let v = match v {
-            Value::Str(s) => Value::Str(unescape_unicode(&s)),
+            Value::Str(s) => Value::Str(unescape_unicode(s)),
             o => o,
         };
         tags.push(Tag { code, value: v });
@@ -334,7 +442,7 @@ fn parse_binary_with_limit(b: &[u8], max_tags: usize) -> Result<Vec<Tag>> {
             code = i32::from(c.i16()?);
         }
         let v = match kind_of(code) {
-            Kind::Str => Value::Str(unescape_unicode(&c.cstr()?)),
+            Kind::Str => Value::Str(unescape_unicode(c.cstr()?)),
             Kind::Real => Value::Real(c.f64()?),
             Kind::Int16 => Value::Int(i64::from(c.i16()?)),
             Kind::Int32 => Value::Int(i64::from(c.i32()?)),
@@ -416,6 +524,35 @@ pub struct Section {
     pub tags: Vec<Tag>,
 }
 
+/// A section that borrows its tags from the stream it was cut from (nothing is copied).
+#[derive(Debug, Clone)]
+pub struct SectionRef<'a> {
+    pub name: String,
+    pub tags: &'a [Tag],
+}
+
+/// Split a tag stream into sections without copying the tags.
+pub fn sections_ref(tags: &[Tag]) -> Vec<SectionRef<'_>> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < tags.len() {
+        let is_sec = tags.get(i).is_some_and(|t| t.code == 0 && t.str() == "SECTION");
+        if is_sec {
+            let name = tags.get(i + 1).filter(|t| t.code == 2).map(Tag::str).unwrap_or_default();
+            let start = i + 2;
+            let mut j = start;
+            while j < tags.len() && !(tags.get(j).is_some_and(|t| t.code == 0 && t.str() == "ENDSEC")) {
+                j += 1;
+            }
+            out.push(SectionRef { name, tags: tags.get(start..j).unwrap_or(&[]) });
+            i = j + 1;
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
 /// Split a tag stream into sections.
 pub fn sections(tags: &[Tag]) -> Vec<Section> {
     let mut out = Vec::new();
@@ -438,6 +575,27 @@ pub fn sections(tags: &[Tag]) -> Vec<Section> {
     out
 }
 
+/// Split a run of tags into records starting at each code-0 tag: (type, tags after the 0). The tags of a record are a slice of
+/// the run, so nothing is copied.
+pub fn records_ref(tags: &[Tag]) -> Vec<(String, &[Tag])> {
+    let mut out: Vec<(String, &[Tag])> = Vec::new();
+    let mut start = 0;
+    let mut kind: Option<String> = None;
+    for (i, t) in tags.iter().enumerate() {
+        if t.code == 0 {
+            if let Some(k) = kind.take() {
+                out.push((k, tags.get(start..i).unwrap_or(&[])));
+            }
+            kind = Some(t.str());
+            start = i + 1;
+        }
+    }
+    if let Some(k) = kind {
+        out.push((k, tags.get(start..).unwrap_or(&[])));
+    }
+    out
+}
+
 /// Split a run of tags into records starting at each code-0 tag: (type, tags after the 0).
 pub fn records(tags: &[Tag]) -> Vec<(String, Vec<Tag>)> {
     let mut out: Vec<(String, Vec<Tag>)> = Vec::new();
@@ -454,6 +612,91 @@ pub fn records(tags: &[Tag]) -> Vec<(String, Vec<Tag>)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A DXF big enough for the parallel reader, with the things that could fool a cut: layers named `0` (a value line equal to
+    /// the record-start code), non-ASCII text, one record far bigger than the search window, and an early EOF followed by more text.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn awkward_dxf(entities: usize, early_eof: bool) -> String {
+        let mut s = String::from("  0
+SECTION
+  2
+ENTITIES
+");
+        for i in 0..entities {
+            let layer = if i % 3 == 0 { "0" } else { "Wände é ü" };
+            s.push_str(&format!("  0
+LINE
+  8
+{layer}
+ 10
+{i}.5
+ 20
+2.25
+  1
+0
+"));
+            if i == entities / 2 {
+                // One object with a huge payload (millions of vertices in real files).
+                s.push_str("  0
+LWPOLYLINE
+  8
+0
+");
+                for v in 0..400_000 {
+                    s.push_str(&format!(" 10
+{v}
+ 20
+0
+"));
+                }
+            }
+        }
+        s.push_str("  0
+ENDSEC
+  0
+EOF
+");
+        if early_eof {
+            s.push_str("  0
+SECTION
+  2
+TRAILING
+  0
+ENDSEC
+");
+        }
+        s
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn the_parallel_reader_gives_exactly_what_the_sequential_reader_gives() {
+        for early_eof in [false, true] {
+            let text = awkward_dxf(120_000, early_eof);
+            assert!(text.len() > PARALLEL_MIN_BYTES, "the test file must be big enough to be cut ({} bytes)", text.len());
+            let parallel = parse_ascii_parallel(&text, usize::MAX).expect("the parallel reader should take this file");
+            let sequential = parse_ascii_sequential(&text, usize::MAX).unwrap();
+            assert_eq!(parallel.len(), sequential.len());
+            assert!(parallel == sequential, "the tags differ");
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn a_damaged_piece_falls_back_to_the_sequential_reader() {
+        let mut text = awkward_dxf(60_000, false);
+        // A group code that is not a number, far from the start.
+        let at = text.len() / 2;
+        let at = text[at..].find("  0
+LINE").map(|n| n + at).unwrap();
+        text.insert_str(at, "  X
+broken
+");
+        assert!(text.len() > PARALLEL_MIN_BYTES);
+        assert!(parse_ascii_parallel(&text, usize::MAX).is_none());
+        let err = parse_ascii_with_limit(&text, usize::MAX).unwrap_err();
+        assert!(matches!(err, DxfError::BadCode { .. }), "{err}");
+    }
 
     #[test]
     fn ascii_roundtrip() {

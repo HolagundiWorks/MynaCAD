@@ -86,6 +86,7 @@ dependencies = [
 name = "aad-dxf"
 version = "0.6.0"
 dependencies = [
+ "rayon",
  "thiserror 2.0.21",
 ]
 
@@ -136,6 +137,7 @@ dependencies = [
  "aad-agent",
  "aad-color",
  "aad-dwg",
+ "aad-dxf",
  "aad-engine",
  "aad-fonts",
  "aad-geom",
@@ -144,6 +146,7 @@ dependencies = [
  "aad-odp",
  "aad-render",
  "aad-vello",
+ "acadrust",
  "pollster 0.4.0",
  "raw-window-handle",
  "serde",
