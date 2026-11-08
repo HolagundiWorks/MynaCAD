@@ -3845,6 +3845,38 @@ mod tests {
         assert!(menu.contains("measuregeom") || menu.contains("\"id\":\"measuregeom\""));
     }
     /// Timing probe, not a pass/fail test: `AAD_PERF_FILE=<drawing> cargo test --release -p aad-host --lib edit_latency -- --ignored --nocapture`.
+    /// Where the time goes when a large drawing file is opened, stage by stage (AAD_PERF_FILE=path, --ignored --nocapture).
+    #[test]
+    #[ignore]
+    fn open_cost_by_stage() {
+        let Ok(path) = std::env::var("AAD_PERF_FILE") else { return };
+        let name = std::path::Path::new(&path).file_name().and_then(|n| n.to_str()).unwrap_or("x.dwg").to_string();
+        let ms = |t: std::time::Instant| t.elapsed().as_secs_f64() * 1000.0;
+        let mut host = Host::create(false);
+        let t = std::time::Instant::now();
+        let bytes = std::fs::read(&path).unwrap();
+        println!("read file ({} MB): {:.0} ms", bytes.len() >> 20, ms(t));
+        let t = std::time::Instant::now();
+        let drawing = aad_io::read(&bytes, &name).unwrap();
+        println!("parse (aad_io::read): {:.0} ms, entities {}", ms(t), drawing.entity_count());
+        let t = std::time::Instant::now();
+        let copy = drawing.clone();
+        println!("  clone of the drawing alone: {:.0} ms", ms(t));
+        drop(copy);
+        let t = std::time::Instant::now();
+        let prepared = aad_engine::cmd::file::prepare(drawing);
+        println!("prepare (meta, classify, clone, flatten): {:.0} ms", ms(t));
+        let t = std::time::Instant::now();
+        aad_engine::cmd::file::finish_open(&mut host.session, prepared, &name).unwrap();
+        println!("finish_open: {:.0} ms", ms(t));
+        let t = std::time::Instant::now();
+        host.fit_view();
+        println!("fit_view: {:.0} ms", ms(t));
+        let t = std::time::Instant::now();
+        host.mesh().unwrap();
+        println!("first frame (display list + mesh): {:.0} ms, tiles {}", ms(t), host.frame.scene.as_ref().map_or(0, |s| s.tiles.len()));
+    }
+
     /// Opens the drawing in a headless host and times what the UI thread does after each edit and each zoom step: the display
     /// list (retained scene), the tile meshes and the composed mesh, i.e. `Host::mesh`, everything but the GPU upload.
     #[test]
