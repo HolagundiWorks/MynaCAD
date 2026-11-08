@@ -345,29 +345,32 @@ internal static class Native
         }
     }
 
+    // The host rebuilds the whole JSON on every call, so the old size probe followed by a fill cost two builds per read. Read once into a
+    // reusable buffer and only go again when the text did not fit. UI thread only.
+    private static byte[] _textBuffer = new byte[65536];
+
     public static string ReadText(IntPtr host, int slot)
     {
-        int needed = aad_host_text(host, slot, IntPtr.Zero, 0);
-        if (needed == 0)
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            return "";
-        }
-        int size = needed < 0 ? -needed : needed;
-        var buffer = new byte[size];
-        var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-        try
-        {
-            int n = aad_host_text(host, slot, handle.AddrOfPinnedObject(), (uint)buffer.Length);
-            if (n < 0)
+            var buffer = _textBuffer;
+            int n;
+            var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
             {
-                return "";
+                n = aad_host_text(host, slot, handle.AddrOfPinnedObject(), (uint)buffer.Length);
             }
-            return Encoding.UTF8.GetString(buffer, 0, Math.Min(n, buffer.Length));
+            finally
+            {
+                handle.Free();
+            }
+            if (n >= 0)
+            {
+                return n == 0 ? "" : Encoding.UTF8.GetString(buffer, 0, Math.Min(n, buffer.Length));
+            }
+            _textBuffer = new byte[-n + 4096];
         }
-        finally
-        {
-            handle.Free();
-        }
+        return "";
     }
 
     /// Start reading a drawing on a worker thread; returns at once.

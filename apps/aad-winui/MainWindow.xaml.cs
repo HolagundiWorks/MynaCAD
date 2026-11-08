@@ -120,6 +120,14 @@ public sealed partial class MainWindow : Window
     private int _recall = -1;
     private string _liveDraft = "";
     private string _historyShown = "\u0001";
+    // Idle cost: the 32 ms tick used to fetch and parse the same chrome and panel JSON over and over. Within a tick the chrome text is read
+    // once, and a tick whose text equals the last one applied does nothing (a full pass still runs about every two seconds).
+    private bool _inTick;
+    private string? _tickChrome;
+    private string _lastChromeText = "";
+    private int _chromeSkips;
+    private string _lastPanelsText = "";
+    private string _lastDynText = "";
     private bool _placingBar;
     private int _lastBarX = int.MinValue;
     private int _lastBarY = int.MinValue;
@@ -3087,6 +3095,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private string ReadChromeText()
+    {
+        if (!_inTick)
+        {
+            return Native.ReadText(_host, Native.TextChrome);
+        }
+        return _tickChrome ??= Native.ReadText(_host, Native.TextChrome);
+    }
+
     private void RefreshChrome()
     {
         if (_host == IntPtr.Zero)
@@ -3096,7 +3113,13 @@ public sealed partial class MainWindow : Window
         ChromeState? state = null;
         try
         {
-            state = JsonSerializer.Deserialize<ChromeState>(Native.ReadText(_host, Native.TextChrome), JsonOpts);
+            var chromeText = ReadChromeText();
+            var unchanged = _inTick && chromeText == _lastChromeText && (++_chromeSkips & 15) != 0;
+            if (!unchanged)
+            {
+                _lastChromeText = chromeText;
+                state = JsonSerializer.Deserialize<ChromeState>(chromeText, JsonOpts);
+            }
         }
         catch (JsonException)
         {
@@ -3172,6 +3195,11 @@ public sealed partial class MainWindow : Window
         try
         {
             var text = Native.ReadText(_host, Native.TextPanels);
+            if (_inTick && _panelKey.Length > 0 && text == _lastPanelsText)
+            {
+                return;
+            }
+            _lastPanelsText = text;
             using var document = JsonDocument.Parse(text);
             _quickJson = document.RootElement.TryGetProperty("quick", out var quick) && quick.ValueKind == JsonValueKind.Object ? quick.GetRawText() : null;
             _hoverQuickJson = document.RootElement.TryGetProperty("hoverQuick", out var hoverQuick) && hoverQuick.ValueKind == JsonValueKind.Object
@@ -5802,6 +5830,8 @@ public sealed partial class MainWindow : Window
                 return;
             }
             var perf = PerfLog.Enabled ? System.Diagnostics.Stopwatch.StartNew() : null;
+            _inTick = true;
+            _tickChrome = null;
             CanvasMenu.DismissOutsideClick();
             PollEscapeCancel();
             if (Native.Pump(_host) != 0)
@@ -5839,6 +5869,8 @@ public sealed partial class MainWindow : Window
                 perf?.Mark("panels");
             }
             perf?.Report();
+            _inTick = false;
+            _tickChrome = null;
         };
         _timer.Start();
     }
@@ -7016,6 +7048,10 @@ public sealed partial class MainWindow : Window
     private void SyncHistory()
     {
         var text = History.Text ?? "";
+        if (text == _historyShown)
+        {
+            return;
+        }
         var lines = new List<string>();
         foreach (var part in text.Split('\n'))
         {
@@ -7051,7 +7087,13 @@ public sealed partial class MainWindow : Window
         }
         try
         {
-            using var doc = JsonDocument.Parse(Native.ReadText(_host, Native.TextChrome));
+            var dynText = ReadChromeText();
+            if (_inTick && !_lastDynOn && dynText == _lastDynText)
+            {
+                return;
+            }
+            _lastDynText = dynText;
+            using var doc = JsonDocument.Parse(dynText);
             var root = doc.RootElement;
             if (!root.TryGetProperty("dyn", out var dyn) || !dyn.TryGetProperty("on", out var on) || on.ValueKind != JsonValueKind.True)
             {

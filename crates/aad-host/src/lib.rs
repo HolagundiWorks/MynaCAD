@@ -515,6 +515,9 @@ pub struct Host {
     control_stop: Option<Arc<AtomicBool>>,
     /// Set by `app.quit` on the control channel; the shell closes when chrome reports it.
     quit_requested: bool,
+    /// The last panels JSON with the state it was built for. The side tabs ask for it about eight times a second, and building it
+    /// scans every block reference in the drawing, so an unchanged drawing, selection and hover reuse the text.
+    panels_cache: std::sync::Mutex<Option<(String, String)>>,
     /// A drawing being read on a worker thread: its path and the channel the result arrives on.
     loading: Option<(String, std::sync::mpsc::Receiver<Result<aad_engine::cmd::file::Prepared, String>>)>,
     /// A drawing being written on a worker thread.
@@ -681,6 +684,7 @@ impl Host {
             control_port: 0,
             control_stop: None,
             quit_requested: false,
+            panels_cache: std::sync::Mutex::new(None),
             loading: None,
             saving: None,
             plotting: None,
@@ -1012,7 +1016,32 @@ impl Host {
     /// Properties, layers and blocks, tagged with the drawing id and revision.
     /// Includes the hovered entity so the side tabs can show selection or rollover.
     pub fn panels_json(&self) -> String {
-        panels::panels_json(&self.session, self.hover)
+        let key = self.session.state().ok().map(|state| {
+            format!(
+                "{}:{}:{}:{}:{}:{}:{}:{}:{}",
+                state.uid,
+                state.revision,
+                state.selection.len(),
+                state.selection.first().map(|h| h.hex()).unwrap_or_default(),
+                state.selection.last().map(|h| h.hex()).unwrap_or_default(),
+                self.hover.map(|h| h.hex()).unwrap_or_default(),
+                state.doc.layers.len(),
+                state.doc.blocks.len(),
+                state.doc.active_sheet_ref().map(|sheet| sheet.name.as_str()).unwrap_or_default(),
+            )
+        });
+        if let Some(key) = &key
+            && let Ok(cache) = self.panels_cache.lock()
+            && let Some((cached_key, text)) = cache.as_ref()
+            && cached_key == key
+        {
+            return text.clone();
+        }
+        let text = panels::panels_json(&self.session, self.hover);
+        if let (Some(key), Ok(mut cache)) = (key, self.panels_cache.lock()) {
+            *cache = Some((key, text.clone()));
+        }
+        text
     }
 
     /// Remember what is typed at the command line, so Dynamic Input can follow it.
@@ -3990,6 +4019,22 @@ mod tests {
         }
         println!("12 zoom steps: worst {worst:.1} ms, mean {:.1} ms", total / 12.0);
     }
+    /// The side tabs ask for the panels about eight times a second. An unchanged drawing answers from the cache; a different
+    /// drawing never gets the old answer.
+    #[test]
+    fn the_panels_text_is_reused_until_the_drawing_changes() {
+        use aad_engine::doc::{Common, Drawing, EntityKind, Space, Unknown};
+        let mut host = Host::create(false);
+        let first = host.panels_json();
+        assert_eq!(host.panels_json(), first);
+        let mut d = Drawing::new_metric();
+        d.add(&Space::Model, Common::default(), EntityKind::Unknown(Unknown { dxf_type: "MLINE".into(), tags: vec![] })).unwrap();
+        host.session.open_drawing(d, "other.dxf", None);
+        let second = host.panels_json();
+        assert_ne!(second, first, "a new drawing must rebuild the panels");
+        assert_eq!(host.panels_json(), second);
+    }
+
     /// A save that leaves objects out says which, where the shell can show it (the command history is not enough: a user
     /// who saves from the menu never sees it).
     #[test]
