@@ -33,7 +33,7 @@ Other names:
 
 ## 1a. The workflow (from suite 1.5.0)
 
-**Built in 1.5.0:** Kivo's sign-in and session broker, the slimmed Myna with the database service, Falcon's CSV export and Kivo's CSV import. **Not built yet:** Tren and Falcon connecting to the database service from their `.osp`, and moving approvals and revisions fully into Kivo.
+**Built in 1.5.0:** Kivo's sign-in and session broker, the slimmed Myna with the database service, Falcon's CSV export and Kivo's CSV import. **Built after 1.5.5 (next suite build):** Tren and Falcon connect the open `.osp` to the database service (ask Kivo for a session, connect, push each saved revision; status in the status bar; Tren `docs/DB-CONNECT.md`). **Not built yet:** moving approvals and revisions fully into Kivo; pulling a newer shared revision into an open file.
 
 Draw in **Tren**, measure in **Falcon**, both on **one `.osp` file** connected to the suite database. **Falcon exports a CSV; Kivo imports it** for estimates and running bills. **Approvals and revisions live in Kivo.**
 

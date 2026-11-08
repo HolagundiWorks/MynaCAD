@@ -2800,6 +2800,22 @@ public sealed partial class MainWindow : Window
         CommandInput.Focus(FocusState.Programmatic);
     }
 
+    /// <summary>The status bar shows whether the open project is connected to the suite database (Kivo signs in, Myna hosts the service).</summary>
+    private void RefreshDatabase(ChromeState state)
+    {
+        if (DatabaseText == null)
+        {
+            return;
+        }
+        var label = state.Database ?? "";
+        DatabaseText.Visibility = label.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        if (DatabaseText.Text != label)
+        {
+            DatabaseText.Text = label;
+            ToolTipService.SetToolTip(DatabaseText, string.IsNullOrEmpty(state.DatabaseDetail) ? label : state.DatabaseDetail);
+        }
+    }
+
     private void RefreshAiChip(ChromeState state)
     {
         if (AiChip == null || AiChipHost == null)
@@ -3164,6 +3180,7 @@ public sealed partial class MainWindow : Window
                 _space = state.Space;
             }
             RefreshAiChip(state);
+            RefreshDatabase(state);
             if (state.ControlPort > 0)
             {
                 ControlPort.Text = "127.0.0.1:" + state.ControlPort;
@@ -7357,6 +7374,9 @@ public sealed partial class MainWindow : Window
         public string AssistantPrompt { get; set; } = "";
         public string AssistantPartial { get; set; } = "";
         public string AssistantModel { get; set; } = "";
+        /// <summary>The suite database connection in a few words ("Database: connected"); empty when the project is not connected.</summary>
+        public string Database { get; set; } = "";
+        public string DatabaseDetail { get; set; } = "";
         public int ControlPort { get; set; }
         public bool Quit { get; set; }
         public List<DocTab> Documents { get; set; } = new();

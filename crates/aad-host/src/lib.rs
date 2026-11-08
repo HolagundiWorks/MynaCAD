@@ -562,6 +562,8 @@ fn install_formats() {
 /// The drawing inside a project file (`.osp`): its bytes and its name, which says whether it is DWG or DXF.
 fn read_project_drawing(path: &str) -> Result<(Vec<u8>, String), String> {
     let odp = aad_odp::Odp::open(std::path::Path::new(path)).map_err(|e| format!("{path}: {e}"))?;
+    // Connect the project to the suite database (asks Kivo for a session; never blocks, never changes the file). Off in headless runs.
+    aad_dbconnect::global().project_opened(path);
     let name = odp.drawing_names().map_err(|e| format!("{path}: {e}"))?.into_iter().next().ok_or_else(|| format!("{path} holds no drawing yet"))?;
     let drawing = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.ok_or_else(|| format!("{path}: the drawing {name} is missing"))?;
     Ok((drawing.bytes, drawing.name))
@@ -592,6 +594,8 @@ fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_
     edit.replace_details(&name, &details).map_err(|e| format!("{path}: {e}"))?;
     // Nothing changed: no revision, so a save that changed nothing does not make other programs reload.
     edit.commit().map_err(|e| format!("{path}: {e}"))?;
+    // The saved revision goes to the suite database in the background.
+    aad_dbconnect::global().project_saved(path);
     Ok(bytes.len())
 }
 
@@ -938,6 +942,9 @@ impl Host {
             object.insert("assistantPrompt".into(), Value::String(self.assistant.prompt().to_string()));
             object.insert("assistantPartial".into(), Value::String(self.assistant.partial().to_string()));
             object.insert("assistantModel".into(), Value::String(self.assistant.model_status().to_string()));
+            let database = aad_dbconnect::global().snapshot();
+            object.insert("database".into(), Value::String(database.label()));
+            object.insert("databaseDetail".into(), Value::String(database.detail));
             object.insert("controlPort".into(), Value::from(self.control_port));
             object.insert("quit".into(), Value::from(self.quit_requested));
             object.insert("ucs".into(), Value::from(self.show_ucs));
