@@ -16,7 +16,7 @@
         <TextBlock x:Name="PromptLive" Width="0" Height="0" Opacity="0" IsHitTestVisible="False" AutomationProperties.Name="Command prompt" />
         <StackPanel Orientation="Vertical">
         <!-- Open drawings and the take-off switch: a strip above the menu. -->
-        <Border x:Name="DocTabsHost" Background="{ThemeResource AppBackgroundBrush}" Padding="6,3,6,0" AutomationProperties.Name="Open drawings strip">
+        <Border x:Name="DocTabsHost" Background="{ThemeResource AppBackgroundBrush}" Padding="{StaticResource PaddingDocTabs}" AutomationProperties.Name="Open drawings strip">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceSm}">
                     <StackPanel x:Name="DrawingTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Open drawings" />
@@ -79,7 +79,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Orientation="Vertical" Spacing="{StaticResource SpaceXs}" Margin="{StaticResource PaddingSm}">
                         <Border x:Name="ToolStripSlot" />
-                        <Border x:Name="ArchToolsDivider" Height="1" Margin="2,4" Background="{ThemeResource BorderSubtleBrush}" Visibility="Collapsed" />
+                        <Border x:Name="ArchToolsDivider" Height="{StaticResource DividerThickness}" Margin="{StaticResource MarginArchDivider}" Background="{ThemeResource BorderSubtleBrush}" Visibility="Collapsed" />
                         <Border x:Name="ArchBarSlot" />
                     </StackPanel>
                 </ScrollViewer>
@@ -91,14 +91,14 @@
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-            <Border x:Name="TabRowHost" Grid.Row="0" Background="{ThemeResource SurfaceBrush}" BorderThickness="0" Padding="6,4,6,0" AutomationProperties.Name="Drawing tabs">
+            <Border x:Name="TabRowHost" Grid.Row="0" Background="{ThemeResource SurfaceBrush}" BorderThickness="0" Padding="{StaticResource PaddingTabRow}" AutomationProperties.Name="Drawing tabs">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="TabRow" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" />
                 </ScrollViewer>
             </Border>
                 <Border x:Name="CanvasHost" Grid.Row="1" Background="{ThemeResource CanvasBackgroundBrush}" SizeChanged="OnCanvasSize" AutomationProperties.Name="Drawing" />
             <!-- Level tabs run along the bottom edge of the drawing; the active tab joins it. -->
-            <Border x:Name="LevelBarHost" Grid.Row="2" Background="{ThemeResource SurfaceStatusBrush}" BorderThickness="0" Padding="6,0,6,3" AutomationProperties.Name="Levels">
+            <Border x:Name="LevelBarHost" Grid.Row="2" Background="{ThemeResource SurfaceStatusBrush}" BorderThickness="0" Padding="{StaticResource PaddingLevelBar}" AutomationProperties.Name="Levels">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
                         <StackPanel x:Name="LevelTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Level tabs" />
@@ -394,8 +394,8 @@
         </Grid>
         </Border>
         <!-- Page layout: the drawing tab's Page layout item shows this panel in a flyout. -->
-        <StackPanel x:Name="PageLayoutPanel" Visibility="Collapsed" Spacing="{StaticResource SpaceMd}" Padding="{StaticResource PaddingMd}" MinWidth="220">
-            <TextBlock x:Name="PageLayoutTitle" Text="Page layout" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="260" />
+        <StackPanel x:Name="PageLayoutPanel" Visibility="Collapsed" Spacing="{StaticResource SpaceMd}" Padding="{StaticResource PaddingMd}" MinWidth="{StaticResource PanelMinWidth}">
+            <TextBlock x:Name="PageLayoutTitle" Text="Page layout" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="{StaticResource PanelTitleMaxWidth}" />
             <TextBlock Text="Paper size" FontSize="{StaticResource FontSizeCaption}" Foreground="{ThemeResource TextSecondaryBrush}" />
             <ComboBox
                 x:Name="PaperBox"
@@ -450,8 +450,8 @@
                     Margin="{StaticResource MarginWelcomePanel}"
                     Spacing="{StaticResource SpaceLg}">
                     <!-- The lockup artwork has dark text: on the dark theme it sits on a light plate. -->
-                    <Border HorizontalAlignment="Left" CornerRadius="4" Padding="12" Background="{ThemeResource LockupPlateBrush}">
-                        <Image x:Name="WelcomeLogo" MaxWidth="460" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="Tren" />
+                    <Border HorizontalAlignment="Left" CornerRadius="{StaticResource CornerRadiusControl}" Padding="{StaticResource PaddingLg}" Background="{ThemeResource LockupPlateBrush}">
+                        <Image x:Name="WelcomeLogo" MaxWidth="{StaticResource WelcomeLogoMaxWidth}" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="Tren" />
                     </Border>
                     <TextBlock
                         Text="Start a drawing or open the project file (.osp) shared with Falcon. Company details for title blocks come from a file exported in Kivo."

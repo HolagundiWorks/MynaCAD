@@ -92,7 +92,7 @@ internal static class PageLayoutWindow
     private static Grid BuildRow(IntPtr host, string tab, bool selected, TextBlock status, Action changed)
     {
         var (paper, landscape, scale) = Read(host, tab);
-        var row = new Grid { ColumnSpacing = Density.SpaceMd, MinHeight = 36 };
+        var row = new Grid { ColumnSpacing = Density.SpaceMd, MinHeight = Density.RowMinHeight };
         foreach (var width in new[] { 160.0, 90.0, 120.0, 90.0 })
         {
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });

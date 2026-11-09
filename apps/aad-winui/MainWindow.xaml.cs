@@ -2029,7 +2029,7 @@ public sealed partial class MainWindow : Window
 
     private async Task ShowSaveNoticeAsync(string notice)
     {
-        var body = new StackPanel { Spacing = Density.SpaceSm, MaxWidth = 420 };
+        var body = new StackPanel { Spacing = Density.SpaceSm, MaxWidth = Density.DialogBodyMaxWidth };
         body.Children.Add(new TextBlock
         {
             Text = "Tren cannot write these object types to a DXF or DWG file yet, so the saved file leaves them out: " + notice + ".",
@@ -4987,7 +4987,7 @@ public sealed partial class MainWindow : Window
         var focus = snapshot.Blocks.FirstOrDefault(b => string.Equals(b.Name, _selectedBlock, StringComparison.OrdinalIgnoreCase));
         if (focus != null)
         {
-            BlocksPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 8, 0, 8), Background = StripBrush() });
+            BlocksPanel.Children.Add(new Border { Height = Density.DividerThickness, Margin = new Thickness(0, Density.Space2, 0, Density.Space2), Background = StripBrush() });
             BlocksPanel.Children.Add(FieldLabel(focus.Entities + " objects · " + focus.References + " references"));
             if (!string.IsNullOrEmpty(focus.Description))
             {
@@ -5025,7 +5025,7 @@ public sealed partial class MainWindow : Window
             BlocksPanel.Children.Add(FieldLabel("Further blocks are not listed."));
         }
         BlocksPanel.Children.Add(FieldLabel("Double-click a thumbnail to insert. External references are not supported."));
-        BlocksPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 8, 0, 8), Background = StripBrush() });
+        BlocksPanel.Children.Add(new Border { Height = Density.DividerThickness, Margin = new Thickness(0, Density.Space2, 0, Density.Space2), Background = StripBrush() });
         AddBlockLibrary(snapshot);
         AddFurnitureCatalog();
     }
@@ -5095,7 +5095,7 @@ public sealed partial class MainWindow : Window
             }
             BlocksPanel.Children.Add(expander);
         }
-        BlocksPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 8, 0, 8), Background = StripBrush() });
+        BlocksPanel.Children.Add(new Border { Height = Density.DividerThickness, Margin = new Thickness(0, Density.Space2, 0, Density.Space2), Background = StripBrush() });
     }
 
     private static string DisciplineTitle(string id) => id switch
@@ -5553,7 +5553,7 @@ public sealed partial class MainWindow : Window
         BlocksPanel.Children.Add(FieldLabel("Plan blocks · millimetres · CC0 (Innerscene)"));
         BlocksPanel.Children.Add(FieldLabel("Click a thumbnail to insert."));
         AddCatalogGrid(BlocksPanel, entries);
-        BlocksPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 8, 0, 8), Background = StripBrush() });
+        BlocksPanel.Children.Add(new Border { Height = Density.DividerThickness, Margin = new Thickness(0, Density.Space2, 0, Density.Space2), Background = StripBrush() });
     }
 
     private Border MakeFurnitureThumbnail(FurnitureCatalog.Entry entry)

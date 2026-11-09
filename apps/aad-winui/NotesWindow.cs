@@ -45,7 +45,7 @@ internal static class NotesWindow
         var loading = false;
         Action closeWindow = () => { };
 
-        var listBox = new ListBox { Height = 150, MinWidth = 170 };
+        var listBox = new ListBox { Height = Density.NotesListHeight, MinWidth = Density.NotesListMinWidth };
         Density.Name(listBox, "Note sets");
         var nameBox = new TextBox { PlaceholderText = "Name of the set", MinHeight = Density.ControlHeight };
         Density.Name(nameBox, "Name of the note set");
@@ -53,7 +53,7 @@ internal static class NotesWindow
         {
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            MinHeight = 150,
+            MinHeight = Density.NotesBoxMinHeight,
             PlaceholderText = "One note to a line. They are numbered when placed.",
             VerticalAlignment = VerticalAlignment.Stretch,
         };
@@ -227,11 +227,11 @@ internal static class NotesWindow
         Read();
         Paint(null);
 
-        var left = new StackPanel { Spacing = Density.SpaceSm, MinWidth = 180 };
+        var left = new StackPanel { Spacing = Density.SpaceSm, MinWidth = Density.NotesLeftMinWidth };
         left.Children.Add(Density.Secondary("Note sets", TextWrapping.NoWrap));
         left.Children.Add(listBox);
         left.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = Density.SpaceSm, Children = { newSet, deleteSet } });
-        var right = new StackPanel { Spacing = Density.SpaceSm, MinWidth = 380 };
+        var right = new StackPanel { Spacing = Density.SpaceSm, MinWidth = Density.NotesRightMinWidth };
         right.Children.Add(Density.Secondary("Name", TextWrapping.NoWrap));
         right.Children.Add(nameBox);
         right.Children.Add(Density.Secondary("Notes", TextWrapping.NoWrap));
@@ -254,8 +254,8 @@ internal static class NotesWindow
 
         Density.Apply(root);
         // Density.Apply gives text boxes and lists the standard control height; these two need room for the notes.
-        notesBox.MinHeight = 150;
-        listBox.Height = 150;
+        notesBox.MinHeight = Density.NotesBoxMinHeight;
+        listBox.Height = Density.NotesListHeight;
         var window = new Window
         {
             Title = "General notes",
