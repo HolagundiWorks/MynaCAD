@@ -283,7 +283,9 @@ fn run_open(s: &mut Session, p: &Value) -> Result<Value> {
     let bytes = base64_decode(data).ok_or_else(|| bad("open", "invalid base64"))?;
     let name = str_param(p, "name").unwrap_or("Drawing.dxf");
     let i = open_bytes(s, &bytes, name, None)?;
-    Ok(json!({ "index": i, "flatten": s.last_flatten.as_ref().map(|r| r.to_json()), "origin": s.docs.get(i).map(|d| super::geodb::origin_of(&d.doc)) }))
+    Ok(
+        json!({ "index": i, "flatten": s.last_flatten.as_ref().map(|r| r.to_json()), "origin": s.docs.get(i).map(|d| super::geodb::origin_of(&d.doc)) }),
+    )
 }
 
 fn run_revision(s: &mut Session, p: &Value) -> Result<Value> {
