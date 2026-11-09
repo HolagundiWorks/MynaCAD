@@ -23,7 +23,7 @@ internal static class LinetypeWindow
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
         Density.Name(status, "Linetype status");
 
-        var list = new ListBox { MinHeight = 120, MaxHeight = 360, MinWidth = 280 };
+        var list = new ListBox { MinHeight = Density.ListMinHeightCompact, MaxHeight = 360, MinWidth = 280 };
         Density.Name(list, "Linetypes");
         var currentLabel = Density.Secondary("Current linetype: —", TextWrapping.Wrap);
         Density.Name(currentLabel, "Current linetype");
@@ -43,7 +43,7 @@ internal static class LinetypeWindow
         scaleRow.Children.Add(scale);
         scaleRow.Children.Add(applyScale);
 
-        var root = new StackPanel { Spacing = Density.SpaceMd, Margin = Density.DialogMargin, MaxWidth = 420 };
+        var root = new StackPanel { Spacing = Density.SpaceMd, Margin = Density.DialogMargin, MaxWidth = Density.DialogBodyMaxWidth };
         root.Children.Add(Heading("Linetype Manager"));
         root.Children.Add(currentLabel);
         root.Children.Add(toolbar);

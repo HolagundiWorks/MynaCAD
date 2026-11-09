@@ -42,10 +42,10 @@ internal static class IndexColorWindow
 
         var preview = new Border
         {
-            Width = 72,
-            Height = 72,
+            Width = Density.ColorPreviewSize,
+            Height = Density.ColorPreviewSize,
             BorderBrush = Density.ThemeBrush("BorderDefaultBrush"),
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(Density.DividerThickness),
         };
         var colorName = DialogLayout.Field("Color name", 200);
         colorName.Text = initial.DisplayName;
@@ -54,15 +54,15 @@ internal static class IndexColorWindow
             Minimum = 1,
             Maximum = 255,
             SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact,
-            Width = 72,
+            Width = Density.ColorBoxWidth,
         };
-        var rBox = new NumberBox { Minimum = 0, Maximum = 255, Width = 56, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
-        var gBox = new NumberBox { Minimum = 0, Maximum = 255, Width = 56, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
-        var bBox = new NumberBox { Minimum = 0, Maximum = 255, Width = 56, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        var rBox = new NumberBox { Minimum = 0, Maximum = 255, Width = Density.RgbBoxWidth, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        var gBox = new NumberBox { Minimum = 0, Maximum = 255, Width = Density.RgbBoxWidth, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        var bBox = new NumberBox { Minimum = 0, Maximum = 255, Width = Density.RgbBoxWidth, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
 
         var indexPanel = new StackPanel { Spacing = Density.SpaceSm };
         var truePanel = new StackPanel { Spacing = Density.SpaceSm };
-        var bookPanel = new StackPanel { Spacing = Density.SpaceSm, MinHeight = 220 };
+        var bookPanel = new StackPanel { Spacing = Density.SpaceSm, MinHeight = Density.BookPanelMinHeight };
         ListView? bookListHost = null;
         var colorPicker = new ColorPicker
         {
@@ -91,7 +91,7 @@ internal static class IndexColorWindow
                 border.BorderBrush = sel
                     ? new SolidColorBrush(Microsoft.UI.Colors.White)
                     : Density.ThemeBrush("BorderSubtleBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
-                border.BorderThickness = sel ? new Thickness(2) : new Thickness(1);
+                border.BorderThickness = sel ? new Thickness(Density.SpaceXs) : new Thickness(Density.DividerThickness);
             }
             if (selection.Kind == CadColorKind.True)
             {
@@ -113,7 +113,7 @@ internal static class IndexColorWindow
                 Width = size,
                 Height = size,
                 Background = BrushOf(new CadColorSelection(CadColorKind.Index, index)),
-                BorderThickness = new Thickness(1),
+                BorderThickness = new Thickness(Density.DividerThickness),
                 BorderBrush = Density.ThemeBrush("BorderSubtleBrush") ?? new SolidColorBrush(Microsoft.UI.Colors.Gray),
                 Tag = index,
             };
@@ -134,12 +134,12 @@ internal static class IndexColorWindow
             graded.Children.Add(row);
         }
 
-        var standardRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Margin = new Thickness(0, 6, 0, 0) };
+        var standardRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Density.SpaceXs, Margin = new Thickness(0, Density.SpaceMd, 0, 0) };
         for (byte i = 1; i <= 9; i++)
         {
             standardRow.Children.Add(MakeCell(i, StandardCell));
         }
-        standardRow.Children.Add(new Border { Width = 12 });
+        standardRow.Children.Add(new Border { Width = Density.Space3 });
         for (byte i = 250; i <= 255; i++)
         {
             standardRow.Children.Add(MakeCell(i, StandardCell));
@@ -163,7 +163,7 @@ internal static class IndexColorWindow
         {
             bookCombo.Items.Add(new ComboBoxItem { Content = book.Name, Tag = book });
         }
-        var bookList = new ListView { SelectionMode = ListViewSelectionMode.Single, MinHeight = 200, MaxHeight = 320 };
+        var bookList = new ListView { SelectionMode = ListViewSelectionMode.Single, MinHeight = Density.BookListMinHeight, MaxHeight = Density.BookListMaxHeight };
         bookListHost = bookList;
         Density.Name(bookList, "Color book swatches");
         ColorBook? activeBook = null;
@@ -224,24 +224,24 @@ internal static class IndexColorWindow
                 }
                 var swatch = new Border
                 {
-                    Width = 22,
-                    Height = 14,
+                    Width = Density.SwatchChipWidth,
+                    Height = Density.SwatchSize,
                     Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, entry.R, entry.G, entry.B)),
                     BorderBrush = Density.ThemeBrush("BorderSubtleBrush"),
-                    BorderThickness = new Thickness(1),
+                    BorderThickness = new Thickness(Density.DividerThickness),
                     VerticalAlignment = VerticalAlignment.Center,
                 };
                 var row = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
-                    Spacing = 8,
+                    Spacing = Density.Space2,
                     Children =
                     {
                         swatch,
                         new TextBlock { Text = entry.Name, VerticalAlignment = VerticalAlignment.Center },
                     },
                 };
-                bookList.Items.Add(new ListViewItem { Content = row, Tag = entry, Padding = new Thickness(4, 2, 4, 2) });
+                bookList.Items.Add(new ListViewItem { Content = row, Tag = entry, Padding = new Thickness(Density.Space1, Density.SpaceXs, Density.Space1, Density.SpaceXs) });
             }
             UpdateBookListHighlight();
         }
@@ -450,7 +450,7 @@ internal static class IndexColorWindow
             Background = CadColor.SwatchBrush(current),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        var label = new TextBlock { Text = current, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+        var label = new TextBlock { Text = current, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(Density.SpaceMd, 0, 0, 0) };
         var button = new Button
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,

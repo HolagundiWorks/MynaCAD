@@ -38,7 +38,7 @@ internal static class ComposeNavigator
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
         Density.Name(status, "Navigator status");
 
-        var tree = new TreeView { SelectionMode = TreeViewSelectionMode.Single, Height = 280 };
+        var tree = new TreeView { SelectionMode = TreeViewSelectionMode.Single, Height = Density.TreeHeight };
         Density.Name(tree, "Views, masters and publisher sets");
         var views = new TreeViewNode { Content = "Views", IsExpanded = true };
         var masters = new TreeViewNode { Content = "Masters", IsExpanded = true };

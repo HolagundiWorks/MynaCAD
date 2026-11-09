@@ -123,6 +123,24 @@ internal static class Density
     /// <summary>Busy overlay card inset (Space5+SpaceXs by Space4+SpaceXs ≈ previous 28,24).</summary>
     public static Thickness BusyCardPadding { get; } = new Thickness(Space6 + Space1, Space4 + Space2, Space6 + Space1, Space4 + Space2);
 
+    // --- Window dimensions that were literals (values unchanged; keep in sync with Themes/*.xaml) ---
+    public const double ColorPreviewSize = 72;
+    public const double ColorBoxWidth = 72;
+    public const double RgbBoxWidth = 56;
+    public const double BookPanelMinHeight = 220;
+    public const double BookListMinHeight = 200;
+    public const double BookListMaxHeight = 320;
+    public const double SwatchChipWidth = 22;
+    public const double NotesListHeight = 150;
+    public const double NotesListMinWidth = 170;
+    public const double NotesBoxMinHeight = 150;
+    public const double NotesLeftMinWidth = 180;
+    public const double NotesRightMinWidth = 380;
+    public const double TreeHeight = 280;
+    public const double RowMinHeight = 36;
+    public const double ListMinHeightCompact = 120;
+    public const double DialogBodyMaxWidth = 420;
+
     // --- Typography (caption 11 · body/label 12 · section 13 semibold · page title 18) ---
     public static double Font = FontBody;
     public static bool OverrideFace;

@@ -56,7 +56,7 @@ internal static class StorySettingsWindow
 
         var model = new List<StoryRow>();
         var implicitDrawing = false;
-        var listHost = new ListView { SelectionMode = ListViewSelectionMode.Single, MinHeight = 120 };
+        var listHost = new ListView { SelectionMode = ListViewSelectionMode.Single, MinHeight = Density.ListMinHeightCompact };
         var insertAbove = DialogLayout.Action("Insert Above");
         var insertBelow = DialogLayout.Action("Insert Below");
         var deleteStory = DialogLayout.Action("Delete Story");
@@ -229,7 +229,7 @@ internal static class StorySettingsWindow
             PaintList(0);
         };
 
-        var header = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 0, 0, 4) };
+        var header = new Grid { ColumnSpacing = Density.Space2, Margin = new Thickness(0, 0, 0, Density.Space1) };
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -301,7 +301,7 @@ internal static class StorySettingsWindow
 
     static Grid BuildRow(StoryRow row, int storyNo, Action refresh, Func<string> unit, Action pickDatum)
     {
-        var grid = new Grid { ColumnSpacing = 8, MinHeight = 36, Tag = row };
+        var grid = new Grid { ColumnSpacing = Density.Space2, MinHeight = Density.RowMinHeight, Tag = row };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
