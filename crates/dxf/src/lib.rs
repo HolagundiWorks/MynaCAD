@@ -617,14 +617,17 @@ mod tests {
     /// the record-start code), non-ASCII text, one record far bigger than the search window, and an early EOF followed by more text.
     #[cfg(not(target_arch = "wasm32"))]
     fn awkward_dxf(entities: usize, early_eof: bool) -> String {
-        let mut s = String::from("  0
+        let mut s = String::from(
+            "  0
 SECTION
   2
 ENTITIES
-");
+",
+        );
         for i in 0..entities {
             let layer = if i % 3 == 0 { "0" } else { "Wände é ü" };
-            s.push_str(&format!("  0
+            s.push_str(&format!(
+                "  0
 LINE
   8
 {layer}
@@ -634,36 +637,45 @@ LINE
 2.25
   1
 0
-"));
+"
+            ));
             if i == entities / 2 {
                 // One object with a huge payload (millions of vertices in real files).
-                s.push_str("  0
+                s.push_str(
+                    "  0
 LWPOLYLINE
   8
 0
-");
+",
+                );
                 for v in 0..400_000 {
-                    s.push_str(&format!(" 10
+                    s.push_str(&format!(
+                        " 10
 {v}
  20
 0
-"));
+"
+                    ));
                 }
             }
         }
-        s.push_str("  0
+        s.push_str(
+            "  0
 ENDSEC
   0
 EOF
-");
+",
+        );
         if early_eof {
-            s.push_str("  0
+            s.push_str(
+                "  0
 SECTION
   2
 TRAILING
   0
 ENDSEC
-");
+",
+            );
         }
         s
     }
@@ -687,11 +699,19 @@ ENDSEC
         let mut text = awkward_dxf(60_000, false);
         // A group code that is not a number, far from the start.
         let at = text.len() / 2;
-        let at = text[at..].find("  0
-LINE").map(|n| n + at).unwrap();
-        text.insert_str(at, "  X
+        let at = text[at..]
+            .find(
+                "  0
+LINE",
+            )
+            .map(|n| n + at)
+            .unwrap();
+        text.insert_str(
+            at,
+            "  X
 broken
-");
+",
+        );
         assert!(text.len() > PARALLEL_MIN_BYTES);
         assert!(parse_ascii_parallel(&text, usize::MAX).is_none());
         let err = parse_ascii_with_limit(&text, usize::MAX).unwrap_err();

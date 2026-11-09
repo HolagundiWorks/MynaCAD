@@ -28,7 +28,7 @@ const TEXT_MM: f64 = 125.0;
 
 /// Building-permit layers (BBMP / AutoPlan naming kept for interchange): name, ACI colour,
 /// linetype, lineweight (hundredths of mm).
-const PERMIT_LAYERS: &[(&str, i16, &str, u16)] = &[
+pub(crate) const PERMIT_LAYERS: &[(&str, i16, &str, u16)] = &[
     ("BP-SITE-BOUNDARY", 1, "Continuous", 50),
     ("BP-SITE-SETBACK", 3, "DASHED2", 25),
     ("BP-SITE-SURRENDER", 3, "DASHED", 18),

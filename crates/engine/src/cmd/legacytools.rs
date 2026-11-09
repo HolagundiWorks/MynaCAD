@@ -15,7 +15,7 @@ use super::*;
 use crate::{Result, Session};
 
 /// The VH layer set: name, ACI colour, linetype, lineweight (hundredths of mm), plots.
-const VH_LAYERS: &[(&str, i16, &str, u16, bool)] = &[
+pub(crate) const VH_LAYERS: &[(&str, i16, &str, u16, bool)] = &[
     ("A_WALL_CUT", 7, "Continuous", 50, true),
     ("A_WALL_LOW", 8, "Continuous", 25, true),
     ("A_WALL_EXIST", 9, "Continuous", 18, true),
@@ -105,7 +105,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{} → {created, updated} (75 layers: A_ architecture, S_ structure, E_ electrical, P_ F_ H_ services, AN_ annotation, P_ presentation, X_ non-plotting working layers; existing layers get the standard look; current layer A_WALL_CUT)"),
         CommandSpec::new("layermap", "Map Layers", run_layermap)
             .menu(&["Format", "Layer Tools", "Map Layers"])
-            .params("{map: {\"WALL-A\": \"A-WALL\", ...} (old layer -> target layer), create?: bool (make a missing target), purge?: bool (remove each old layer left empty)} → {moved, purged, skippedLocked, mapped: [{from, to, moved}]} (objects on locked layers stay)"),
+            .params("{suggest?: bool (list candidate maps for the non-standard layers, change nothing), map: {\"WALL-A\": \"A-WALL\", ...} (old layer -> target layer), create?: bool (make a missing target), purge?: bool (remove each old layer left empty)} → {moved, purged, skippedLocked, mapped: [{from, to, moved}]} (objects on locked layers stay)"),
         CommandSpec::new("deleteareatext", "Delete Area Text", run_delete_area_text)
             .menu(&["Architecture", "Text Tools", "Delete Area Text"])
             .params("{handles? (default: all text in the current space)} → {deleted} (text and multiline text that read \"Area: ...\")"),
@@ -116,7 +116,7 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 /// Make `name` exist with the given look, or update it. Returns whether it was created.
-fn apply_layer(d: &mut Drawing, name: &str, aci: i16, linetype: &str, lw: u16, plot: bool) -> bool {
+pub(crate) fn apply_layer(d: &mut Drawing, name: &str, aci: i16, linetype: &str, lw: u16, plot: bool) -> bool {
     if d.linetype(linetype).is_none()
         && let Some(lt) = aad_doc::library::standard_linetypes_for(d).into_iter().find(|l| l.name.eq_ignore_ascii_case(linetype))
     {
@@ -157,6 +157,11 @@ fn layer_in_use(d: &Drawing, layer: &str) -> bool {
 }
 
 fn run_layermap(s: &mut Session, p: &Value) -> Result<Value> {
+    if bool_or(p, "suggest", false) {
+        // Candidates only: nothing moves. The person edits the list and sends it back as `map`.
+        let d = s.doc()?;
+        return Ok(json!({ "origin": super::geodb::origin_of(d), "suggestions": super::geodb::suggest_layer_map(d) }));
+    }
     let map = p
         .get("map")
         .and_then(Value::as_object)
@@ -212,6 +217,10 @@ fn run_layermap(s: &mut Session, p: &Value) -> Result<Value> {
             d.layers.retain(|l| l.name != from);
             purged += 1;
         }
+    }
+    if total > 0 {
+        // A foreign drawing that went through the mapper is no longer waiting for it (geodb.apply checks).
+        s.doc_mut()?.project.insert(super::geodb::LAYER_MAP_DONE_KEY.into(), "1".into());
     }
     Ok(json!({ "moved": total, "purged": purged, "skippedLocked": skipped, "mapped": mapped }))
 }

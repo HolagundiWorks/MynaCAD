@@ -239,6 +239,12 @@ fn finish_import(s: &mut Session, p: Prepared, name: &str, path: Option<String>)
         );
     }
     let i = s.open_drawing(drawing, &file_name(name), path);
+    if let Some(st) = s.docs.get(i) {
+        let o = super::geodb::origin_of(&st.doc);
+        if o.foreign {
+            s.echo("This drawing was not made in Tren and its layers are not the standard set. Run LAYERMAP (suggest: true lists candidates) before classifying it.".to_string());
+        }
+    }
     if report.flattened > 0 {
         let st = s.state_mut()?;
         st.saved = original.clone();
@@ -261,13 +267,13 @@ fn run_open(s: &mut Session, p: &Value) -> Result<Value> {
                 let d = read_container(path).map_err(|e| bad("open", e))?;
                 let i = import_drawing(s, d, path, Some(path.to_string()))?;
                 return Ok(
-                    json!({ "index": i, "entities": s.docs.get(i).map(|d| d.doc.entity_count()), "flatten": s.last_flatten.as_ref().map(|r| r.to_json()) }),
+                    json!({ "index": i, "entities": s.docs.get(i).map(|d| d.doc.entity_count()), "flatten": s.last_flatten.as_ref().map(|r| r.to_json()), "origin": s.docs.get(i).map(|d| super::geodb::origin_of(&d.doc)) }),
                 );
             }
             let bytes = std::fs::read(path).map_err(|e| bad("open", format!("{path}: {e}")))?;
             let i = open_bytes(s, &bytes, path, Some(path.to_string()))?;
             return Ok(
-                json!({ "index": i, "entities": s.docs.get(i).map(|d| d.doc.entity_count()), "flatten": s.last_flatten.as_ref().map(|r| r.to_json()) }),
+                json!({ "index": i, "entities": s.docs.get(i).map(|d| d.doc.entity_count()), "flatten": s.last_flatten.as_ref().map(|r| r.to_json()), "origin": s.docs.get(i).map(|d| super::geodb::origin_of(&d.doc)) }),
             );
         }
         #[cfg(target_arch = "wasm32")]
@@ -277,7 +283,9 @@ fn run_open(s: &mut Session, p: &Value) -> Result<Value> {
     let bytes = base64_decode(data).ok_or_else(|| bad("open", "invalid base64"))?;
     let name = str_param(p, "name").unwrap_or("Drawing.dxf");
     let i = open_bytes(s, &bytes, name, None)?;
-    Ok(json!({ "index": i, "flatten": s.last_flatten.as_ref().map(|r| r.to_json()) }))
+    Ok(
+        json!({ "index": i, "flatten": s.last_flatten.as_ref().map(|r| r.to_json()), "origin": s.docs.get(i).map(|d| super::geodb::origin_of(&d.doc)) }),
+    )
 }
 
 fn run_revision(s: &mut Session, p: &Value) -> Result<Value> {
@@ -324,6 +332,7 @@ pub(crate) fn save_to(s: &mut Session, path: &str) -> Result<usize> {
     let hooks = io().ok_or_else(|| bad("save", "file formats are not available in this build"))?;
     if let Ok(d) = s.doc_mut() {
         super::takeoff::sync_meta(d);
+        super::geodb::stamp_for_save(d);
     }
     // Stamp history.drawingId before writing a drawing file so the bytes include it. Otherwise the
     // post-save auto snapshot would add the id after commit_save and leave the drawing dirty (#327 /
@@ -339,6 +348,10 @@ pub(crate) fn save_to(s: &mut Session, path: &str) -> Result<usize> {
         let c = container().ok_or_else(|| bad("save", "project files (.osp) are not available in this build"))?;
         let hint = format_hint(s.state()?.path.as_deref());
         let n = (c.write)(path, &super::xref::without_overlays(s.doc()?), hint.as_deref()).map_err(|e| bad("save", e))?;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Ok(d) = s.doc() {
+            super::geodb::write_project_meta(path, d);
+        }
         let st = s.state_mut()?;
         st.saved = st.doc.clone();
         st.path = Some(path.to_string());

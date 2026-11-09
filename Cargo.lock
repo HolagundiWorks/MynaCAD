@@ -97,6 +97,7 @@ dependencies = [
  "aad-color",
  "aad-doc",
  "aad-fonts",
+ "aad-geodb",
  "aad-geom",
  "aad-io",
  "aad-odp",
@@ -118,6 +119,21 @@ version = "0.6.0"
 dependencies = [
  "aad-geom",
  "skrifa 0.47.0",
+]
+
+[[package]]
+name = "aad-geodb"
+version = "0.6.0"
+dependencies = [
+ "aad-doc",
+ "aad-geom",
+ "rstar",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

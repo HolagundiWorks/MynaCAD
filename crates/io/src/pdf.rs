@@ -526,6 +526,17 @@ pub fn merge(parts: &[Vec<u8>]) -> Result<Vec<u8>> {
     if parts.len() == 1 {
         return Ok(parts[0].clone());
     }
+    join(parts)
+}
+
+/// The web build has no PDF reader (`lopdf` is native only), so joining several plots is not available there.
+#[cfg(target_arch = "wasm32")]
+fn join(_parts: &[Vec<u8>]) -> Result<Vec<u8>> {
+    Err(IoError::Format("joining PDFs is not available in the web build".into()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn join(parts: &[Vec<u8>]) -> Result<Vec<u8>> {
     let mut base = lopdf::Document::load_mem(&parts[0]).map_err(|e| IoError::Format(format!("not a readable PDF: {e}")))?;
     for part in parts.iter().skip(1) {
         append_pdf(&mut base, part)?;
@@ -535,6 +546,7 @@ pub fn merge(parts: &[Vec<u8>]) -> Result<Vec<u8>> {
     Ok(buf)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn append_pdf(base: &mut lopdf::Document, bytes: &[u8]) -> Result<()> {
     let mut extra = lopdf::Document::load_mem(bytes).map_err(|e| IoError::Format(format!("not a readable PDF: {e}")))?;
     let start = base.max_id.saturating_add(1);
@@ -568,6 +580,7 @@ fn append_pdf(base: &mut lopdf::Document, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn page_tree_id(doc: &lopdf::Document) -> Result<lopdf::ObjectId> {
     let catalog = doc.catalog().map_err(|e| IoError::Format(e.to_string()))?;
     catalog.get(b"Pages").and_then(lopdf::Object::as_reference).map_err(|e| IoError::Format(format!("PDF has no page tree: {e}")))
@@ -591,6 +604,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn two_plots_join_into_one_pdf_with_two_pages() {
         let drawing = Drawing::new_metric();

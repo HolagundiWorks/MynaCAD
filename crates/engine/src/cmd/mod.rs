@@ -26,6 +26,7 @@ mod exchange;
 mod extract;
 pub mod file;
 mod floorregion;
+pub mod geodb;
 mod gripcmds;
 pub(crate) mod groups;
 mod hatch;
@@ -263,6 +264,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(electrical::specs());
         v.extend(plumbing::specs());
         v.extend(walls::specs());
+        v.extend(geodb::specs());
         v.extend(param::specs());
         v.extend(smartblock::specs());
         v.extend(companion::specs());
