@@ -159,9 +159,7 @@ mod imp {
             let version: Version = unsafe { std::mem::transmute::<*mut c_void, Version>(symbol(module, "office_api_version")?) };
             let found = unsafe { version() };
             if found != ABI {
-                return Err(Error::Unavailable(format!(
-                    "office.dll speaks version {found} of the company file interface; this Tren speaks {ABI}."
-                )));
+                return Err(Error::Unavailable(format!("office.dll speaks version {found} of the company file interface; this Tren speaks {ABI}.")));
             }
             let create: Create = unsafe { std::mem::transmute::<*mut c_void, Create>(symbol(module, "office_session_create")?) };
             let destroy: Destroy = unsafe { std::mem::transmute::<*mut c_void, Destroy>(symbol(module, "office_session_destroy")?) };

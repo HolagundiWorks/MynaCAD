@@ -465,7 +465,8 @@ pub(crate) fn rebuild_scene_delta(old: &Scene, old_doc: &Drawing, new_doc: &Draw
     }
     let budget = AtomicUsize::new(old.expanded.min(MAX_BLOCK_EXPANSION / 2));
     let todo: Vec<(&TileId, &Vec<&Entity>)> = members.iter().collect();
-    let rebuilt: Vec<(TileId, DisplayList)> = todo.par_iter().map(|(id, ents)| (**id, tessellate_one(new_doc, ents, &opts, false, &budget))).collect();
+    let rebuilt: Vec<(TileId, DisplayList)> =
+        todo.par_iter().map(|(id, ents)| (**id, tessellate_one(new_doc, ents, &opts, false, &budget))).collect();
     let rebuilt_count = rebuilt.len();
     let mut tiles = old.tiles.clone();
     for id in &dirty {
@@ -671,7 +672,11 @@ mod tests {
                     }
                     2 => {
                         let x = 500.0 * next(80) as f64;
-                        let _ = doc.add(&Space::Model, Common::default(), EntityKind::Line(Line { a: Vec3::new(x, 40.0, 0.0), b: Vec3::new(x + 1.0, 40.0, 0.0) }));
+                        let _ = doc.add(
+                            &Space::Model,
+                            Common::default(),
+                            EntityKind::Line(Line { a: Vec3::new(x, 40.0, 0.0), b: Vec3::new(x + 1.0, 40.0, 0.0) }),
+                        );
                     }
                     3 => {
                         if doc.model.len() > 30 {
