@@ -2,7 +2,7 @@
   "format": "osas-smartblocks",
   "version": 1,
   "discipline": "electrical",
-  "note": "Electrical layout symbols in plan, drawn by O-Draft (generic shapes, not copied from a standard's artwork). `size` is the symbol size in drawing millimetres: 150 mm prints 3 mm at 1:50. Their block names start with SB_ELEC_, so `electrical.blocks` can classify them with a wildcard such as SB_ELEC_SOCKET_*.",
+  "note": "Electrical layout symbols in plan, drawn by MynaCAD (generic shapes, not copied from a standard's artwork). `size` is the symbol size in drawing millimetres: 150 mm prints 3 mm at 1:50. Their block names start with SB_ELEC_, so `electrical.blocks` can classify them with a wildcard such as SB_ELEC_SOCKET_*.",
   "blocks": [
     {
       "id": "elec.switchboard",
