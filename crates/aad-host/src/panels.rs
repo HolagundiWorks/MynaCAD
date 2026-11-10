@@ -198,7 +198,14 @@ fn properties(doc: &aad_engine::doc::Drawing, selection: &[Handle]) -> Vec<Value
         [one] => one,
         _ => "Mixed",
     };
-    vec![row("Selection", &format!("{count} selected")), row("Type", kind), row("Layer", &layer)]
+    let mut rows = vec![row("Selection", &format!("{count} selected")), row("Type", kind), row("Layer", &layer)];
+    // A single object the layer mapper moved keeps the name of the layer it came from.
+    if let [one] = selection
+        && let Some(source) = aad_engine::cmd::layermap::source_layer_of(doc, *one)
+    {
+        rows.push(row("Source layer", &source));
+    }
+    rows
 }
 
 fn row(label: &str, value: &str) -> Value {

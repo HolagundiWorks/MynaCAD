@@ -1,6 +1,5 @@
 //! More tools from the Holgundi Consulting Works AutoLISP toolkit in the AccelDraw repository:
-//! VHLAYERS (the Indian-architecture layer set), LAYERMAP (move everything from one layer onto
-//! another and purge the old one), DELETEAREATEXT (remove "Area: ..." labels) and POLYAREA
+//! VHLAYERS (the Indian-architecture layer set), DELETEAREATEXT (remove "Area: ..." labels) and POLYAREA
 //! (number closed polylines and draw an area table with running totals).
 
 use aad_color::Color;
@@ -93,7 +92,6 @@ pub(crate) const VH_LAYERS: &[(&str, i16, &str, u16, bool)] = &[
     ("X_CHECK", 1, "DASHED", 13, false),
 ];
 
-const MAX_MAPPINGS: usize = 10_000;
 const MAX_POLYLINES: usize = 100_000;
 const TABLE_LAYER: (&str, i16) = ("AREA_TABLE", 4);
 const SQ_FT_PER_SQ_M: f64 = 10.763_910_416_709_722;
@@ -103,9 +101,6 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("vhlayers", "VH Layer Set", run_vhlayers)
             .menu(&["Architecture", "VH Layers", "Create VH Layer Set"])
             .params("{} → {created, updated} (75 layers: A_ architecture, S_ structure, E_ electrical, P_ F_ H_ services, AN_ annotation, P_ presentation, X_ non-plotting working layers; existing layers get the standard look; current layer A_WALL_CUT)"),
-        CommandSpec::new("layermap", "Map Layers", run_layermap)
-            .menu(&["Format", "Layer Tools", "Map Layers"])
-            .params("{suggest?: bool (list candidate maps for the non-standard layers, change nothing), map: {\"WALL-A\": \"A-WALL\", ...} (old layer -> target layer), create?: bool (make a missing target), purge?: bool (remove each old layer left empty)} → {moved, purged, skippedLocked, mapped: [{from, to, moved}]} (objects on locked layers stay)"),
         CommandSpec::new("deleteareatext", "Delete Area Text", run_delete_area_text)
             .menu(&["Architecture", "Text Tools", "Delete Area Text"])
             .params("{handles? (default: all text in the current space)} → {deleted} (text and multiline text that read \"Area: ...\")"),
@@ -148,81 +143,6 @@ fn run_vhlayers(s: &mut Session, _p: &Value) -> Result<Value> {
     }
     d.header.set_str("CLAYER", "A_WALL_CUT");
     Ok(json!({ "created": created, "updated": updated }))
-}
-
-/// Whether anything still sits on `layer`: an object in any space or a block definition.
-fn layer_in_use(d: &Drawing, layer: &str) -> bool {
-    let stores = d.model_stores().chain(d.layouts.iter().map(|l| &l.entities)).chain(d.blocks.values().map(|b| &b.entities));
-    stores.flat_map(|st| st.iter()).any(|e| e.common.layer == layer)
-}
-
-fn run_layermap(s: &mut Session, p: &Value) -> Result<Value> {
-    if bool_or(p, "suggest", false) {
-        // Candidates only: nothing moves. The person edits the list and sends it back as `map`.
-        let d = s.doc()?;
-        return Ok(json!({ "origin": super::geodb::origin_of(d), "suggestions": super::geodb::suggest_layer_map(d) }));
-    }
-    let map = p
-        .get("map")
-        .and_then(Value::as_object)
-        .filter(|m| !m.is_empty())
-        .ok_or_else(|| bad("layermap", "`map` is required: {\"old layer\": \"target layer\", ...}"))?;
-    if map.len() > MAX_MAPPINGS {
-        return Err(bad("layermap", format!("at most {MAX_MAPPINGS} mappings")));
-    }
-    let create = bool_or(p, "create", false);
-    let purge = bool_or(p, "purge", false);
-    // Check everything before moving anything.
-    let mut pairs: Vec<(String, String)> = Vec::new();
-    for (from, to) in map {
-        let to = to.as_str().filter(|t| !t.is_empty()).ok_or_else(|| bad("layermap", format!("the target for \"{from}\" must be a layer name")))?;
-        if s.doc()?.layer(from).is_none() {
-            return Err(bad("layermap", format!("no layer \"{from}\"")));
-        }
-        if s.doc()?.layer(to).is_none() && !create {
-            return Err(bad("layermap", format!("no target layer \"{to}\"; pass create: true to make it")));
-        }
-        if from != to {
-            pairs.push((from.clone(), to.to_string()));
-        }
-    }
-    let (mut total, mut skipped, mut purged) = (0usize, 0usize, 0usize);
-    let mut mapped = Vec::new();
-    for (from, to) in pairs {
-        if create {
-            s.doc_mut()?.ensure_layer(&to);
-        }
-        let d = s.doc_mut()?;
-        let hs: Vec<Handle> = std::iter::once(&d.model)
-            .chain(d.layouts.iter().map(|l| &l.entities))
-            .flat_map(|st| st.iter())
-            .filter(|e| e.common.layer == from)
-            .map(|e| e.handle)
-            .collect();
-        let source_locked = d.layer(&from).is_some_and(|l| l.locked);
-        let mut moved = 0usize;
-        if source_locked {
-            skipped += hs.len();
-        } else {
-            for h in hs {
-                if d.modify_entity(h, |e| e.common.layer = to.clone()).is_ok() {
-                    moved += 1;
-                }
-            }
-        }
-        total += moved;
-        mapped.push(json!({ "from": from, "to": to, "moved": moved }));
-        let current = d.header.str("CLAYER", "0");
-        if purge && !source_locked && from != "0" && from != current && !layer_in_use(d, &from) {
-            d.layers.retain(|l| l.name != from);
-            purged += 1;
-        }
-    }
-    if total > 0 {
-        // A foreign drawing that went through the mapper is no longer waiting for it (geodb.apply checks).
-        s.doc_mut()?.project.insert(super::geodb::LAYER_MAP_DONE_KEY.into(), "1".into());
-    }
-    Ok(json!({ "moved": total, "purged": purged, "skippedLocked": skipped, "mapped": mapped }))
 }
 
 /// `Area: 12.50 m2`, in any case, with anything after the number; multiline text with its
@@ -425,12 +345,6 @@ mod tests {
         r["handle"].as_str().or_else(|| r["handles"][0].as_str()).unwrap().to_string()
     }
 
-    fn on_layer(s: &mut Session, h: &str, layer: &str) {
-        let d = s.doc_mut().unwrap();
-        d.ensure_layer(layer);
-        d.modify_entity(Handle::parse_hex(h).unwrap(), |e| e.common.layer = layer.to_string()).unwrap();
-    }
-
     #[test]
     fn the_vh_table_is_75_unique_layers_and_six_do_not_plot() {
         assert_eq!(VH_LAYERS.len(), 75);
@@ -451,29 +365,6 @@ mod tests {
         s.execute("vhlayers", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().layer("A_DOOR").unwrap().color, Color::from_aci(3));
         assert_eq!(s.doc().unwrap().header.str("CLAYER", ""), "A_WALL_CUT");
-    }
-
-    #[test]
-    fn layermap_moves_objects_skips_locked_and_purges_empty_sources() {
-        let mut s = Session::new();
-        s.execute("hcwlayers", &json!({})).unwrap();
-        let a = rect(&mut s, 0.0, 0.0, 1.0, 1.0);
-        let b = rect(&mut s, 5.0, 0.0, 1.0, 1.0);
-        on_layer(&mut s, &a, "WALL-A");
-        on_layer(&mut s, &b, "WALL-EXT");
-        assert!(s.execute("layermap", &json!({})).is_err());
-        assert!(s.execute("layermap", &json!({ "map": { "NOPE": "A-WALL" } })).is_err());
-        assert!(s.execute("layermap", &json!({ "map": { "WALL-A": "NO-TARGET" } })).is_err(), "a missing target needs create");
-        s.doc_mut().unwrap().layers.iter_mut().find(|l| l.name == "WALL-EXT").unwrap().locked = true;
-        let r = s.execute("layermap", &json!({ "map": { "WALL-A": "A-WALL", "WALL-EXT": "A-WALL" }, "purge": true })).unwrap();
-        assert_eq!(r["moved"], json!(1));
-        assert_eq!(r["skippedLocked"], json!(1));
-        assert_eq!(r["purged"], json!(1));
-        assert!(s.doc().unwrap().layer("WALL-A").is_none());
-        assert!(s.doc().unwrap().layer("WALL-EXT").is_some(), "a locked source stays");
-        let r = s.execute("layermap", &json!({ "map": { "WALL-EXT": "NEW-ONE" }, "create": true })).unwrap();
-        assert_eq!(r["moved"], json!(0), "the locked layer's objects still do not move");
-        assert!(s.doc().unwrap().layer("NEW-ONE").is_some());
     }
 
     #[test]

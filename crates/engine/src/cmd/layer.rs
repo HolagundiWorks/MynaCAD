@@ -23,7 +23,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{name, color?, linetype?, lineweight? (mm), current?: bool}"),
         CommandSpec::new("layer.set", "Set Layer Properties", run_set)
             .alias(&["-layer.set"])
-            .params("{name, on?, frozen?, locked?, plot?, color?, linetype?, lineweight?, transparency?, description?, newVpFreeze?, plotStyle? (named plot style), newName?}"),
+            .params("{name | names: [name, ...], on?, frozen?, locked?, plot?, color?, linetype?, lineweight?, transparency?, description?, newVpFreeze?, plotStyle? (named plot style), newName? (one layer only)} → null | {changed, skipped}. `names` applies the properties to every named layer in one undo step (a multiple selection in the Layer manager); freezing skips the current layer and says so, and any other problem changes nothing."),
         CommandSpec::new("layer.current", "Make Current", run_current)
             .menu(&["Format", "Layer Tools", "Make Current"])
             .alias(&["clayer"])
@@ -31,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("layer.delete", "Delete Layer", run_delete)
             .menu(&["Format", "Layer Tools", "Delete Layer"])
             .alias(&["-layer.delete"])
-            .params("{name}"),
+            .params("{name | names: [name, ...]} → null | {deleted, skipped}. `names` deletes every named layer that is empty (not 0, Defpoints, the current layer, or a layer with objects) in one undo step and lists the rest in `skipped`."),
         CommandSpec::new("laymcur", "Make Object's Layer Current", run_laymcur)
             .menu(&["Format", "Layer Tools", "Make Object's Layer Current"])
             .alias(&["mlc"])
@@ -306,7 +306,61 @@ fn run_new(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
+/// `names` as a list of layer names (`None` when the call is for one `name`).
+fn names_list(cmd: &str, p: &Value) -> Result<Option<Vec<String>>> {
+    match p.get("names") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Array(a)) if !a.is_empty() && a.len() <= 10_000 => {
+            let mut out: Vec<String> = Vec::new();
+            for v in a {
+                let n = v.as_str().map(str::trim).filter(|n| !n.is_empty()).ok_or_else(|| bad(cmd, "`names` is a list of layer names"))?;
+                if !out.iter().any(|o| o.eq_ignore_ascii_case(n)) {
+                    out.push(n.to_string());
+                }
+            }
+            Ok(Some(out))
+        }
+        Some(_) => Err(bad(cmd, "`names` is a list of 1 to 10000 layer names")),
+    }
+}
+
+/// `layer.set {names, ...}`: the same properties on every named layer, or on none.
+fn run_set_many(s: &mut Session, p: &Value, names: &[String]) -> Result<Value> {
+    if p.get("newName").is_some_and(|v| !v.is_null()) || p.get("name").is_some_and(|v| !v.is_null()) {
+        return Err(bad("layer.set", "`names` cannot be combined with `name` or `newName`: a rename is for one layer"));
+    }
+    let d = s.doc()?;
+    let cur = d.header.str("CLAYER", "0");
+    let lt = loaded_linetype(d, "layer.set", p)?;
+    let freeze = p.get("frozen").and_then(Value::as_bool) == Some(true);
+    let mut updates: Vec<(String, Layer)> = Vec::new();
+    let mut skipped: Vec<String> = Vec::new();
+    for n in names {
+        let mut l = d.layer(n).cloned().ok_or_else(|| bad("layer.set", format!("no layer `{n}`")))?;
+        let old = l.name.clone();
+        if freeze && old.eq_ignore_ascii_case(&cur) {
+            skipped.push(old);
+            continue;
+        }
+        apply(&mut l, p)?;
+        if let Some(lt) = &lt {
+            l.linetype = lt.clone();
+        }
+        updates.push((old, l));
+    }
+    let d = s.doc_mut()?;
+    for (old, l) in &updates {
+        if let Some(slot) = d.layer_mut(old) {
+            *slot = l.clone();
+        }
+    }
+    Ok(json!({ "changed": updates.len(), "skipped": skipped }))
+}
+
 fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
+    if let Some(names) = names_list("layer.set", p)? {
+        return run_set_many(s, p, &names);
+    }
     let name = str_param(p, "name").ok_or_else(|| bad("layer.set", "`name` is required"))?.to_string();
     let new_name = str_param(p, "newName").map(str::to_string);
     // Validate on a copy before borrowing the drawing mutably, so a rejected call
@@ -404,7 +458,38 @@ fn run_layerp(s: &mut Session, _p: &Value) -> Result<Value> {
     Ok(json!({"message": "Restored previous layer states."}))
 }
 
+fn layer_has_objects(d: &aad_doc::Drawing, name: &str) -> bool {
+    d.model_stores().flat_map(|s| s.iter()).any(|e| e.common.layer.eq_ignore_ascii_case(name))
+        || d.layouts.iter().any(|l| l.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(name)))
+        || d.blocks.values().any(|b| b.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(name)))
+}
+
 fn run_delete(s: &mut Session, p: &Value) -> Result<Value> {
+    if let Some(names) = names_list("layer.delete", p)? {
+        let d = s.doc()?;
+        let cur = d.header.str("CLAYER", "0");
+        let mut gone: Vec<String> = Vec::new();
+        let mut skipped: Vec<Value> = Vec::new();
+        for n in &names {
+            let l = d.layer(n).ok_or_else(|| bad("layer.delete", format!("no layer `{n}`")))?;
+            let why = if l.name == "0" || l.name.eq_ignore_ascii_case("Defpoints") || l.name.eq_ignore_ascii_case(&cur) {
+                Some("layer 0, Defpoints and the current layer stay")
+            } else if layer_has_objects(d, &l.name) {
+                Some("it has objects on it")
+            } else {
+                None
+            };
+            match why {
+                Some(w) => skipped.push(json!({ "name": l.name, "reason": w })),
+                None => gone.push(l.name.clone()),
+            }
+        }
+        if gone.is_empty() {
+            return Err(bad("layer.delete", "none of the layers can be deleted (they are used, current or protected)"));
+        }
+        s.doc_mut()?.layers.retain(|l| !gone.iter().any(|g| g.eq_ignore_ascii_case(&l.name)));
+        return Ok(json!({ "deleted": gone, "skipped": skipped }));
+    }
     let name = str_param(p, "name").ok_or_else(|| bad("layer.delete", "`name` is required"))?.to_string();
     let d = s.doc_mut()?;
     if name == "0" || name.eq_ignore_ascii_case("Defpoints") || d.header.str("CLAYER", "0").eq_ignore_ascii_case(&name) {

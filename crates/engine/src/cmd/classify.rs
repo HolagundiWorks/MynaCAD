@@ -408,7 +408,8 @@ pub(crate) fn apply_meta(d: &mut aad_doc::Drawing) {
 /// Persist classifications (and group nesting) into project keys for DXF round-trip.
 pub(crate) fn sync_meta(d: &mut aad_doc::Drawing) {
     let mut m = serde_json::Map::new();
-    let stores: Vec<&aad_doc::EntityStore> = std::iter::once(&d.model).chain(d.layouts.iter().map(|l| &l.entities)).collect();
+    // Every level and sheet annotation, not only the active one: a mark on an inactive level must survive a save.
+    let stores: Vec<&aad_doc::EntityStore> = d.model_stores().chain(d.layouts.iter().map(|l| &l.entities)).collect();
     for store in stores {
         for e in store.iter() {
             if let Some(el) = &e.common.building

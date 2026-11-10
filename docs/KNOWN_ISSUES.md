@@ -14,6 +14,7 @@ P2 significant, P3 minor, P4 cosmetic. Confirmed means reproduced; a hypothesis 
 | (limit) | P3 | Command-line `open`/`qsave`, batch plot and PDF preview still run their commit/plot work on the session thread. Menu/picker and control-channel `app.open`/`app.save` use workers (control replies are deferred across `pump`) | Batch plot a large set | Wait |
 | (limit) | P3 | A full display-list rebuild of every entity at zoom extents is still about 125 ms at 100 000 entities (post-rayon). Far-zoom LOD, frustum cull when zoomed in, and async band rebuild reduce freezes; they do not change full-extents O(n) ([PERFORMANCE.md](PERFORMANCE.md)) | Open or heavily edit a 100k drawing at extents | none |
 | (limit) | P3 | Reading a large DWG takes about 1.2 to 1.5 s in the worker (acadrust + DXF round-trip) before the drawing appears; set `AAD_DWG_STAGE=1` for spawn timing. The window stays responsive in the WinUI shell | Open a large DWG | Wait |
+| (limit) | P3 | Layer mapper and levels ([layer-mapper.md](layer-mapper.md)): take-off measures the active level only (an object on another level is reported in the result `warnings`, not measured); the layer mapper is not offered for PDF, SVG and picture imports or in the egui shell, has no saved named mappings and does not map linetypes, text styles or xref layers; the WinUI Map Layers wizard, the Layer manager multiple selection and the level-tab changes were built but not driven by hand in the app. | Activate the level, then measure; `layermap` on the command line |
 
 ## Fixed
 

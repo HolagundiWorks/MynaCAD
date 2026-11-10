@@ -4,7 +4,7 @@
 
 | Kind | Extensions | What arrives |
 |---|---|---|
-| Drawing | `.dxf`, `.dwg` | The objects, layers and blocks of the file, merged at their own coordinates. Names this drawing already has keep this drawing's definition. `at` is not used. |
+| Drawing | `.dxf`, `.dwg` | The objects, layers and blocks of the file, merged at their own coordinates. Names this drawing already has keep this drawing's definition. `at` is not used. The result lists `layers`: the file's layers that are not built in. File > Import then opens the layer mapping wizard for them ([layer-mapper.md](layer-mapper.md)); the command itself maps nothing. |
 | PDF | `.pdf` | The page's vector paths, text and fills as geometry: the same as `pdf.import` ([pdf-underlay.md](pdf-underlay.md)). `page`, `scale`, `at` apply. |
 | SVG | `.svg` | Paths (all commands, curves and arcs flattened), lines, polylines, polygons, rectangles, circles, ellipses, groups and `transform`, as polylines on layer `SVG-IMPORT`. Sized from `width`/`height`/`viewBox` (96 pixels per inch when unitless). Text, pictures, `use`, gradients, clip paths and styles are not read; the result counts what was left out. |
 | Picture | `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff` | The dark lines of the picture traced to closed polylines on layer `RASTER-IMPORT` (pixels darker than `threshold`, default 128; `invert` for light lines on a dark ground). The pixels themselves are not placed in the drawing, because the renderer draws an image only as a frame. |

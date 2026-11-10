@@ -284,9 +284,14 @@ impl Drawing {
         }
         self.layouts.iter().find(|l| l.entities.contains(h)).map(|l| Space::Paper(l.name.clone()))
     }
+    /// Change an entity of model space (the active level), a layout, or any other level or sheet
+    /// annotation store, so a handle read from an inactive level can be edited too.
     pub fn modify_entity<F: FnOnce(&mut Entity)>(&mut self, h: Handle, f: F) -> Result<()> {
-        let sp = self.space_of(h).ok_or(DocError::NoEntity(h))?;
-        let store = self.space_mut(&sp).ok_or(DocError::NoEntity(h))?;
+        if let Some(sp) = self.space_of(h) {
+            let store = self.space_mut(&sp).ok_or(DocError::NoEntity(h))?;
+            return if store.modify(h, f) { Ok(()) } else { Err(DocError::NoEntity(h)) };
+        }
+        let store = self.model_stores_mut().find(|s| s.contains(h)).ok_or(DocError::NoEntity(h))?;
         if store.modify(h, f) { Ok(()) } else { Err(DocError::NoEntity(h)) }
     }
     pub fn remove_entity(&mut self, h: Handle) -> Option<std::sync::Arc<Entity>> {

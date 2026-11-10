@@ -102,9 +102,13 @@ fn import_drawing(s: &mut Session, path: &str) -> Result<Value> {
         d.blocks.insert(to.clone(), std::sync::Arc::new(nb));
     }
     let mut n = 0usize;
+    let mut layers: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     for e in src.model.iter() {
         let e = super::blocks::adopt(&mut d, e, &renames);
         d.ensure_layer(&e.common.layer);
+        if !super::layermap::is_builtin(&e.common.layer) {
+            layers.insert(e.common.layer.clone());
+        }
         d.model.push(e);
         n += 1;
     }
@@ -117,7 +121,9 @@ fn import_drawing(s: &mut Session, path: &str) -> Result<Value> {
         warnings.push("the file has no objects in its model space".to_string());
     }
     s.echo(format!("Imported {n} objects from {}.", file_name(path)));
-    Ok(json!({ "kind": "drawing", "objects": n, "warnings": warnings }))
+    // The layers that came with the file and are not built in: the shell offers the layer mapper for them
+    // (`layermap` with `only`). Nothing is mapped here.
+    Ok(json!({ "kind": "drawing", "objects": n, "warnings": warnings, "layers": layers }))
 }
 
 fn file_name(path: &str) -> String {

@@ -45,7 +45,8 @@ pub fn is_stamped(d: &Drawing) -> bool {
 pub fn detect(d: &Drawing, standard: &[&str]) -> OriginReport {
     let stamped = is_stamped(d);
     let mut used: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
-    for e in d.model.iter() {
+    // Every level, not only the one being edited.
+    for e in d.model_stores().flat_map(|s| s.iter()) {
         used.insert(e.common.layer.as_str());
     }
     let ok = |n: &str| n == "0" || n.eq_ignore_ascii_case("Defpoints") || standard.iter().any(|s| s.eq_ignore_ascii_case(n));

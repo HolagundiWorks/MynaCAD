@@ -114,8 +114,16 @@ fn command_groups(session: &Session) -> Vec<Vec<serde_json::Value>> {
 /// origin point (and matching point) before the objects move. Design view, two or more levels.
 fn level_move_menu(session: &Session) -> Option<serde_json::Value> {
     let d = session.doc().ok()?;
-    if d.active_sheet.is_some() || !d.has_levels() || session.selection().is_empty() {
+    if d.active_sheet.is_some() || session.selection().is_empty() {
         return None;
+    }
+    if !d.has_levels() {
+        // One implicit level (a file just opened): the selection can go to a level named on the way.
+        return Some(serde_json::json!({
+            "label": "Send to Level",
+            "enabled": true,
+            "items": [{ "label": "Move to New Level...", "id": "0", "enabled": true, "run": "levelmovenew" }]
+        }));
     }
     let others: Vec<_> = d.levels.iter().filter(|l| Some(l.id) != d.active_level).take(aad_engine::doc::MAX_LEVELS).collect();
     if others.is_empty() {
@@ -329,7 +337,14 @@ mod tests {
         let send = |m: &serde_json::Value| {
             m["groups"].as_array().unwrap().iter().flat_map(|g| g.as_array().unwrap().iter()).find(|i| i["label"] == "Send to Level").cloned()
         };
-        assert!(send(&one).is_none(), "one level: no Send to Level");
+        // One implicit level (a file just opened): the selection can go to a new level named on the way.
+        let entry = send(&one).expect("Send to Level with one implicit level");
+        assert_eq!(entry["items"][0]["label"], "Move to New Level...");
+        assert_eq!(entry["items"][0]["run"], "levelmovenew");
+        s.set_selection(Vec::new());
+        let none = serde_json::from_str::<serde_json::Value>(&popup_json(&s, false, 0, 0)).unwrap();
+        assert!(send(&none).is_none(), "nothing selected: no Send to Level");
+        s.set_selection(vec![handle]);
         s.execute("level.new", &json!({ "name": "First", "first": "Ground" })).unwrap();
         s.execute("level.new", &json!({ "name": "Second" })).unwrap();
         s.set_selection(vec![handle]);

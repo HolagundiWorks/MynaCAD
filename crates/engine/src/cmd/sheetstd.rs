@@ -263,11 +263,6 @@ fn std_layer(name: &str) -> Option<(&'static str, i16, &'static str, u16, &'stat
     TABS.iter().flat_map(|t| t.layers.iter()).chain(STANDARD_LAYERS.iter()).find(|l| l.0.eq_ignore_ascii_case(name)).copied()
 }
 
-/// Make the standard layer `name` if it is one and the drawing lacks it; true when it was made.
-pub(super) fn ensure_standard_layer(d: &mut Drawing, name: &str) -> bool {
-    std_layer(name).is_some_and(|(n, c, lt, lw, desc)| ensure_layer(d, n, c, lt, lw, desc))
-}
-
 /// The standard layers a drawn layer can be mapped to: (layer, tab it belongs to, description).
 pub(super) fn standard_targets() -> Vec<(&'static str, &'static str, &'static str)> {
     let mut out: Vec<(&str, &str, &str)> = Vec::new();
@@ -333,6 +328,17 @@ pub fn suggest_target(name: &str) -> Option<&'static str> {
         (has(&["PLUMB", "PIPE"]), "P-PIPE"),
     ];
     rules.iter().find(|r| r.0).map(|r| r.1)
+}
+
+/// Every layer the discipline tabs create (each name once), for the layer mapper's destinations.
+pub(super) fn tab_layers() -> Vec<StdLayer> {
+    let mut out: Vec<StdLayer> = Vec::new();
+    for l in TABS.iter().flat_map(|t| t.layers.iter()) {
+        if !out.iter().any(|o| o.0.eq_ignore_ascii_case(l.0)) {
+            out.push(*l);
+        }
+    }
+    out
 }
 
 /// The names and prefixes of the standard tabs, in order (the presets of `sheetset.new`).

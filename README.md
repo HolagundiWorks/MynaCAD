@@ -179,6 +179,7 @@ An offline assistant can call a fixed set of validated tools (summary, flatten, 
 | [docs/levels-and-sheet-sets.md](docs/levels-and-sheet-sets.md), [docs/smart-blocks.md](docs/smart-blocks.md), [docs/project-and-presentation.md](docs/project-and-presentation.md), [docs/PROJECT_WIZARD.md](docs/PROJECT_WIZARD.md) | Levels and drawing tabs, smart blocks, project details and presentation import, the Project Wizard |
 | [docs/pdf-underlay.md](docs/pdf-underlay.md), [docs/revision-history.md](docs/revision-history.md) | PDF underlay and `pdf.import`, revision history |
 | [docs/import.md](docs/import.md) | `import`: DXF, DWG, PDF, SVG, PNG, JPEG and TIFF |
+| [docs/layer-mapper.md](docs/layer-mapper.md) | `layermap`: built-in destination layers, preview and apply, source layer names, the open and import wizard |
 | [docs/UI_STANDARDS.md](docs/UI_STANDARDS.md), [docs/UI_TOKENS.md](docs/UI_TOKENS.md), [docs/WINDOW_SIZING.md](docs/WINDOW_SIZING.md), [docs/TYPOGRAPHY.md](docs/TYPOGRAPHY.md), [docs/COMPACT_CAD_UI.md](docs/COMPACT_CAD_UI.md), [docs/canvas-smoothness.md](docs/canvas-smoothness.md) | WinUI shell standards, tokens, window sizes, type, compact layout, canvas rendering plan |
 | [docs/qa/README.md](docs/qa/README.md) | Quality records: test matrix, defect ledger, regression and release readiness |
 | [docs/licensing/DEPENDENCY_INVENTORY.md](docs/licensing/DEPENDENCY_INVENTORY.md), [docs/licensing/PROPRIETARY_COMPONENT_REMOVAL.md](docs/licensing/PROPRIETARY_COMPONENT_REMOVAL.md) | Dependency licences, proprietary components not shipped |
