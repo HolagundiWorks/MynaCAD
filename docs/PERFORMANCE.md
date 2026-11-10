@@ -407,3 +407,28 @@ vertices and 29 980 602 triangle vertices both ways, 0 of 3 840 000 PNG pixels d
 (about 5.5 s of the 6.8 s direct open on apw) from every open after the first. What remains on a warm open is the decode (0.76 s) and
 `prepare` (flatten to 2D and the saved-state copy). The save time is not split further here; it writes the DWG bytes for MynaOps and older
 versions as before, plus the native model and the backup.
+
+### Zoom and pan on the worker (2026-11-11)
+
+Headless probe `zoom_sweep_timing` (`AAD_PERF_FILE=<dwg> cargo test --release -p aad-host --lib zoom_sweep_timing -- --ignored --nocapture`)
+on apw.dwg: 24 zoom notches in (x0.8 each) and 24 out about a point, then one drag of 20 moves; per step the UI-thread time of `Host::mesh`
+(no GPU upload or present), then of the step that swaps in a list a worker built; then a one-entity move and its undo, ten times.
+
+| | Before | After |
+|---|---|---|
+| Sweep step on the UI thread: p95 / max | 209.5 / 575.6 ms | 0.1 / 0.3 ms |
+| Lists built synchronously on the UI thread during the sweep | 4 | 0 |
+| Swapping in the worker's list: p50 / p95 / max | 50.6 / 64.1 / 79.3 ms | 0.1 / 0.1 / 0.1 ms |
+| Edit and undo after the sweep (engine + mesh): p50 / max | 193.1 / 218.8 ms | 140.9 / 147.8 ms |
+
+What changed in `Host::mesh` (`crates/aad-host/src/lib.rs`):
+- A pan-cell change goes to the worker like a zoom-band change; before, the pan cell (which moves with every zoom notch, it is a multiple of the
+  exact view height) forced a full display-list build on the UI thread, the 575 ms steps.
+- The worker builds the list with its scene and also partitions, fingerprints and meshes its tiles (`premesh`) for the view it was asked for;
+  the UI thread installs list, scene and tiles in one pump and frees the replaced ones on a thread. When the view has moved to another mesh
+  origin by then, the tiles are remeshed as before.
+- The scene is kept across band changes (it was dropped), so an edit after a zoom stays on `rebuild_scene_delta`.
+- The mesh basis uses the band of the list on screen, not the band asked for, so the tiles shown are not remeshed while the next band is built.
+- The tile edge is chosen once per list band from the list's density (`plan_tiles`, `FrameCache::tile_edge`), not per view octave.
+
+Not measured here: the GPU upload of the swapped tiles in a window (the probe has no GPU), and input-to-present latency.

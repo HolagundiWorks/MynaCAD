@@ -49,10 +49,53 @@ fn lod_pack(l: aad_render::LodFlags) -> u8 {
     u8::from(l.text) | (u8::from(l.fill) << 1) | (u8::from(l.text_greek) << 2) | (u8::from(l.fill_tint) << 3)
 }
 
-/// Display list being rebuilt on a worker for a new zoom / LOD band.
+/// Display list being rebuilt on a worker for a new zoom / LOD band or pan cell, with its scene (so edits after the swap stay on the delta
+/// path) and, when the list is tiled, its mesh tiles: the swap on the UI thread then only installs them.
 struct PendingList {
     key: ListKey,
-    rx: std::sync::mpsc::Receiver<DisplayList>,
+    rx: std::sync::mpsc::Receiver<(DisplayList, Option<aad_render::Scene>, Option<PreMesh>)>,
+}
+
+/// Mesh tiles of a list built on the worker (see [`premesh`]), for the view the list was asked for.
+struct PreMesh {
+    basis: u64,
+    origin: Vec2,
+    edge: f64,
+    tiles: Vec<(TileId, u64, MeshData)>,
+}
+
+/// What identifies the vertices of a mesh tile besides its content: the origin they are relative to, the paper tint, the tessellation band of
+/// the list they come from, and true-scale lineweights.
+fn mesh_basis_of(origin: Vec2, paper: Rgb, band: i32, true_scale: bool) -> u64 {
+    let tint = u64::from(paper.0) << 16 | u64::from(paper.1) << 8 | u64::from(paper.2);
+    origin.x.to_bits()
+        ^ origin.y.to_bits().rotate_left(1)
+        ^ tint.rotate_left(21)
+        ^ (band as u64).rotate_left(40)
+        ^ u64::from(true_scale).rotate_left(48)
+}
+
+/// The tile edge and partition for a list: finer tiles for big lists, the plain view edge when those are not usable. `None`: not tiled.
+fn plan_tiles(list: &DisplayList, view_height: f64) -> Option<(f64, Vec<(TileId, Vec<usize>)>)> {
+    let base_edge = mesh::mesh_tile_edge(view_height);
+    let fine_edge = mesh::mesh_tile_edge_for(list, view_height);
+    mesh::tiling_plan(list, fine_edge)
+        .map(|p| (fine_edge, p))
+        .or_else(|| if fine_edge == base_edge { None } else { mesh::tiling_plan(list, base_edge).map(|p| (base_edge, p)) })
+}
+
+/// Partition, fingerprint and mesh every tile of a new list on the worker that built it, for the view it was asked for.
+fn premesh(list: &DisplayList, center: Vec2, height: f64, paper: Rgb, lw_mode: Option<mesh::LineweightMode>, band: i32) -> Option<PreMesh> {
+    let origin = mesh::choose_origin(&list.bounds, center, height);
+    let basis = mesh_basis_of(origin, paper, band, matches!(lw_mode, Some(mesh::LineweightMode::TrueScale)));
+    let (edge, parts) = plan_tiles(list, height)?;
+    let tiles = parts
+        .par_iter()
+        .map(|(id, indices)| {
+            (*id, mesh::tile_content_fingerprint(list, indices) ^ basis, mesh::build_mesh_prims(list, indices, origin, paper, lw_mode))
+        })
+        .collect();
+    Some(PreMesh { basis, origin, edge, tiles })
 }
 
 /// First display list of a freshly opened large drawing, built on a worker so the window stays alive.
@@ -139,6 +182,9 @@ struct FrameCache {
     list_build_ms: f64,
     /// Last mesh pack time (ms).
     mesh_ms: f64,
+    /// The tile edge of the list on screen, with the band it was chosen for: kept while the band is the same, so zooming inside a band does
+    /// not re-partition (and remesh) the drawing.
+    tile_edge: Option<(i32, f64)>,
 }
 
 /// Identity of the last GPU present: document mesh, overlay, view uniform, and clear colour.
@@ -170,6 +216,7 @@ impl Default for FrameCache {
             first: None,
             list_build_ms: 0.0,
             mesh_ms: 0.0,
+            tile_edge: None,
         }
     }
 }
@@ -275,10 +322,6 @@ mod perf {
 fn not_saved_list(result: &Value) -> String {
     let Some(map) = result.get("notSaved").and_then(Value::as_object) else { return String::new() };
     map.iter().filter_map(|(kind, n)| Some(format!("{} {kind}", n.as_u64()?))).collect::<Vec<_>>().join(", ")
-}
-
-fn build_list(doc: &Drawing, space: &Space, opts: &aad_render::Options, background: Rgb) -> DisplayList {
-    build_list_and_scene(doc, space, opts, background).0
 }
 
 /// Like [`build_list`], also returning a Phase C [`aad_render::Scene`] when model-space tiling applies.
@@ -2353,18 +2396,40 @@ impl Host {
         let lod_bits = lod_pack(lod);
         let list_key: ListKey = (state.uid, state.revision, band, lw, space_fp(&state.space), lod_bits, pan_cell);
         let background = self.paper();
-        // Take a finished background band rebuild first.
+        // Take a finished background rebuild (band, LOD or pan cell) first: the list, its scene and its tiles go in together.
         if let Some(p) = &self.frame.pending {
             match p.rx.try_recv() {
-                Ok(list) => {
+                Ok((list, scene, pre)) => {
                     if let Some(p) = self.frame.pending.take()
-                        && (p.key.0, p.key.1, p.key.3, p.key.4, p.key.6) == (list_key.0, list_key.1, list_key.3, list_key.4, list_key.6)
+                        && (p.key.0, p.key.1, p.key.3, p.key.4) == (list_key.0, list_key.1, list_key.3, list_key.4)
                     {
-                        self.frame.list = Some(list);
+                        // The replaced list, scene and tiles are large on a big drawing: freeing them is left to a thread.
+                        let old =
+                            (self.frame.list.replace(list), std::mem::replace(&mut self.frame.scene, scene), std::mem::take(&mut self.frame.tiles));
+                        let _ = std::thread::Builder::new().name("aad-free".into()).spawn(move || drop(old));
+                        // The scene stays with the list, so an edit after a zoom is still a delta rebuild.
                         self.frame.list_key = p.key;
                         self.frame.list_doc = Some(state.doc.clone());
-                        // Band rebuild changes tessellation: drop tiles so the next mesh is fresh.
-                        self.frame.clear_mesh();
+                        self.frame.invalidate_composed_mesh();
+                        self.frame.tile_edge = None;
+                        match pre {
+                            Some(pre) => {
+                                self.frame.tiles = pre.tiles.into_iter().map(|(id, key, mesh)| (id, TileMesh { key, mesh })).collect();
+                                self.frame.tiles_total = self.frame.tiles.len();
+                                self.frame.tiles_remeshed = 0;
+                                self.frame.mesh_tiled = true;
+                                self.frame.mesh_basis = Some(pre.basis);
+                                self.frame.tile_edge = Some((p.key.2, pre.edge));
+                                // Nothing to do on this thread when the view still has the origin the worker meshed for.
+                                self.frame.mesh_key = Some(p.key.1 ^ pre.basis);
+                                self.frame.mesh = Some(MeshData::default());
+                                self.frame.mesh_origin = pre.origin;
+                            }
+                            None => {
+                                self.frame.tiles.clear();
+                                self.frame.mesh_basis = None;
+                            }
+                        }
                     }
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
@@ -2379,11 +2444,11 @@ impl Host {
                     if let Some(f) = self.frame.first.take()
                         && f.key.0 == list_key.0
                     {
+                        self.frame.clear_mesh();
                         self.frame.list = Some(list);
                         self.frame.scene = scene;
                         self.frame.list_key = f.key;
                         self.frame.list_doc = Some(f.doc);
-                        self.frame.clear_mesh();
                     }
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => return Err(LOADING.to_string()),
@@ -2391,17 +2456,22 @@ impl Host {
             }
         }
         if self.frame.list_key != list_key || self.frame.list.is_none() {
+            // The same drawing and revision: only the zoom band, the level of detail or the pan cell changed.
             let same_drawing = self.frame.list.is_some()
-                && (self.frame.list_key.0, self.frame.list_key.1, self.frame.list_key.3, self.frame.list_key.4, self.frame.list_key.6)
-                    == (list_key.0, list_key.1, list_key.3, list_key.4, list_key.6);
-            // Zoom / LOD band only: keep the last list on screen and rebuild on a worker.
+                && (self.frame.list_key.0, self.frame.list_key.1, self.frame.list_key.3, self.frame.list_key.4)
+                    == (list_key.0, list_key.1, list_key.3, list_key.4);
+            // Keep the last list on screen and rebuild on a worker, with its scene and its mesh tiles.
             if same_drawing && self.frame.pending.is_none() {
                 let (tx, rx) = std::sync::mpsc::channel();
                 let (doc, space, opts) = (state.doc.clone(), state.space.clone(), opts.clone());
+                let (center, height) = (view.center, view.height);
+                let lw_mode = lw.then_some(if on_paper { mesh::LineweightMode::TrueScale } else { mesh::LineweightMode::Screen });
                 if std::thread::Builder::new()
                     .name("aad-display-list".into())
                     .spawn(move || {
-                        let _ = tx.send(build_list(&doc, &space, &opts, background));
+                        let (list, scene) = build_list_and_scene(&doc, &space, &opts, background);
+                        let pre = premesh(&list, center, height, background, lw_mode, band);
+                        let _ = tx.send((list, scene, pre));
                     })
                     .is_ok()
                 {
@@ -2496,16 +2566,13 @@ impl Host {
         let list = self.frame.list.as_ref().ok_or_else(|| "display list missing".to_string())?;
         let origin = mesh::choose_origin(&list.bounds, view.center, view.height);
         let paper = self.paper();
-        let tint = u64::from(paper.0) << 16 | u64::from(paper.1) << 8 | u64::from(paper.2);
         let lw_mode = lw.then_some(if on_paper { mesh::LineweightMode::TrueScale } else { mesh::LineweightMode::Screen });
         let true_scale = matches!(lw_mode, Some(mesh::LineweightMode::TrueScale));
         // Origin is snapped to a coarse grid while panning, so the mesh key stays stable across
-        // fine pans and the GPU keeps the last upload (uniform carries the view offset).
-        let mesh_basis = origin.x.to_bits()
-            ^ origin.y.to_bits().rotate_left(1)
-            ^ tint.rotate_left(21)
-            ^ (band as u64).rotate_left(40)
-            ^ u64::from(true_scale).rotate_left(48);
+        // fine pans and the GPU keeps the last upload (uniform carries the view offset). The band is the one of the list on screen, not the
+        // one asked for: while a worker builds the next band, the tiles of the list shown stay valid.
+        let list_band = self.frame.list_key.2;
+        let mesh_basis = mesh_basis_of(origin, paper, list_band, true_scale);
         let mesh_key = state.revision ^ mesh_basis;
         if t_pre.is_some() && (self.frame.mesh_key != Some(mesh_key) || self.frame.mesh.is_none()) {
             perf::force(&format!(
@@ -2519,9 +2586,13 @@ impl Host {
             // Big drawings get finer tiles so the tiles can be worked on by every core; if that edge is not usable (a wipeout across tiles, too many
             // tiles) the plain edge is tried. The partition is made once and reused below.
             let t_plan = perf::start();
-            let base_edge = mesh::mesh_tile_edge(view.height);
-            let fine_edge = mesh::mesh_tile_edge_for(list, view.height);
-            let plan = mesh::tiling_plan(list, fine_edge).or_else(|| if fine_edge == base_edge { None } else { mesh::tiling_plan(list, base_edge) });
+            // The edge is chosen once per list band (from the list's density), not per view octave, so tile ids stay put while zooming.
+            let plan = match self.frame.tile_edge {
+                Some((b, edge)) if b == list_band => mesh::tiling_plan(list, edge).map(|p| (edge, p)),
+                _ => plan_tiles(list, view.height),
+            };
+            self.frame.tile_edge = plan.as_ref().map(|(edge, _)| (list_band, *edge));
+            let plan = plan.map(|(_, p)| p);
             let lap_plan = perf::lap(&t_plan);
             let (built, remeshed, tiles_total, mesh_tiled) = if let Some(parts) = plan {
                 if self.frame.mesh_basis != Some(mesh_basis) {
@@ -4677,5 +4748,145 @@ mod tests {
         println!("working copy after save: {:.1} MB", std::fs::metadata(&native).unwrap().len() as f64 / 1048576.0);
         drop(host);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Zoom and pan sweep on a real drawing, headless: what the UI thread spends in `Host::mesh` per step (the GPU upload and present are not
+    /// included), and when a worker rebuilds the list, the step that swaps it in. Not a pass/fail test:
+    /// `AAD_PERF_FILE=<drawing> cargo test --release -p aad-host --lib zoom_sweep_timing -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn zoom_sweep_timing() {
+        let Ok(path) = std::env::var("AAD_PERF_FILE") else { return };
+        let name = std::path::Path::new(&path).file_name().and_then(|n| n.to_str()).unwrap_or("x.dwg").to_string();
+        let ms = |t: std::time::Instant| t.elapsed().as_secs_f64() * 1000.0;
+        let mut host = Host::create(false);
+        let drawing = aad_io::read(&std::fs::read(&path).unwrap(), &name).unwrap();
+        host.session.open_drawing(drawing, &name, None);
+        host.execute("zoom.extents", &json!({})).unwrap();
+        let t = std::time::Instant::now();
+        host.mesh().unwrap();
+        let (_, bytes) = host.frame.mesh_totals();
+        println!("first frame {:.0} ms, {} tiles, CPU mesh {:.1} MB", ms(t), host.frame.tiles_total, bytes as f64 / 1048576.0);
+        let full = host.session.state().unwrap().view();
+        // Steps: the UI-thread time of the step itself, then (when a worker list build was started) of the step that swaps it in.
+        let mut steps: Vec<f64> = Vec::new();
+        let mut swaps: Vec<f64> = Vec::new();
+        let mut sync_builds = 0usize;
+        let step = |host: &mut Host, center: Vec2, height: f64, steps: &mut Vec<f64>, swaps: &mut Vec<f64>, sync_builds: &mut usize| {
+            host.execute("zoom", &json!({ "mode": "center", "center": [center.x, center.y], "height": height })).unwrap();
+            let before = host.frame.list_build_ms;
+            let t = std::time::Instant::now();
+            host.mesh().unwrap();
+            steps.push(ms(t));
+            if host.frame.list_build_ms != before {
+                *sync_builds += 1;
+            }
+            let mut waited = 0;
+            while host.frame.pending.is_some() && waited < 20_000 {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+                waited += 2;
+                let t = std::time::Instant::now();
+                host.mesh().unwrap();
+                if host.frame.pending.is_none() {
+                    swaps.push(ms(t));
+                }
+            }
+        };
+        // Zoom in on a point a third of the way across, 24 notches, then back out.
+        let aim = Vec2::new(full.center.x + full.height * 0.3, full.center.y + full.height * 0.1);
+        let mut h = full.height;
+        let mut c = full.center;
+        for _ in 0..24 {
+            h *= 0.8;
+            c = aim + (c - aim) * 0.8;
+            step(&mut host, c, h, &mut steps, &mut swaps, &mut sync_builds);
+        }
+        for _ in 0..24 {
+            h /= 0.8;
+            c = aim + (c - aim) / 0.8;
+            step(&mut host, c, h, &mut steps, &mut swaps, &mut sync_builds);
+        }
+        // One drag at a mid zoom: 20 moves of 5 % of the view width each.
+        let h = full.height / 16.0;
+        let mut c = aim;
+        step(&mut host, c, h, &mut steps, &mut swaps, &mut sync_builds);
+        for _ in 0..20 {
+            c.x += h * 1.5 * 0.05;
+            step(&mut host, c, h, &mut steps, &mut swaps, &mut sync_builds);
+        }
+        let stats = |v: &mut Vec<f64>| {
+            v.sort_by(f64::total_cmp);
+            let at = |q: f64| v.get(((v.len() as f64 - 1.0) * q).round() as usize).copied().unwrap_or(0.0);
+            format!("n {} p50 {:.1} p95 {:.1} max {:.1} ms", v.len(), at(0.5), at(0.95), at(1.0))
+        };
+        println!("sweep steps (UI thread): {}; synchronous list builds {sync_builds}", stats(&mut steps));
+        println!("worker list swapped in (UI thread): {}", stats(&mut swaps));
+        // Edits after a zoom: move one entity, then undo, ten times.
+        let handle = host.session.doc().unwrap().model.iter().next().map(|e| e.handle.hex()).unwrap();
+        let mut edits = Vec::new();
+        for _ in 0..10 {
+            for cmd in ["move", "undo"] {
+                let t = std::time::Instant::now();
+                if cmd == "move" {
+                    host.execute("move", &json!({ "handles": [handle], "delta": [10.0, 0.0] })).unwrap();
+                } else {
+                    host.execute("undo", &json!({})).unwrap();
+                }
+                host.mesh().unwrap();
+                edits.push(ms(t));
+            }
+        }
+        println!("edit + undo x10 after the sweep (engine + mesh): {}", stats(&mut edits));
+        let (_, bytes) = host.frame.mesh_totals();
+        println!("CPU mesh at the end: {:.1} MB in {} tiles", bytes as f64 / 1048576.0, host.frame.tiles_total);
+    }
+
+    /// Wait for a worker list build and swap it in (what the next pumps do).
+    fn settle(host: &mut Host) {
+        for _ in 0..5000 {
+            if host.frame.pending.is_none() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+            host.mesh().unwrap();
+        }
+        panic!("the worker list build did not finish");
+    }
+
+    #[test]
+    fn zoom_band_and_pan_cell_changes_build_on_the_worker_and_keep_the_scene() {
+        let mut host = Host::create(false);
+        host.execute("line", &json!({ "points": [[-100.0, 0.0], [-90.0, 0.0]] })).unwrap();
+        host.execute("line", &json!({ "points": [[0.0, 0.0], [10.0, 0.0]] })).unwrap();
+        let mid = host.execute("line", &json!({ "points": [[800.0, 0.0], [810.0, 0.0]] })).unwrap();
+        host.execute("line", &json!({ "points": [[900.0, 0.0], [910.0, 0.0]] })).unwrap();
+        host.execute("zoom", &json!({ "mode": "center", "center": [5.0, 0.0], "height": 100.0 })).unwrap();
+        host.mesh().unwrap();
+        assert!(host.frame.mesh_tiled && host.frame.scene.is_some());
+        let built = host.frame.list_build_ms;
+        // Another zoom band: the list on screen stays, the next one is built on the worker with its tiles.
+        host.execute("zoom", &json!({ "mode": "center", "center": [5.0, 0.0], "height": 30.0 })).unwrap();
+        host.mesh().unwrap();
+        assert!(host.frame.pending.is_some(), "a band change goes to the worker");
+        settle(&mut host);
+        assert_eq!(host.frame.list_build_ms, built, "no list was built on the UI thread");
+        assert!(host.frame.scene.is_some(), "the scene survives the band change");
+        assert_eq!(host.frame.list_key.2, aad_render::tessellation_band(30.0 / f64::from(host.height)));
+        assert!(host.frame.tile_edge.is_some_and(|(band, _)| band == host.frame.list_key.2));
+        let key = host.mesh().unwrap().0;
+        assert_eq!(host.frame.tiles_remeshed, 0, "the tiles came from the worker");
+        assert_eq!(host.mesh().unwrap().0, key);
+        // A pan into another cell: a worker build too, never a synchronous one.
+        host.execute("zoom", &json!({ "mode": "center", "center": [600.0, 0.0], "height": 30.0 })).unwrap();
+        host.mesh().unwrap();
+        assert_eq!(host.frame.list_build_ms, built, "a pan cell change does not build on the UI thread");
+        settle(&mut host);
+        assert_eq!(host.frame.list_build_ms, built);
+        // An edit after the zoom and pan is a delta rebuild from the kept scene: one tile remeshed.
+        let handles = mid.get("handles").cloned().unwrap_or(Value::Null);
+        host.execute("move", &json!({ "handles": handles, "delta": [2.0, 0.0] })).unwrap();
+        host.mesh().unwrap();
+        assert!(host.frame.scene.is_some());
+        assert_eq!(host.frame.tiles_remeshed, 1, "only the edited tile");
     }
 }
