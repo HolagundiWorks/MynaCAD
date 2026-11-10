@@ -432,3 +432,16 @@ What changed in `Host::mesh` (`crates/aad-host/src/lib.rs`):
 - The tile edge is chosen once per list band from the list's density (`plan_tiles`, `FrameCache::tile_edge`), not per view octave.
 
 Not measured here: the GPU upload of the swapped tiles in a window (the probe has no GPU), and input-to-present latency.
+
+### Geometry database off the UI thread (2026-11-11)
+
+Probe `geodb_timing` (`AAD_PERF_FILE=<dwg> cargo test --release -p aad-host --lib geodb_timing -- --ignored --nocapture`) on apw.dwg: a full
+`geodb.build` takes 1.9 s (extract 0.3, scale check 0.6, classify 1.0 s); the incremental update after a one-entity move about 0.99 s, of which
+`classify` in the touched region is 0.86 s (the region of one moved entity spans about 19 x 19 m on this drawing), context 68 ms, fingerprint
+40 ms (`UpdateStats::stage_ms` now reports each stage). Both ran on the session (UI) thread.
+
+`geodb.build` from the host (JSON, control channel, and typed without options) now runs on a worker: `aad_engine::cmd::geodb::begin_build` takes
+the drawing and its model out of the session, `BuildJob::run` builds or updates and persists it on any thread, `finish_build` puts it back on a
+later pump and echoes the usual line. UI-thread cost of the command: 0.1 ms (was about 990 ms); the result arrives about 990 ms later. Other
+`geodb.*` commands are refused while a build runs; `{wait: true}` keeps the synchronous form for scripts. The classify cost of an incremental
+update itself is unchanged.

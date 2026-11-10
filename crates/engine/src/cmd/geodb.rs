@@ -232,49 +232,110 @@ fn state_mut<'a>(s: &'a mut Session, cmd: &str) -> Result<&'a mut GeoState> {
 // ---- build ----
 
 fn run_build(s: &mut Session, p: &Value) -> Result<Value> {
+    let job = begin_build(s, p)?;
+    let done = job.run();
+    finish_build(s, done)
+}
+
+/// A `geodb.build` that can run off the session thread: [`begin_build`] takes what it needs from the session (the drawing, cheaply, and
+/// the drawing's model, which is moved out while the job runs), [`BuildJob::run`] builds or updates the model and writes it into the project
+/// file on any thread, and [`finish_build`] puts it back and reports. The job carries the drawing's id and revision it was made from: a model
+/// that comes back after the drawing changed is still a valid model of that revision, and the next update starts from it.
+pub struct BuildJob {
+    uid: u64,
+    revision: u64,
+    doc: Arc<Drawing>,
+    units: Option<String>,
+    rules: Option<Rules>,
+    /// The model to update; `None` for a full build.
+    state: Option<GeoState>,
+    /// Review decisions kept across a full build.
+    reviews: HashMap<String, String>,
+    persist: Option<std::path::PathBuf>,
+}
+
+/// What [`BuildJob::run`] made.
+pub struct BuildDone {
+    uid: u64,
+    revision: u64,
+    doc: Arc<Drawing>,
+    mode: &'static str,
+    update: Option<aad_geodb::UpdateStats>,
+    state: std::result::Result<GeoState, String>,
+    persisted: Value,
+}
+
+impl BuildDone {
+    /// The id of the drawing the job was for.
+    pub fn uid(&self) -> u64 {
+        self.uid
+    }
+}
+
+/// Start a `geodb.build`: the incremental update of the drawing's model, or a full build (the first time, `rebuild`, or new `units`).
+pub fn begin_build(s: &mut Session, p: &Value) -> Result<BuildJob> {
     let uid = s.state()?.uid;
     let units = str_param(p, "units").map(str::to_string);
     let rebuild = bool_or(p, "rebuild", false) || units.is_some();
     let doc = s.state()?.doc.clone();
-    let origin = origin_of(&doc);
-    let mut mode = "full";
-    let mut update = None;
-    let have = s.geodb.contains_key(&uid);
-    let mut delta = None;
-    if have && !rebuild {
-        if let Some(st) = s.geodb.get_mut(&uid) {
-            let (stats, d) = st.model.update(&doc);
-            if stats.rebuilt {
-                mode = "full";
-            } else {
-                mode = "incremental";
-            }
-            update = Some(stats);
-            delta = Some(d);
-            st.preview = None;
-        }
-    } else {
-        let rules = s.geodb.get(&uid).map(|g| g.model.rules.clone()).or_else(|| stored_rules(s));
-        let model = GeoModel::build(&doc, &BuildOptions { units, rules }).map_err(|e| bad(CMD, e.to_string()))?;
-        let reviews = s.geodb.remove(&uid).map(|g| g.reviews).unwrap_or_default();
-        s.geodb.insert(uid, GeoState { model, preview: None, reviews });
-    }
     let revision = s.state()?.revision;
-    #[allow(unused_mut)]
-    let mut persisted = Value::Null;
+    let have = s.geodb.contains_key(&uid);
+    let (state, rules, reviews) = if have && !rebuild {
+        (s.geodb.remove(&uid), None, HashMap::new())
+    } else {
+        // A full build keeps the rules and the review decisions of the model it replaces.
+        let rules = s.geodb.get(&uid).map(|g| g.model.rules.clone()).or_else(|| stored_rules(s));
+        let reviews = s.geodb.remove(&uid).map(|g| g.reviews).unwrap_or_default();
+        (None, rules, reviews)
+    };
     #[cfg(not(target_arch = "wasm32"))]
-    if bool_or(p, "persist", true)
-        && let Some(path) = project_path(s)
-        && let Some(st) = s.geodb.get(&uid)
-    {
-        let name = path.file_stem().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        persisted = match persist(&path, &st.model, &name, revision as i64, delta.as_ref(), mode == "incremental") {
-            Ok(v) => v,
-            Err(e) => json!({ "error": e }),
+    let persist = if bool_or(p, "persist", true) { project_path(s) } else { None };
+    #[cfg(target_arch = "wasm32")]
+    let persist = None;
+    Ok(BuildJob { uid, revision, doc, units, rules, state, reviews, persist })
+}
+
+impl BuildJob {
+    /// Build or update the model, and write it into the project file when there is one. Any thread.
+    pub fn run(self) -> BuildDone {
+        let BuildJob { uid, revision, doc, units, rules, state, reviews, persist: target } = self;
+        let (mode, update, delta, state) = match state {
+            Some(mut st) => {
+                let (stats, delta) = st.model.update(&doc);
+                st.preview = None;
+                (if stats.rebuilt { "full" } else { "incremental" }, Some(stats), Some(delta), Ok(st))
+            }
+            None => {
+                let built = GeoModel::build(&doc, &BuildOptions { units, rules }).map(|model| GeoState { model, preview: None, reviews });
+                ("full", None, None, built.map_err(|e| e.to_string()))
+            }
         };
-        write_project_meta(&path.to_string_lossy(), &doc);
+        #[allow(unused_mut)]
+        let mut persisted = Value::Null;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let (Some(path), Ok(st)) = (&target, &state) {
+            let name = path.file_stem().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            persisted = match persist(path, &st.model, &name, revision as i64, delta.as_ref(), mode == "incremental") {
+                Ok(v) => v,
+                Err(e) => json!({ "error": e }),
+            };
+            write_project_meta(&path.to_string_lossy(), &doc);
+        }
+        let _ = (&delta, &target);
+        BuildDone { uid, revision, doc, mode, update, state, persisted }
     }
-    let _ = &delta;
+}
+
+/// Put the model of a finished [`BuildJob`] back into the session and report it, as `geodb.build` does. A job for a drawing that was closed
+/// meanwhile is dropped.
+pub fn finish_build(s: &mut Session, done: BuildDone) -> Result<Value> {
+    let BuildDone { uid, revision, doc, mode, update, state, persisted } = done;
+    let st = state.map_err(|e| bad(CMD, e))?;
+    if !s.docs.iter().any(|d| d.uid == uid) {
+        return Err(bad(CMD, "the drawing was closed while its geometry database was being built"));
+    }
+    s.geodb.insert(uid, st);
+    let origin = origin_of(&doc);
     let st = s.geodb.get(&uid).ok_or_else(|| bad(CMD, "no model"))?;
     let m = &st.model;
     let needs_units = !m.units.confirmed;
@@ -300,17 +361,17 @@ fn run_build(s: &mut Session, p: &Value) -> Result<Value> {
     if origin.foreign {
         line.push_str(" This drawing is from another program: run the layer mapper before applying.");
     }
+    let summary = m.summary();
     s.echo(line);
-    let st = s.geodb.get(&uid).ok_or_else(|| bad(CMD, "no model"))?;
-    let m = &st.model;
     Ok(json!({
         "mode": mode,
-        "summary": m.summary(),
+        "summary": summary,
         "update": update,
         "needsUnitConfirmation": needs_units,
         "needsLayerMapping": origin.foreign,
         "origin": origin,
         "persisted": persisted,
+        "revision": revision,
     }))
 }
 

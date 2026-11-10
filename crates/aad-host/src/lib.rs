@@ -607,6 +607,8 @@ pub struct Host {
     zoom_anim: Option<ZoomAnim>,
     /// Recovery snapshots of drawings with unsaved changes, and the save status line (`autosave.rs`).
     autosave: autosave::Autosave,
+    /// A `geodb.build` running on a worker; its model goes back into the session on a later pump.
+    geodb_job: Option<std::sync::mpsc::Receiver<aad_engine::cmd::geodb::BuildDone>>,
 }
 
 /// A drawing read by the open worker: flattened and ready, with the project file it is edited in.
@@ -743,6 +745,7 @@ impl Host {
             control_io: None,
             zoom_anim: None,
             autosave: autosave::Autosave::new(),
+            geodb_job: None,
         }
     }
 
@@ -907,6 +910,62 @@ impl Host {
         &self.save_notice
     }
 
+    /// `geodb.build` runs on a worker (the incremental update of a 232k-entity drawing takes about a second): `Some` with the reply when the
+    /// command was taken here, `None` to run it as usual. `{wait: true}` keeps the old synchronous behaviour. While a build runs, the other
+    /// `geodb.*` commands are refused, since the drawing's model is with the worker.
+    fn geodb_gate(&mut self, command: &str, params: &Value) -> Option<Result<Value, String>> {
+        let id = command.to_ascii_lowercase();
+        if !id.starts_with("geodb.") {
+            return None;
+        }
+        if self.geodb_job.is_some() {
+            let message = "the geometry database is being built; try again when it is done".to_string();
+            self.session.echo(message.clone());
+            return Some(Err(message));
+        }
+        if id != "geodb.build" || params.get("wait").and_then(Value::as_bool).unwrap_or(false) {
+            return None;
+        }
+        let params = if params.is_null() { serde_json::json!({}) } else { params.clone() };
+        let job = match aad_engine::cmd::geodb::begin_build(&mut self.session, &params) {
+            Ok(job) => job,
+            Err(e) => {
+                let message = e.to_string();
+                self.session.echo(message.clone());
+                return Some(Err(message));
+            }
+        };
+        let revision = self.session.state().map(|s| s.revision).unwrap_or(0);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let spawned = std::thread::Builder::new().name("aad-geodb".into()).spawn(move || {
+            let _ = tx.send(job.run());
+        });
+        if let Err(e) = spawned {
+            return Some(Err(e.to_string()));
+        }
+        self.geodb_job = Some(rx);
+        self.session.echo("Building the geometry database in the background...".to_string());
+        Some(Ok(serde_json::json!({ "started": true, "revision": revision })))
+    }
+
+    /// Take a finished `geodb.build` from its worker (on every pump).
+    fn poll_geodb(&mut self) {
+        let Some(rx) = &self.geodb_job else { return };
+        match rx.try_recv() {
+            Ok(done) => {
+                self.geodb_job = None;
+                if let Err(e) = aad_engine::cmd::geodb::finish_build(&mut self.session, done) {
+                    self.session.echo(e.to_string());
+                }
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                self.geodb_job = None;
+                self.session.echo("The geometry database build stopped (internal error); run geodb.build again.".to_string());
+            }
+        }
+    }
+
     /// Application methods for working copies, autosave, crash recovery and backups (`docs/NATIVE-OPEN.md`, `docs/AUTOSAVE-BACKUP.md`): the
     /// shell calls them through `aad_host_app`, scripts through the control channel.
     pub fn app(&mut self, method: &str, params: &Value) -> Result<Value, String> {
@@ -1049,6 +1108,11 @@ impl Host {
             return Err("missing command".into());
         }
         self.result.clear();
+        if let Some(started) = self.geodb_gate(command, params) {
+            let value = started?;
+            self.result = value.to_string();
+            return Ok(value);
+        }
         let value = match self.session.execute(command, params) {
             Ok(value) => value,
             Err(e) => {
@@ -1273,6 +1337,13 @@ impl Host {
             let message = "text is too long".to_string();
             self.session.echo(message.clone());
             return Err(message);
+        }
+        // `geodb.build` typed (or chosen from a menu) without options runs on a worker like the JSON form.
+        if self.session.running.is_none()
+            && text.trim().eq_ignore_ascii_case("geodb.build")
+            && let Some(started) = self.geodb_gate("geodb.build", &Value::Null)
+        {
+            return started.map(|_| ());
         }
         if self.assistant.confirming() {
             let word = text.trim().to_ascii_lowercase();
@@ -2773,6 +2844,7 @@ impl Host {
         let t_pump = perf::start();
         self.drain_control();
         self.assistant.poll(&mut self.session);
+        self.poll_geodb();
         self.autosave.tick(&self.session, autosave_interval());
         let t_ctl = perf::lap(&t_pump);
         self.in_call = true;
@@ -2898,6 +2970,7 @@ impl Host {
     pub fn pump(&mut self) -> Result<(), String> {
         self.drain_control();
         self.assistant.poll(&mut self.session);
+        self.poll_geodb();
         self.autosave.tick(&self.session, autosave_interval());
         Ok(())
     }
@@ -4888,5 +4961,62 @@ mod tests {
         host.mesh().unwrap();
         assert!(host.frame.scene.is_some());
         assert_eq!(host.frame.tiles_remeshed, 1, "only the edited tile");
+    }
+
+    /// The geometry database on a real drawing: a full build, then the incremental update after a one-entity edit, as `geodb.build` runs them
+    /// on the session thread (not persisted). Not a pass/fail test:
+    /// `AAD_PERF_FILE=<drawing> cargo test --release -p aad-host --lib geodb_timing -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn geodb_timing() {
+        let Ok(path) = std::env::var("AAD_PERF_FILE") else { return };
+        let name = std::path::Path::new(&path).file_name().and_then(|n| n.to_str()).unwrap_or("x.dwg").to_string();
+        let ms = |t: std::time::Instant| t.elapsed().as_secs_f64() * 1000.0;
+        let mut host = Host::create(false);
+        let drawing = aad_io::read(&std::fs::read(&path).unwrap(), &name).unwrap();
+        host.session.open_drawing(drawing, &name, None);
+        let t = std::time::Instant::now();
+        let full = host.execute("geodb.build", &json!({ "persist": false, "units": "mm", "wait": true })).unwrap();
+        println!("geodb.build full: {:.0} ms, mode {}, timings {}", ms(t), full["mode"], full["summary"]["timings"]);
+        let handle = host.session.doc().unwrap().model.iter().next().map(|e| e.handle.hex()).unwrap();
+        for _ in 0..3 {
+            host.execute("move", &json!({ "handles": [handle], "delta": [10.0, 0.0] })).unwrap();
+            let t = std::time::Instant::now();
+            host.execute("geodb.build", &json!({ "persist": false })).unwrap();
+            let ui = ms(t);
+            while host.geodb_job.is_some() {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+                host.poll_geodb();
+            }
+            let line = host.session.log.last().cloned().unwrap_or_default();
+            println!("geodb.build after a one-entity move: UI thread {ui:.1} ms, done after {:.0} ms: {line}", ms(t));
+        }
+    }
+
+    #[test]
+    fn geodb_build_runs_on_a_worker_and_other_geodb_commands_wait_for_it() {
+        let mut host = Host::create(false);
+        for i in 0..4 {
+            let x = f64::from(i) * 3000.0;
+            host.execute("line", &json!({ "points": [[x, 0.0], [x + 2000.0, 0.0]] })).unwrap();
+            host.execute("line", &json!({ "points": [[x, 230.0], [x + 2000.0, 230.0]] })).unwrap();
+        }
+        let started = host.execute("geodb.build", &json!({ "persist": false, "units": "mm" })).unwrap();
+        assert_eq!(started["started"], true, "{started}");
+        assert!(host.execute("geodb.report", &json!({})).is_err(), "the model is with the worker");
+        for _ in 0..10_000 {
+            if host.geodb_job.is_none() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+            host.pump().unwrap();
+        }
+        assert!(host.geodb_job.is_none(), "the build finished");
+        assert!(host.session.log.iter().any(|l| l.starts_with("Geometry database (full")), "{:?}", host.session.log);
+        assert!(host.execute("geodb.report", &json!({})).is_ok());
+        // The incremental update after an edit, and the synchronous form for scripts.
+        host.execute("line", &json!({ "points": [[0.0, 900.0], [500.0, 900.0]] })).unwrap();
+        let sync = host.execute("geodb.build", &json!({ "persist": false, "wait": true })).unwrap();
+        assert_eq!(sync["mode"], "incremental", "{sync}");
     }
 }

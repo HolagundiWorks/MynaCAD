@@ -133,6 +133,10 @@ pub struct UpdateStats {
     pub features_added: usize,
     pub rebuilt: bool,
     pub ms: u128,
+    /// Milliseconds of each stage of the update: `diff` (what changed in the store), `extract` (the changed entities), `classify` (the rules
+    /// in the region the edit touches), `merge`, `context` (rooms, regions and the context stage over the whole drawing), `fingerprint`.
+    #[serde(default)]
+    pub stage_ms: BTreeMap<String, f64>,
 }
 
 /// Rows to remove from and add to a stored copy after an update.
@@ -413,6 +417,11 @@ impl GeoModel {
             stats.ms = t.elapsed().as_millis();
             return (stats, delta);
         }
+        let lap = |since: &mut Instant, stats: &mut UpdateStats, name: &str| {
+            stats.stage_ms.insert(name.to_string(), since.elapsed().as_secs_f64() * 1e3);
+            *since = Instant::now();
+        };
+        let mut stage = Instant::now();
         let changed: Vec<_> = d.model.changed_since(&self.snapshot).into_iter().cloned().collect();
         let removed: Vec<Handle> = d.model.removed_since(&self.snapshot);
         let new_ptrs = block_ptrs(d);
@@ -433,6 +442,7 @@ impl GeoModel {
         }
         stats.changed = changed.len();
         stats.removed = removed.len();
+        lap(&mut stage, &mut stats, "diff");
         if dirty.is_empty() {
             stats.ms = t.elapsed().as_millis();
             self.snapshot = d.model.clone();
@@ -466,6 +476,7 @@ impl GeoModel {
         }
         self.next_id = x.next_id;
         self.skipped.merge(&x.skipped);
+        lap(&mut stage, &mut stats, "extract");
         let band_max = self.rules.wall_types.iter().map(|t| t.metric_mm.max(t.imperial_mm)).fold(0.0, f64::max);
         let reach = (band_max * 3.0 + self.rules.window.width_max_mm).max(1500.0);
         if let Some(d0) = region {
@@ -488,6 +499,7 @@ impl GeoModel {
                 let (f, s, p) = classify::classify(&inp, &par, &mut next);
                 (f, s, p, next)
             };
+            lap(&mut stage, &mut stats, "classify");
             self.next_id = next;
             let inside = |b: [f64; 4]| hit(b, dirty_box);
             let before = self.base.len();
@@ -518,14 +530,17 @@ impl GeoModel {
         }
         self.snapshot = d.model.clone();
         self.block_ptrs = new_ptrs;
+        lap(&mut stage, &mut stats, "merge");
         let old: HashMap<u64, u64> = self.features.iter().map(|f| (f.id, feature_hash(f))).collect();
         self.run_context();
+        lap(&mut stage, &mut stats, "context");
         let new: HashMap<u64, u64> = self.features.iter().map(|f| (f.id, feature_hash(f))).collect();
         delta.dropped_features = old.iter().filter(|(id, h)| new.get(id) != Some(h)).map(|(id, _)| *id).collect();
         delta.added_features = new.iter().filter(|(id, h)| old.get(id) != Some(h)).map(|(id, _)| *id).collect();
         delta.dropped_features.sort_unstable();
         delta.added_features.sort_unstable();
         self.sha256 = self.fingerprint();
+        lap(&mut stage, &mut stats, "fingerprint");
         stats.ms = t.elapsed().as_millis();
         (stats, delta)
     }
