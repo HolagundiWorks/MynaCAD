@@ -146,6 +146,10 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("drawing.revision", "Drawing Revision", run_revision)
             .params("{path? (default: the active drawing's file)} → {status: current|changed|unrecorded, sha256, bytes, recorded?} (compares the file on disk with the revision its last save recorded in <file>.aadrev.json)")
             .noundo(),
+        CommandSpec::new("backup.restore", "Restore from Backup...", run_backup_restore)
+            .menu(&["File", "Restore from Backup..."])
+            .params("{backup?, discard?: bool} → without `backup`: {file, folder, backups: [{path, name, stamp, reason, bytes}]}; with it: the project file is replaced by that backup (the current file is kept as a before-restore backup) and reopened")
+            .noundo(),
         CommandSpec::new("closeall", "Close All", run_closeall).menu(&["File", "Close All"]).enabled(always).noundo(),
         CommandSpec::new("qsave", "Save", run_qsave_reporting).menu(&["File", "Save"]).key("Cmd+S").alias(&["save"]).params("{path?}").noundo(),
         CommandSpec::new("saveas", "Save As...", run_saveas_reporting)
@@ -299,6 +303,59 @@ fn run_revision(s: &mut Session, p: &Value) -> Result<Value> {
             None => s.state()?.path.clone().ok_or_else(|| bad("drawing.revision", "the drawing has no file yet; save it or pass `path`"))?,
         };
         crate::revision::check(&path).map_err(|e| bad("drawing.revision", e))
+    }
+}
+
+/// `backup.restore`: without `backup`, list the rolling backups of the active project file (newest first); with `backup` (a path from that
+/// list), put it back: the file as it is now is kept as a `before-restore` backup, the file is replaced, and the drawing is reopened from it.
+/// Refuses while the drawing has unsaved changes unless `discard: true`. See `docs/AUTOSAVE-BACKUP.md`.
+fn run_backup_restore(s: &mut Session, p: &Value) -> Result<Value> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (s, p);
+        Err(bad("backup.restore", "files are not available on the web"))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let file = s
+            .state()?
+            .path
+            .clone()
+            .filter(|f| is_container(f))
+            .ok_or_else(|| bad("backup.restore", "backups are kept for project files (.osp); this drawing is not saved in one"))?;
+        let path = std::path::Path::new(&file);
+        let Some(backup) = str_param(p, "backup") else {
+            let list = crate::backup::list(path);
+            if list.is_empty() {
+                s.echo(format!("No backups of {file} yet; one is kept each time a save changes the drawing."));
+            }
+            for b in &list {
+                s.echo(format!("{}  {}  {}", b.stamp, b.reason, b.path));
+            }
+            return Ok(json!({ "file": file, "folder": crate::backup::folder(path).to_string_lossy(), "backups": list }));
+        };
+        if s.state()?.is_dirty() && !bool_or(p, "discard", false) {
+            return Err(bad("backup.restore", "the drawing has unsaved changes; save it first or pass `discard: true`"));
+        }
+        // Only a backup of this file, from its own backups folder.
+        if !crate::backup::list(path).iter().any(|b| std::path::Path::new(&b.path) == std::path::Path::new(backup)) {
+            return Err(bad("backup.restore", format!("{backup} is not a backup of {file}")));
+        }
+        let kept =
+            crate::backup::restore(path, std::path::Path::new(backup), &crate::backup::Policy::current()).map_err(|e| bad("backup.restore", e))?;
+        let prepared = read_drawing_file(&file).map_err(|e| bad("backup.restore", e))?;
+        let index = s.active;
+        s.cancel();
+        s.docs.remove(index);
+        let i = finish_open(s, prepared, &file)?;
+        // Keep the tab where it was.
+        if i != index && index < s.docs.len() {
+            let st = s.docs.remove(i);
+            s.docs.insert(index, st);
+            s.active = index;
+        }
+        s.echo(format!("Restored {backup} into {file}. The version it replaced is kept as {}.", kept.display()));
+        Ok(json!({ "file": file, "restored": backup, "kept": kept.to_string_lossy() }))
     }
 }
 
@@ -547,6 +604,10 @@ impl SaveJob {
     /// See [`SaveJob`]'s `export`.
     pub fn is_export(&self) -> bool {
         self.export
+    }
+    /// The index of the drawing being saved (as it was when the save started).
+    pub fn index(&self) -> usize {
+        self.index
     }
 }
 

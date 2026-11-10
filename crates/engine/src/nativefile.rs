@@ -121,6 +121,14 @@ pub fn write_project(path: &str, drawing: &Drawing, format_hint: Option<&str>) -
     });
     let (bytes, parts) = (bytes?, parts?);
     let sha = aad_odp::sha256_hex(&bytes);
+    // A save that replaces the drawing keeps the file as it was first (rolling backups, `backup.rs`). If that copy cannot be made the save
+    // fails and the file is not touched: a save never destroys the only earlier version.
+    let before = odp.drawing_sha256(&name).map_err(|e| format!("{path}: {e}"))?;
+    let policy = crate::backup::Policy::current();
+    if policy.count > 0 && before.as_deref().is_some_and(|old| old != sha) {
+        crate::backup::keep_copy(p, "save", &policy)
+            .map_err(|e| format!("{path}: the backup before saving could not be made, nothing was saved ({e})"))?;
+    }
     // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for MynaOps to draw read only.
     let details = crate::structural_details(drawing, &name);
     let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
@@ -484,7 +492,10 @@ pub fn open_for_edit(path: &str, on_changed: OnChanged, progress: &dyn Fn(&str))
     let t = Instant::now();
     if existing {
         // The working copy keeps its take-off, project record and history: only the drawing is replaced, after a copy of the file is put aside.
-        let backup = crate::backup::keep_copy(&target, "before-reimport", &crate::backup::Policy::default())?;
+        // Kept even with BACKUPCOUNT 0: a re-import replaces the user's saved edits, the copy is the only way back.
+        let policy = crate::backup::Policy::current();
+        let policy = crate::backup::Policy { count: policy.count.max(1), ..policy };
+        let backup = crate::backup::keep_copy(&target, "before-reimport", &policy)?;
         info.backup = Some(backup.to_string_lossy().into_owned());
         let mut odp = aad_odp::Odp::open(&target).map_err(|e| format!("{}: {e}", target.display()))?;
         write_import(&mut odp, &stamp, &bytes, &parts, &drawing).map_err(|e| format!("{}: {e}", target.display()))?;

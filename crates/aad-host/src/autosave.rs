@@ -67,6 +67,8 @@ pub struct SaveStatus {
 
 pub(crate) struct Autosave {
     docs: HashMap<u64, DocSaver>,
+    /// The saved state of each open drawing as last seen: a new one means it was saved (by any path: the menu, the command line, a script).
+    saved: HashMap<u64, Arc<Drawing>>,
     pub(crate) status: SaveStatus,
     /// Snapshot every drawing with unsaved changes on the next tick, whatever the clocks say (`autosave.now`, tests).
     pub(crate) force: bool,
@@ -105,9 +107,53 @@ fn snapshot(work: &Mutex<Work>, root: &std::path::Path, key: &str, facts: &Facts
     Ok(Done { written, ms: t.elapsed().as_secs_f64() * 1e3 })
 }
 
+/// Where snapshots go: [`recovery::root`] (`AAD_RECOVERY_DIR`, else `%LOCALAPPDATA%\OSAS\recovery`). The unit tests of this crate never touch
+/// the user's folder: without `AAD_RECOVERY_DIR` they use a folder of their own under the temporary directory.
+fn default_root() -> std::path::PathBuf {
+    if cfg!(test) && std::env::var_os(recovery::ROOT_ENV).is_none() {
+        return std::env::temp_dir().join(format!("aad-host-test-recovery-{}", std::process::id()));
+    }
+    recovery::root()
+}
+
 impl Autosave {
     pub(crate) fn new() -> Self {
-        Autosave { docs: HashMap::new(), status: SaveStatus::default(), force: false, snapshots: 0, failures: 0, last: None, root: recovery::root() }
+        Autosave {
+            docs: HashMap::new(),
+            saved: HashMap::new(),
+            status: SaveStatus::default(),
+            force: false,
+            snapshots: 0,
+            failures: 0,
+            last: None,
+            root: default_root(),
+        }
+    }
+
+    /// The recovery folder this autosave writes to and `recovery.*` reads.
+    pub(crate) fn root(&self) -> &std::path::Path {
+        &self.root
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_root(&mut self, root: std::path::PathBuf) {
+        self.root = root;
+    }
+
+    /// `autosave.status`: the status line and the counters.
+    pub(crate) fn status_json(&self, interval: Duration) -> serde_json::Value {
+        serde_json::json!({
+            "status": self.status,
+            "intervalSecs": interval.as_secs(),
+            "settleSecs": SETTLE.as_secs(),
+            "snapshots": self.snapshots,
+            "failures": self.failures,
+            "busy": self.busy(),
+            "root": self.root.to_string_lossy(),
+            "last": self.last.map(|(w, ms)| serde_json::json!({
+                "parts": w.parts, "newParts": w.new_parts, "newBytes": w.new_bytes, "full": w.full, "ms": ms
+            })),
+        })
     }
 
     /// Whether a snapshot is being written right now.
@@ -121,10 +167,6 @@ impl Autosave {
         let saver = self.docs.entry(uid).or_insert_with(|| new_saver(doc, now));
         saver.adopted = Some(id);
         self.force = true;
-    }
-
-    pub(crate) fn note_saved(&mut self, title: &str, path: &str) {
-        self.status = SaveStatus { kind: "saved".into(), unix: unix_now(), message: path.to_string(), title: title.to_string() };
     }
 
     pub(crate) fn note_save_failed(&mut self, title: &str, error: &str) {
@@ -144,7 +186,26 @@ impl Autosave {
                 self.retire(saver);
             }
         }
+        self.saved.retain(|uid, _| open.contains(uid));
         for state in &session.docs {
+            // A save moves the drawing's saved state: that is the "Saved hh:mm" of the status line, whatever path the save took.
+            match self.saved.get(&state.uid) {
+                Some(prev) if !Arc::ptr_eq(prev, &state.saved) => {
+                    if !state.is_dirty() && state.path.is_some() {
+                        self.status = SaveStatus {
+                            kind: "saved".into(),
+                            unix: unix_now(),
+                            message: state.path.clone().unwrap_or_default(),
+                            title: state.title.clone(),
+                        };
+                    }
+                    self.saved.insert(state.uid, state.saved.clone());
+                }
+                Some(_) => {}
+                None => {
+                    self.saved.insert(state.uid, state.saved.clone());
+                }
+            }
             let saver = self.docs.entry(state.uid).or_insert_with(|| new_saver(&state.doc, now));
             // A finished snapshot.
             if let Some((doc, rx)) = saver.job.take() {
@@ -173,9 +234,13 @@ impl Autosave {
                 saver.pending.get_or_insert(now);
             }
             if !state.is_dirty() {
-                // Saved (or never changed): the snapshot is of no use any more.
-                if saver.job.is_none() {
-                    if let Some(old) = self.docs.remove(&state.uid) {
+                // Saved (or never changed, or undone back to the saved state): a snapshot is of no use any more. The saver stays (so the
+                // next edit is seen as one); only one that wrote something is replaced, which removes its folder.
+                saver.pending = None;
+                let wrote = saver.snapped.is_some() || saver.adopted.is_some() || saver.retry_at.is_some();
+                if saver.job.is_none() && wrote {
+                    let fresh = new_saver(&state.doc, now);
+                    if let Some(old) = self.docs.insert(state.uid, fresh) {
                         self.retire(old);
                     }
                 }
@@ -195,7 +260,8 @@ impl Autosave {
             let (tx, rx) = std::sync::mpsc::channel();
             let (work, doc, root) = (saver.work.clone(), state.doc.clone(), self.root.clone());
             let key = format!("{}-{}", std::process::id(), state.uid);
-            let facts = Facts { path: state.path.clone(), title: state.title.clone(), source: state.source.clone(), entities: state.doc.entity_count() };
+            let facts =
+                Facts { path: state.path.clone(), title: state.title.clone(), source: state.source.clone(), entities: state.doc.entity_count() };
             let spawned = std::thread::Builder::new().name("aad-autosave".into()).spawn(move || {
                 let done = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| snapshot(&work, &root, &key, &facts, &doc)))
                     .unwrap_or_else(|_| Err("internal error while writing the recovery snapshot".into()));
@@ -266,6 +332,9 @@ impl Drop for Autosave {
     /// snapshots stay for the next start.
     fn drop(&mut self) {
         for (_, saver) in self.docs.drain() {
+            if let Some(id) = &saver.adopted {
+                let _ = recovery::discard(&self.root, id);
+            }
             if let Ok(mut work) = saver.work.lock()
                 && let Some(store) = work.store.take()
             {

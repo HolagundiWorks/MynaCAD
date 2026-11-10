@@ -71,6 +71,11 @@ pub struct Manifest {
     /// When the snapshot was taken: seconds since 1970, and the same as UTC text.
     pub saved_unix: u64,
     pub saved_utc: String,
+    /// When the snapshot was taken, in nanoseconds since 1970 (seconds are too coarse to compare with the file's time).
+    pub saved_ns: u64,
+    /// The last-write time of the drawing's file (the newer of the file and its SQLite write-ahead log) when the snapshot was taken, in
+    /// nanoseconds since 1970; 0 when it has no file. The file is unchanged since the snapshot while it still has this time.
+    pub file_ns: u64,
     /// The drawing's file, when it has one (the project file a restored drawing is saved to).
     pub path: Option<String>,
     pub title: String,
@@ -98,6 +103,23 @@ pub struct Written {
     pub new_bytes: u64,
     /// Everything was rewritten into one pack (the first snapshot, or a compaction).
     pub full: bool,
+}
+
+fn now_ns() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| u64::try_from(d.as_nanos()).unwrap_or(u64::MAX))
+}
+
+/// The last-write time of a drawing's file in nanoseconds since 1970: the newer of the file and its write-ahead log (`-wal`), since a project
+/// file's commits may sit in the log. 0 when it does not exist.
+fn file_ns(path: &str) -> u64 {
+    let ns = |p: &str| {
+        std::fs::metadata(p)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or(0, |d| u64::try_from(d.as_nanos()).unwrap_or(u64::MAX))
+    };
+    ns(path).max(ns(&format!("{path}-wal")))
 }
 
 fn io_err(what: &Path, e: std::io::Error) -> String {
@@ -144,19 +166,28 @@ pub struct Store {
 }
 
 impl Store {
-    /// Make a new recovery folder under `root`. `key` names it (letters, digits, `-`); a folder of that name left by an earlier run is replaced.
+    /// Make a new recovery folder under `root`. `key` names it (letters, digits, `-`). A folder of that name that already exists is never
+    /// replaced: it may be the snapshot of an earlier run that crashed with the same process id, not yet offered to the user. The new folder
+    /// then gets a counter (`rec-<key>-2`, ...).
     pub fn create(root: &Path, key: &str) -> Result<Store, String> {
         let key: String = key.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(64).collect();
         if key.is_empty() {
             return Err("recovery: no key".into());
         }
-        let dir = root.join(format!("rec-{key}"));
-        if dir.exists() {
-            let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(root).map_err(|e| io_err(root, e))?;
+        for n in 1..1000u32 {
+            let dir = if n == 1 { root.join(format!("rec-{key}")) } else { root.join(format!("rec-{key}-{n}")) };
+            // `create_dir` fails when the folder exists, so two writers never share one.
+            match std::fs::create_dir(&dir) {
+                Ok(()) => {
+                    let lock = take_lock(&dir).map_err(|e| io_err(&dir, e))?;
+                    return Ok(Store { dir, _lock: lock, have: HashMap::new(), packs: Vec::new(), next_pack: 1 });
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return Err(io_err(&dir, e)),
+            }
         }
-        std::fs::create_dir_all(&dir).map_err(|e| io_err(&dir, e))?;
-        let lock = take_lock(&dir).map_err(|e| io_err(&dir, e))?;
-        Ok(Store { dir, _lock: lock, have: HashMap::new(), packs: Vec::new(), next_pack: 1 })
+        Err(format!("recovery: no free folder name under {}", root.display()))
     }
 
     pub fn dir(&self) -> &Path {
@@ -205,6 +236,8 @@ impl Store {
             native_format: aad_io::native::FORMAT_VERSION,
             pid: std::process::id(),
             saved_unix: secs,
+            saved_ns: now_ns(),
+            file_ns: facts.path.as_deref().map_or(0, file_ns),
             saved_utc: aad_odp::now_utc(),
             path: facts.path.clone(),
             title: facts.title.clone(),
@@ -277,12 +310,12 @@ pub fn scan(root: &Path) -> Vec<Found> {
             let _ = std::fs::remove_dir_all(&dir);
             continue;
         };
-        let newer_than_file = match manifest.path.as_deref().map(std::fs::metadata) {
-            Some(Ok(meta)) => {
-                let file = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
-                manifest.saved_unix > file
-            }
-            _ => true,
+        // Something to restore unless the file was written after the snapshot (it was saved later, so the snapshot is older than it).
+        let newer_than_file = match manifest.path.as_deref().map(file_ns) {
+            None | Some(0) => true,
+            Some(now) if now == manifest.file_ns => true,
+            Some(now) if manifest.saved_ns > 0 => now < manifest.saved_ns,
+            Some(now) => manifest.saved_unix.saturating_mul(1_000_000_000) > now,
         };
         let bytes = manifest.parts.iter().map(|p| p.len).sum();
         out.push(Found { id, manifest, newer_than_file, bytes });
@@ -379,6 +412,19 @@ mod tests {
     }
 
     #[test]
+    fn a_new_run_with_the_same_key_never_replaces_a_crashed_snapshot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let d = drawing(10);
+        let mut old = Store::create(tmp.path(), "7-1").unwrap();
+        old.write(&facts(&d), &Encoder::default().encode(&d).unwrap()).unwrap();
+        drop(old); // crashed
+        // A later run that got the same process id and document number.
+        let new = Store::create(tmp.path(), "7-1").unwrap();
+        assert_ne!(new.dir(), tmp.path().join("rec-7-1"));
+        assert_eq!(load(tmp.path(), "rec-7-1").unwrap().1, d, "the crashed snapshot is still there");
+    }
+
+    #[test]
     fn a_later_snapshot_writes_only_what_changed_and_packs_stay_bounded() {
         let tmp = tempfile::tempdir().unwrap();
         let mut d = drawing(20_000);
@@ -446,12 +492,23 @@ mod tests {
         let dir = store.dir().to_path_buf();
         drop(store);
         assert!(scan(tmp.path()).first().unwrap().newer_than_file, "the file does not exist");
-        // Make the snapshot an hour old, then save the file now.
+        // The file was written in the same second as the snapshot, before it: still something to restore (seconds are not enough).
+        std::fs::write(&file, b"opened").unwrap();
+        let mut store = Store::create(tmp.path(), "k2").unwrap();
+        store.write(&f, &Encoder::default().encode(&d).unwrap()).unwrap();
+        drop(store);
+        let found = scan(tmp.path());
+        assert!(found.iter().find(|x| x.id == "rec-k2").unwrap().newer_than_file);
+        // Make the first snapshot an hour old, then save the file now: it is older than the file.
         let mut m: serde_json::Value = serde_json::from_slice(&std::fs::read(dir.join(MANIFEST)).unwrap()).unwrap();
         m["savedUnix"] = serde_json::json!(m["savedUnix"].as_u64().unwrap() - 3600);
+        m["savedNs"] = serde_json::json!(m["savedNs"].as_u64().unwrap() - 3_600_000_000_000);
         std::fs::write(dir.join(MANIFEST), serde_json::to_vec(&m).unwrap()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
         std::fs::write(&file, b"saved later").unwrap();
-        assert!(!scan(tmp.path()).first().unwrap().newer_than_file);
+        let found = scan(tmp.path());
+        assert!(!found.iter().find(|x| x.id == "rec-k").unwrap().newer_than_file);
+        assert!(!found.iter().find(|x| x.id == "rec-k2").unwrap().newer_than_file, "the file changed after this one too");
     }
 
     #[test]

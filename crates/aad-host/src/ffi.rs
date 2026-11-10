@@ -684,6 +684,25 @@ pub unsafe extern "C" fn aad_host_open_info(host: *mut Host, buf: *mut u8, len: 
     copy_bytes(host.open_info().as_bytes(), buf, len)
 }
 
+/// Run an application method ([`Host::app`]: `app.peek`, `autosave.status`, `autosave.now`, `recovery.list`, `recovery.restore`,
+/// `recovery.discard`, `backup.list`, `backup.open`, `backup.restore`). `params` is a JSON object or empty. On success the JSON result is
+/// read with [`aad_host_result`]; on failure the reason with [`aad_host_last_error`].
+///
+/// # Safety
+/// `host` is live. `method` and `params` are null-terminated UTF-8, each at most 1 MiB.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aad_host_app(host: *mut Host, method: *const c_char, params: *const c_char) -> i32 {
+    call(host, |host| {
+        let method = read_text(method)?;
+        let params = read_text(params)?;
+        let value: Value = if params.is_empty() { Value::Null } else { serde_json::from_str(&params).map_err(|e| e.to_string())? };
+        host.result.clear();
+        let out = host.app(&method, &value)?;
+        host.result = out.to_string();
+        Ok(())
+    })
+}
+
 /// `0` nothing is loading, `1` still reading, `2` the drawing is open and fitted, `-1` the open
 /// failed (the message is in the host error).
 ///

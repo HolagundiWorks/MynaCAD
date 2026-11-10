@@ -24,6 +24,13 @@ impl Default for Policy {
     }
 }
 
+impl Policy {
+    /// The policy of this session: `BACKUPCOUNT` backups, 90 days.
+    pub fn current() -> Self {
+        Policy { count: crate::sysvars::BACKUP_COUNT.load(std::sync::atomic::Ordering::Relaxed) as usize, ..Policy::default() }
+    }
+}
+
 /// One backup in the folder.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,7 +68,7 @@ fn parse_name(file_stem: &str, name: &str) -> Option<(String, String)> {
 /// The backups of `file`, newest first. Files in the folder that are not backups of this file are ignored (and never deleted).
 pub fn list(file: &Path) -> Vec<Backup> {
     let s = stem(file);
-    let mut out: Vec<Backup> = std::fs::read_dir(folder(file))
+    let mut out: Vec<(Backup, std::time::SystemTime)> = std::fs::read_dir(folder(file))
         .into_iter()
         .flatten()
         .flatten()
@@ -69,11 +76,13 @@ pub fn list(file: &Path) -> Vec<Backup> {
             let name = entry.file_name().to_string_lossy().into_owned();
             let (stamp, reason) = parse_name(&s, &name)?;
             let meta = entry.metadata().ok()?;
-            meta.is_file().then(|| Backup { path: entry.path().to_string_lossy().into_owned(), name, stamp, reason, bytes: meta.len() })
+            let made = meta.modified().unwrap_or(std::time::UNIX_EPOCH);
+            meta.is_file().then(|| (Backup { path: entry.path().to_string_lossy().into_owned(), name, stamp, reason, bytes: meta.len() }, made))
         })
         .collect();
-    out.sort_by(|a, b| b.stamp.cmp(&a.stamp).then_with(|| b.name.cmp(&a.name)));
-    out
+    // Newest first: by the time in the name, then (several in one second) by when the file was written.
+    out.sort_by(|(a, ta), (b, tb)| b.stamp.cmp(&a.stamp).then_with(|| tb.cmp(ta)).then_with(|| b.name.cmp(&a.name)));
+    out.into_iter().map(|(b, _)| b).collect()
 }
 
 /// Days from 1970-01-01 for a `YYYYMMDD…` stamp (civil-from-days inverse; good for comparing ages).
@@ -144,7 +153,9 @@ pub fn restore(file: &Path, backup: &Path, policy: &Policy) -> Result<PathBuf, S
     }
     // The backup must be a project file before anything is touched.
     aad_odp::Odp::open(backup).map_err(|e| format!("{}: {e}", backup.display()))?;
-    let kept = if file.exists() { Some(keep_copy(file, "before-restore", policy)?) } else { None };
+    // What the restore replaces is kept even when backups are off (count 0): it may hold work the backup does not.
+    let keep = Policy { count: policy.count.max(1), ..*policy };
+    let kept = if file.exists() { Some(keep_copy(file, "before-restore", &keep)?) } else { None };
     let tmp = file.with_file_name(format!(".{}.{}.restore-tmp", stem(file), std::process::id()));
     let _ = std::fs::remove_file(&tmp);
     let copied = aad_odp::Odp::open(backup).and_then(|odp| odp.copy_to(&tmp)).map_err(|e| format!("restore of {}: {e}", backup.display()));
@@ -223,14 +234,34 @@ mod tests {
     }
 
     #[test]
+    fn the_settings_are_session_variables_not_drawing_header_variables() {
+        let mut s = crate::Session::empty();
+        s.new_drawing(true);
+        let before = s.state().unwrap().doc.clone();
+        s.execute("setvar", &serde_json::json!({ "name": "BACKUPCOUNT", "value": 3 })).unwrap();
+        assert_eq!(Policy::current().count, 3);
+        assert!(s.execute("setvar", &serde_json::json!({ "name": "BACKUPCOUNT", "value": 51 })).is_err());
+        assert!(s.execute("setvar", &serde_json::json!({ "name": "AUTOSAVESECS", "value": 5 })).is_err(), "0 or 10 to 3600");
+        s.execute("setvar", &serde_json::json!({ "name": "AUTOSAVESECS", "value": 120 })).unwrap();
+        assert_eq!(crate::sysvars::get(&s, "BACKUPCOUNT"), Some(serde_json::json!(3)));
+        s.execute("setvar", &serde_json::json!({ "name": "BACKUPCOUNT", "value": 5 })).unwrap();
+        let after = &s.state().unwrap().doc;
+        assert!(std::sync::Arc::ptr_eq(&before, after), "the drawing is not changed by these settings");
+        assert!(after.header.get("BACKUPCOUNT").is_none() && after.header.get("AUTOSAVESECS").is_none());
+    }
+
+    #[test]
     fn two_backups_in_one_second_are_both_kept() {
         let dir = tempfile::tempdir().unwrap();
         let file = project(dir.path(), "House.osp", b"one");
         let policy = Policy::default();
         let a = keep_copy_at(&file, "save", &policy, "20261110T120000Z").unwrap();
         let b = keep_copy_at(&file, "save", &policy, "20261110T120000Z").unwrap();
+        let c = keep_copy_at(&file, "before-restore", &policy, "20261110T120000Z").unwrap();
         assert_ne!(a, b);
-        assert_eq!(list(&file).len(), 2);
+        // Newest first, also within one second; `before-restore` is a reason, not a counter.
+        let names: Vec<String> = list(&file).into_iter().map(|b| b.path).collect();
+        assert_eq!(names, [c, b, a].map(|p| p.to_string_lossy().into_owned()));
     }
 
     #[test]

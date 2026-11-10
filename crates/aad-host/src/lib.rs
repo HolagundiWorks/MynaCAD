@@ -8,6 +8,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod assistant;
+mod autosave;
 mod bar;
 mod chrome;
 mod control;
@@ -561,6 +562,8 @@ pub struct Host {
     control_io: Option<(control::Job, ControlIoKind)>,
     /// Wheel zoom easing; advanced on [`Host::pump`] / present.
     zoom_anim: Option<ZoomAnim>,
+    /// Recovery snapshots of drawings with unsaved changes, and the save status line (`autosave.rs`).
+    autosave: autosave::Autosave,
 }
 
 /// A drawing read by the open worker: flattened and ready, with the project file it is edited in.
@@ -696,6 +699,7 @@ impl Host {
             frame: FrameCache::default(),
             control_io: None,
             zoom_anim: None,
+            autosave: autosave::Autosave::new(),
         }
     }
 
@@ -844,7 +848,10 @@ impl Host {
                 Ok(2)
             }
             Err(e) => {
-                self.session.echo(e.clone());
+                // Never silent: the command history, the error of the save, and the status line.
+                self.session.echo(format!("Save failed: {e}"));
+                let title = self.session.docs.get(job.index()).map(|d| d.title.clone()).unwrap_or_default();
+                self.autosave.note_save_failed(&title, &e);
                 Err(e)
             }
         }
@@ -855,6 +862,99 @@ impl Host {
     /// shows it after the save.
     pub fn save_notice(&self) -> &str {
         &self.save_notice
+    }
+
+    /// Application methods for working copies, autosave, crash recovery and backups (`docs/NATIVE-OPEN.md`, `docs/AUTOSAVE-BACKUP.md`): the
+    /// shell calls them through `aad_host_app`, scripts through the control channel.
+    pub fn app(&mut self, method: &str, params: &Value) -> Result<Value, String> {
+        let text = |key: &str| params.get(key).and_then(Value::as_str).filter(|v| !v.is_empty()).map(str::to_string);
+        let active_file = |host: &Host| host.session.state().ok().and_then(|st| st.path.clone()).filter(|p| aad_engine::cmd::file::is_container(p));
+        match method {
+            "app.peek" => {
+                let path = text("path").ok_or("missing path")?;
+                serde_json::to_value(aad_engine::nativefile::peek(&path)?).map_err(|e| e.to_string())
+            }
+            "autosave.status" => Ok(self.autosave.status_json(autosave_interval())),
+            "autosave.now" => {
+                self.autosave.force = true;
+                self.autosave.tick(&self.session, autosave_interval());
+                if params.get("wait").and_then(Value::as_bool).unwrap_or(false) {
+                    self.autosave.wait(&self.session, std::time::Duration::from_secs(300));
+                }
+                Ok(self.autosave.status_json(autosave_interval()))
+            }
+            "recovery.list" => {
+                let found = aad_engine::recovery::scan(self.autosave.root());
+                // A snapshot not newer than its file (the file was saved after it) has nothing to offer: it goes.
+                let (offer, stale): (Vec<_>, Vec<_>) = found.into_iter().partition(|f| f.newer_than_file);
+                for f in &stale {
+                    let _ = aad_engine::recovery::discard(self.autosave.root(), &f.id);
+                }
+                Ok(serde_json::json!({ "snapshots": offer, "removed": stale.len() }))
+            }
+            "recovery.restore" => {
+                let id = text("id").ok_or("missing id")?;
+                let (manifest, drawing) = aad_engine::recovery::load(self.autosave.root(), &id)?;
+                // Tied to the file it was being edited in, so Save writes there; a file that is gone makes it a new drawing.
+                let path = manifest.path.clone().filter(|p| std::path::Path::new(p).is_file());
+                let title = if manifest.title.is_empty() { "Recovered".to_string() } else { manifest.title.clone() };
+                let index = self.session.open_drawing(drawing, &title, path);
+                let state = self.session.docs.get_mut(index).ok_or("the restored drawing was not opened")?;
+                // Unsaved: the restored state differs from the file.
+                state.doc = Arc::new((*state.doc).clone());
+                state.source = manifest.source.clone();
+                let (uid, doc) = (state.uid, state.doc.clone());
+                self.autosave.adopt(uid, &doc, id.clone());
+                self.session.echo(format!("Restored the unsaved changes of {title} from {}. Save to keep them.", manifest.saved_utc));
+                self.fit_view();
+                #[cfg(windows)]
+                {
+                    self.paint = None;
+                    self.paint_dirty = true;
+                }
+                Ok(serde_json::json!({ "index": index, "title": title, "path": manifest.path, "entities": manifest.entities }))
+            }
+            "recovery.discard" => {
+                let id = text("id").ok_or("missing id")?;
+                aad_engine::recovery::discard(self.autosave.root(), &id)?;
+                Ok(Value::Null)
+            }
+            "backup.list" => {
+                let file =
+                    text("path").or_else(|| active_file(self)).ok_or("the drawing is not saved in a project file (.osp), so it has no backups")?;
+                let path = std::path::Path::new(&file);
+                Ok(serde_json::json!({
+                    "file": file,
+                    "folder": aad_engine::backup::folder(path).to_string_lossy(),
+                    "backups": aad_engine::backup::list(path),
+                }))
+            }
+            "backup.open" => {
+                let backup = text("backup").ok_or("missing backup")?;
+                let read = aad_engine::nativefile::read_project(&backup)?;
+                let name = std::path::Path::new(&backup).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                let index = aad_engine::cmd::file::finish_open_copy(&mut self.session, aad_engine::cmd::file::prepare(read.drawing), &name)
+                    .map_err(|e| e.to_string())?;
+                self.fit_view();
+                #[cfg(windows)]
+                {
+                    self.paint = None;
+                    self.paint_dirty = true;
+                }
+                Ok(serde_json::json!({ "index": index }))
+            }
+            "backup.restore" => {
+                let backup = text("backup").ok_or("missing backup")?;
+                let file = text("path").or_else(|| active_file(self)).ok_or("missing path")?;
+                let path = std::path::Path::new(&file);
+                if !aad_engine::backup::list(path).iter().any(|b| std::path::Path::new(&b.path) == std::path::Path::new(&backup)) {
+                    return Err(format!("{backup} is not a backup of {file}"));
+                }
+                let kept = aad_engine::backup::restore(path, std::path::Path::new(&backup), &aad_engine::backup::Policy::current())?;
+                Ok(serde_json::json!({ "file": file, "kept": kept.to_string_lossy() }))
+            }
+            other => Err(format!("unknown method {other}")),
+        }
     }
 
     /// Start a plot (`plot` or `exportpdf` with its parameters, `path` included) on a worker
@@ -911,6 +1011,10 @@ impl Host {
             Err(e) => {
                 let message = e.to_string();
                 self.session.echo(message.clone());
+                if matches!(command, "qsave" | "save" | "saveas") {
+                    let title = self.session.state().map(|d| d.title.clone()).unwrap_or_default();
+                    self.autosave.note_save_failed(&title, &message);
+                }
                 return Err(message);
             }
         };
@@ -1499,6 +1603,10 @@ impl Host {
                 json_ok(Value::Null)
             }
             "ui.render" => self.control_render(params),
+            m if is_app_method(m) => match self.app(m, params) {
+                Ok(value) => json_ok(value),
+                Err(e) => json_err(e),
+            },
             other if other.starts_with("ui.") => {
                 json_err(format!("{other} is egui chrome automation; use --egui, or ui.pointer / ui.render / ui.screenshot on WinUI"))
             }
@@ -2594,6 +2702,7 @@ impl Host {
         let t_pump = perf::start();
         self.drain_control();
         self.assistant.poll(&mut self.session);
+        self.autosave.tick(&self.session, autosave_interval());
         let t_ctl = perf::lap(&t_pump);
         self.in_call = true;
         let result = (|| {
@@ -2718,6 +2827,7 @@ impl Host {
     pub fn pump(&mut self) -> Result<(), String> {
         self.drain_control();
         self.assistant.poll(&mut self.session);
+        self.autosave.tick(&self.session, autosave_interval());
         Ok(())
     }
 }
@@ -2755,6 +2865,27 @@ fn menu_node_for_control(node: &Value) -> Value {
         object.insert("enabled".into(), enabled.clone());
     }
     out
+}
+
+/// The configured time between recovery snapshots (`AUTOSAVESECS`; zero turns the timer off).
+fn autosave_interval() -> std::time::Duration {
+    std::time::Duration::from_secs(u64::from(aad_engine::sysvars::AUTOSAVE_SECS.load(std::sync::atomic::Ordering::Relaxed)))
+}
+
+/// Methods of [`Host::app`] (FFI `aad_host_app` and the control channel).
+fn is_app_method(method: &str) -> bool {
+    matches!(
+        method,
+        "app.peek"
+            | "autosave.status"
+            | "autosave.now"
+            | "recovery.list"
+            | "recovery.restore"
+            | "recovery.discard"
+            | "backup.list"
+            | "backup.open"
+            | "backup.restore"
+    )
 }
 
 fn json_ok(value: Value) -> Value {
@@ -4288,5 +4419,263 @@ mod tests {
         host.session.open_drawing(Drawing::new_metric(), "plain.dxf", None);
         assert_eq!(save(&mut host, "b"), 2);
         assert_eq!(host.save_notice(), "");
+    }
+
+    /// A fresh folder for one test, under the temporary directory.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("aad-host-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A small DXF made by MynaCAD: one line.
+    fn small_dxf(dir: &std::path::Path) -> std::path::PathBuf {
+        let path = dir.join("plan.dxf");
+        let mut host = Host::create(false);
+        host.execute("line", &json!({ "points": [[0.0, 0.0], [3.0, 0.0]] })).unwrap();
+        host.execute("saveas", &json!({ "path": path.to_string_lossy() })).unwrap();
+        path
+    }
+
+    #[test]
+    fn the_status_line_reports_saves_autosaves_and_failures() {
+        let dir = scratch("save-status");
+        let dxf = small_dxf(&dir);
+        let mut host = Host::create(false);
+        host.autosave.set_root(dir.join("recovery"));
+        assert_eq!(host.control_one("app.open", &json!({ "path": dxf.to_string_lossy() }))["ok"], true);
+        host.pump().unwrap();
+        assert_eq!(host.app("autosave.status", &json!({})).unwrap()["status"]["kind"], "");
+        host.execute("circle", &json!({ "center": [1.0, 1.0], "radius": 1.0 })).unwrap();
+        let now = host.app("autosave.now", &json!({ "wait": true })).unwrap();
+        assert_eq!((&now["status"]["kind"], &now["snapshots"]), (&json!("autosaved"), &json!(1)), "{now}");
+        // The snapshot is in the recovery folder, not beside the drawing, and the project file did not move.
+        let native = dir.join("plan.osp");
+        let revision = aad_odp::Odp::open(&native).unwrap().revision().unwrap();
+        assert_eq!(std::fs::read_dir(dir.join("recovery")).unwrap().count(), 1);
+        assert_eq!(host.control_one("app.save", &json!({}))["ok"], true);
+        host.pump().unwrap();
+        let status = host.app("autosave.status", &json!({})).unwrap();
+        assert_eq!(status["status"]["kind"], "saved", "{status}");
+        assert!(aad_odp::Odp::open(&native).unwrap().revision().unwrap() > revision);
+        assert_eq!(std::fs::read_dir(dir.join("recovery")).unwrap().count(), 0, "a save removes the snapshot");
+        // A save that cannot be written is never silent.
+        host.execute("circle", &json!({ "center": [4.0, 1.0], "radius": 1.0 })).unwrap();
+        let blocked = dir.join("not-a-folder.txt");
+        std::fs::write(&blocked, b"x").unwrap();
+        let failed = host.control_one("app.save", &json!({ "path": blocked.join("x.dxf").to_string_lossy() }));
+        assert_eq!(failed["ok"], false);
+        let status = host.app("autosave.status", &json!({})).unwrap();
+        assert_eq!(status["status"]["kind"], "failed", "{status}");
+        assert!(host.session.log.iter().any(|l| l.starts_with("Save failed:")));
+        drop(host);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn backups_are_listed_and_restored_through_the_app_methods() {
+        let dir = scratch("backups");
+        let dxf = small_dxf(&dir);
+        let mut host = Host::create(false);
+        assert_eq!(host.control_one("app.open", &json!({ "path": dxf.to_string_lossy() }))["ok"], true);
+        let native = dir.join("plan.osp");
+        let entities = |host: &Host| host.session.state().unwrap().doc.entity_count();
+        let first = entities(&host);
+        host.execute("circle", &json!({ "center": [1.0, 1.0], "radius": 1.0 })).unwrap();
+        assert_eq!(host.control_one("app.save", &json!({}))["ok"], true);
+        host.execute("circle", &json!({ "center": [2.0, 1.0], "radius": 1.0 })).unwrap();
+        assert_eq!(host.control_one("app.save", &json!({}))["ok"], true);
+        let list = host.app("backup.list", &json!({})).unwrap();
+        let backups = list["backups"].as_array().unwrap();
+        assert_eq!(backups.len(), 2, "{list}");
+        // The oldest backup is the file as it was imported (one line).
+        let oldest = backups.last().unwrap()["path"].as_str().unwrap().to_string();
+        assert!(host.app("backup.restore", &json!({ "backup": dxf.to_string_lossy() })).is_err(), "only a backup of this file");
+        let opened = host.app("backup.open", &json!({ "backup": oldest })).unwrap();
+        assert_eq!(entities(&host), first, "{opened}");
+        assert!(host.session.state().unwrap().path.is_none(), "a backup opens as a copy");
+        let restored = host.app("backup.restore", &json!({ "backup": oldest, "path": native.to_string_lossy() })).unwrap();
+        assert!(std::path::Path::new(restored["kept"].as_str().unwrap()).is_file());
+        let back = aad_engine::nativefile::read_project(&native.to_string_lossy()).unwrap();
+        assert_eq!(back.drawing.entity_count(), first);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The child half of [`a_killed_host_leaves_a_snapshot_the_next_start_restores`]: a host that opens a DXF, edits, takes snapshots, edits
+    /// again and waits to be killed. Does nothing unless the parent test started it.
+    #[test]
+    #[ignore = "started as a separate process by a_killed_host_leaves_a_snapshot_the_next_start_restores"]
+    fn recovery_child_process() {
+        use std::io::Write;
+        let Some(dxf) = std::env::var_os("AAD_RECOVERY_CHILD_DXF") else { return };
+        let mut host = Host::create(false);
+        let open = host.control_one("app.open", &json!({ "path": dxf.to_string_lossy() }));
+        assert_eq!(open["ok"], true, "{open}");
+        host.execute("circle", &json!({ "center": [1.0, 1.0], "radius": 1.0 })).unwrap();
+        host.app("autosave.now", &json!({ "wait": true })).unwrap();
+        host.execute("circle", &json!({ "center": [5.0, 1.0], "radius": 2.0 })).unwrap();
+        let now = host.app("autosave.now", &json!({ "wait": true })).unwrap();
+        assert_eq!(now["snapshots"], 2, "{now}");
+        // An edit after the last snapshot: what a crash loses.
+        host.execute("line", &json!({ "points": [[0.0, 9.0], [9.0, 9.0]] })).unwrap();
+        println!("CHILD-READY {}", host.session.state().unwrap().doc.entity_count());
+        let _ = std::io::stdout().flush();
+        std::thread::sleep(std::time::Duration::from_secs(300));
+    }
+
+    #[test]
+    fn a_killed_host_leaves_a_snapshot_the_next_start_restores() {
+        use std::io::BufRead;
+        let dir = scratch("killed");
+        let dxf = small_dxf(&dir);
+        let source = std::fs::read(&dxf).unwrap();
+        let root = dir.join("recovery");
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "tests::recovery_child_process", "--ignored", "--nocapture", "--test-threads=1"])
+            .env("AAD_RECOVERY_CHILD_DXF", &dxf)
+            .env(aad_engine::recovery::ROOT_ENV, &root)
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for line in std::io::BufReader::new(stdout).lines().map_while(Result::ok) {
+                // The test harness prints its own "test ... " before the line, on the same line.
+                if let Some(n) = line.split("CHILD-READY ").nth(1) {
+                    let _ = tx.send(n.trim().parse::<usize>().unwrap_or(0));
+                }
+            }
+        });
+        let in_memory = rx.recv_timeout(std::time::Duration::from_secs(120));
+        // Killed in the middle of editing: no clean shutdown, the snapshot folder stays.
+        child.kill().unwrap();
+        let _ = child.wait();
+        let in_memory = in_memory.unwrap();
+        let native = dir.join("plan.osp");
+        let revision = aad_odp::Odp::open(&native).unwrap().revision().unwrap();
+
+        let mut host = Host::create(false);
+        host.autosave.set_root(root.clone());
+        let list = host.app("recovery.list", &json!({})).unwrap();
+        let snapshots = list["snapshots"].as_array().unwrap();
+        assert_eq!(snapshots.len(), 1, "{list}");
+        let snap = snapshots.first().unwrap();
+        assert_eq!(snap["newerThanFile"], true);
+        assert_eq!(snap["manifest"]["path"], native.to_string_lossy().as_ref());
+        let restored = host.app("recovery.restore", &json!({ "id": snap["id"] })).unwrap();
+        let state = host.session.state().unwrap();
+        // The two snapshotted circles are back; the line drawn after the last snapshot is lost.
+        assert_eq!(state.doc.entity_count(), in_memory - 1, "{restored}");
+        assert!(state.is_dirty() && state.path.as_deref() == native.to_str());
+        assert_eq!(std::fs::read(&dxf).unwrap(), source, "the source is untouched");
+        assert_eq!(aad_odp::Odp::open(&native).unwrap().revision().unwrap(), revision, "nothing is written to the file until a save");
+        assert_eq!(host.control_one("app.save", &json!({}))["ok"], true);
+        assert!(aad_odp::Odp::open(&native).unwrap().revision().unwrap() > revision);
+        assert_eq!(aad_engine::nativefile::read_project(&native.to_string_lossy()).unwrap().drawing.entity_count(), in_memory - 1);
+        host.pump().unwrap();
+        host.autosave.wait(&host.session, std::time::Duration::from_secs(60));
+        host.pump().unwrap();
+        assert!(host.app("recovery.list", &json!({})).unwrap()["snapshots"].as_array().unwrap().is_empty());
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 0, "the restored snapshot is gone after the save");
+        drop(host);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Timing probe for the native working copy, autosave and backups (docs/NATIVE-OPEN.md, docs/AUTOSAVE-BACKUP.md), not a pass/fail test:
+    /// `AAD_PERF_FILE=<drawing.dwg> AAD_PERF_DIR=<scratch folder> cargo test --release -p aad-host --lib native_open_timing -- --ignored --nocapture`.
+    /// The drawing is copied into the scratch folder first, so its working copy is made there and nothing is written beside the original.
+    #[test]
+    #[ignore]
+    fn native_open_timing() {
+        let Ok(path) = std::env::var("AAD_PERF_FILE") else { return };
+        let ms = |t: std::time::Instant| t.elapsed().as_secs_f64() * 1000.0;
+        let src = std::path::Path::new(&path);
+        let base = std::env::var_os("AAD_PERF_DIR").map(std::path::PathBuf::from).unwrap_or_else(std::env::temp_dir);
+        let dir = base.join(format!("native-open-timing-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let copy = dir.join(src.file_name().unwrap());
+        std::fs::copy(src, &copy).unwrap();
+        let copy_s = copy.to_string_lossy().into_owned();
+        let size = std::fs::metadata(&copy).unwrap().len();
+        let t = std::time::Instant::now();
+        let bytes = std::fs::read(&copy).unwrap();
+        let read_ms = ms(t);
+        let t = std::time::Instant::now();
+        let _ = aad_odp::sha256_hex(&bytes);
+        println!("source {} MB: read {read_ms:.0} ms, SHA-256 {:.0} ms", size >> 20, ms(t));
+        drop(bytes);
+
+        // The old path: parse the DWG or DXF on every open.
+        let mut direct = Host::create(false);
+        let t = std::time::Instant::now();
+        let prepared = aad_engine::cmd::file::read_drawing_file(&copy_s).unwrap();
+        aad_engine::cmd::file::finish_open_copy(&mut direct.session, prepared, &copy_s).unwrap();
+        direct.fit_view();
+        let open_direct = ms(t);
+        let t = std::time::Instant::now();
+        direct.mesh().unwrap();
+        println!("direct (parse every time): open {open_direct:.0} ms + first frame {:.0} ms = {:.0} ms", ms(t), open_direct + ms(t));
+        drop(direct);
+
+        for round in ["cold (convert)", "warm (working copy)"] {
+            let mut host = Host::create(false);
+            host.autosave.set_root(dir.join("recovery"));
+            let t = std::time::Instant::now();
+            let open = host.control_one("app.open", &json!({ "path": copy_s }));
+            let open_ms = ms(t);
+            assert_eq!(open["ok"], true, "{open}");
+            let t = std::time::Instant::now();
+            host.mesh().unwrap();
+            let frame_ms = ms(t);
+            println!(
+                "{round}: open {open_ms:.0} ms + first frame {frame_ms:.0} ms = {:.0} ms; action {}, fromNative {}, stages {}",
+                open_ms + frame_ms,
+                open["result"]["action"],
+                open["result"]["fromNative"],
+                open["result"]["ms"]
+            );
+        }
+        let native = copy.with_extension("osp");
+        println!("working copy {}: {:.1} MB", native.display(), std::fs::metadata(&native).unwrap().len() as f64 / 1048576.0);
+
+        // Autosave: the cost on the UI thread (start the snapshot) and on the worker (write it), first and after a small edit.
+        let mut host = Host::create(false);
+        host.autosave.set_root(dir.join("recovery"));
+        assert_eq!(host.control_one("app.open", &json!({ "path": copy_s }))["ok"], true);
+        let first: Vec<String> = host.session.doc().unwrap().model.iter().take(1).map(|e| e.handle.hex()).collect();
+        for label in ["first snapshot", "after a one-entity edit"] {
+            host.execute("move", &json!({ "handles": first, "delta": [10.0, 0.0] })).unwrap();
+            let t = std::time::Instant::now();
+            host.autosave.force = true;
+            host.autosave.tick(&host.session, autosave_interval());
+            let ui = ms(t);
+            host.autosave.wait(&host.session, std::time::Duration::from_secs(600));
+            let s = host.app("autosave.status", &json!({})).unwrap();
+            println!("autosave {label}: UI thread {ui:.2} ms, worker {}", s["last"]);
+        }
+        let recovery_bytes: u64 = std::fs::read_dir(dir.join("recovery"))
+            .unwrap()
+            .flatten()
+            .flat_map(|d| std::fs::read_dir(d.path()).into_iter().flatten().flatten())
+            .filter_map(|f| f.metadata().ok())
+            .map(|m| m.len())
+            .sum();
+        println!("recovery folder: {:.1} MB", recovery_bytes as f64 / 1048576.0);
+        // Save into the working copy: the backup, the DWG or DXF bytes and the native model.
+        let t = std::time::Instant::now();
+        let backup = aad_engine::backup::keep_copy(&native, "probe", &aad_engine::backup::Policy::default()).unwrap();
+        println!("backup copy alone: {:.0} ms, {:.1} MB", ms(t), std::fs::metadata(&backup).unwrap().len() as f64 / 1048576.0);
+        let t = std::time::Instant::now();
+        let saved = host.control_one("app.save", &json!({}));
+        println!("save into the working copy (backup + drawing + native model): {:.0} ms, ok {}", ms(t), saved["ok"]);
+        if saved["ok"] != true {
+            println!("  {saved}");
+        }
+        println!("working copy after save: {:.1} MB", std::fs::metadata(&native).unwrap().len() as f64 / 1048576.0);
+        drop(host);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -666,13 +666,19 @@ mod tests {
         let again = enc.encode(&d).unwrap();
         assert_eq!((enc.built, enc.reused), (1, first.len() - 1));
         assert_eq!(again, first);
-        // An edit in model space: one chunk is encoded.
+        // An edit in model space: one chunk is encoded (entity 2500 and the appended line are both in the last chunk of 1024).
         let mut e = d.clone();
         e.model.modify(Handle(2500), |x| x.common.layer = "A-WALL".into());
         e.model.push(line(9000, 1.0));
         let after = enc.encode(&e).unwrap();
-        assert_eq!(enc.built, 3, "the head and the two chunks touched");
+        assert_eq!(enc.built, 2, "the head and the one chunk touched");
         assert_eq!(after.iter().map(|p| (*p).as_ref().clone()).collect::<Vec<_>>(), encode(&e).unwrap());
+        // An edit in the first chunk: that chunk is encoded, the others come from the cache.
+        let mut e = e.clone();
+        e.model.modify(Handle(3), |x| x.common.layer = "A-DOOR".into());
+        let after_first = enc.encode(&e).unwrap();
+        assert_eq!((enc.built, enc.reused), (2, after_first.len() - 2));
+        assert_eq!(after_first.iter().map(|p| (*p).as_ref().clone()).collect::<Vec<_>>(), encode(&e).unwrap());
         // An edit in a block: the side stores are encoded again, model space is not.
         let mut f = e.clone();
         let mut b = Block::new("WINDOW");

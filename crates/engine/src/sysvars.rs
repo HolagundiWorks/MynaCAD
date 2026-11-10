@@ -27,7 +27,19 @@ const SESSION_VARS: &[&str] = &[
     "LASTPOINT",
     "FONTALT",
     "FONTFALLBACK",
+    "AUTOSAVESECS",
+    "BACKUPCOUNT",
 ];
+
+/// Seconds between recovery snapshots of a drawing with unsaved changes (`AUTOSAVESECS`; 0 turns the timer off). Process-wide: the host's
+/// autosave reads it on every pump. See `docs/AUTOSAVE-BACKUP.md`.
+pub static AUTOSAVE_SECS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(120);
+/// Backups kept of a project file by a save (`BACKUPCOUNT`; 0 keeps none). Process-wide: the save worker reads it.
+pub static BACKUP_COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(5);
+
+fn load(v: &std::sync::atomic::AtomicU32) -> u32 {
+    v.load(std::sync::atomic::Ordering::Relaxed)
+}
 
 pub fn get(s: &Session, name: &str) -> Option<Value> {
     let n = name.trim().to_ascii_uppercase();
@@ -59,6 +71,8 @@ pub fn get(s: &Session, name: &str) -> Option<Value> {
         // Process-wide font substitution (profile settings, not saved in the drawing).
         "FONTALT" => json!(aad_fonts::ttf::font_alt()),
         "FONTFALLBACK" => json!(aad_fonts::ttf::fallback_fonts()),
+        "AUTOSAVESECS" => json!(load(&AUTOSAVE_SECS)),
+        "BACKUPCOUNT" => json!(load(&BACKUP_COUNT)),
         "CMDNAMES" => json!(s.running.as_ref().map(|r| r.id.to_ascii_uppercase()).unwrap_or_default()),
         "DWGNAME" => json!(s.state().map(|d| d.title.clone()).unwrap_or_default()),
         "DBMOD" => json!(s.state().map(|d| i32::from(d.is_dirty())).unwrap_or(0)),
@@ -157,6 +171,15 @@ pub fn set(s: &mut Session, name: &str, v: &Value) -> Result<()> {
         "MAXARRAY" => st.maxarray = as_f64(v).ok_or_else(bad)?.clamp(100.0, 10_000_000.0) as u64,
         "FONTALT" => aad_fonts::ttf::set_font_alt(v.as_str().ok_or_else(bad)?),
         "FONTFALLBACK" => aad_fonts::ttf::set_fallback_fonts(v.as_str().ok_or_else(bad)?),
+        // Session settings, never written into the drawing: 0 (off) or 10 to 3600 seconds; 0 to 50 backups.
+        "AUTOSAVESECS" => {
+            let secs = as_i(v).filter(|n| *n == 0 || (10..=3600).contains(n)).ok_or_else(bad)?;
+            AUTOSAVE_SECS.store(secs as u32, std::sync::atomic::Ordering::Relaxed);
+        }
+        "BACKUPCOUNT" => {
+            let n = as_i(v).filter(|n| (0..=50).contains(n)).ok_or_else(bad)?;
+            BACKUP_COUNT.store(n as u32, std::sync::atomic::Ordering::Relaxed);
+        }
         // A number is in degrees; text is an angle typed in AUNITS (SETVAR at the command line).
         "ANGBASE" => {
             let a = match v {
