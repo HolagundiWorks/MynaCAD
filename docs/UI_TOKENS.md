@@ -25,12 +25,12 @@ Code-built UI uses `Density`. At launch, `ShellFonts.Resolve()` upgrades to **Se
 
 ## Colour direction
 
-Ink is Midnight `#102C80` (secondary `#3E56A0`, muted `#546B88`: all at least 4.5 : 1 on the light surfaces); disabled is Midnight at about 40 %. The system accent in `App.xaml` (selection, toggles, focus rings) is Midnight too. Updated 2026-11-02; before that the accent was Windows blue and the ink a slate `#1A2332`.
+Ink is pure black `#000000` on white and pure white `#FFFFFF` on black (secondary `#4D4D4D` / `#B8B8B8`, muted `#767676` / `#8C8C8C`: all at least 4.5 : 1 on their surfaces); disabled is Midnight at about 40 %. The system accent in `App.xaml` (selection, toggles, focus rings) is Midnight too. Updated 2026-11-02; before that the accent was Windows blue and the ink a slate `#1A2332`.
 
 | Role | Dark | Light |
 |---|---|---|
-| App / title bar | `#1B1B1B` | `#E4EAF2` |
-| Elevated surface | `#2C2C2C` | `#FFFFFF` |
+| App / title bar | `#000000` | `#FFFFFF` |
+| Elevated surface | `#000000` (edge line `#333333`) | `#FFFFFF` (edge line `#D9D9D9`) |
 | Accent | `#6F8FF0` (Midnight tint) | `#102C80` (Midnight) |
 | Drawing canvas | `#000000` | `#FFFFFF` (CAD preference; not shell chrome) |
 | Splash text | `#FFFFFF` on splash background (`SplashForegroundBrush`) | same |

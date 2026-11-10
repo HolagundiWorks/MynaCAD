@@ -3,7 +3,7 @@
 **Canonical copy:** MynaHub `docs/BRANDING.md`. MynaOps and MynaCAD keep an identical copy; **O-UI** (`o-ui`) holds the artwork, the colour files and the tool that draws them.
 **Names and terms:** [SUITE.md](SUITE.md). **Written 2026-11-01.**
 
-The idea: **one family name, Myna, and a use-case word for each app** (MynaHub, MynaCAD, MynaOps, MynaMod; decided 2026-11-10 after the user survey). The apps still have one bird each, on that app's colour, as drawn below; replacing them with one Myna mark in four colours is open design work. The **AI agent** wears all four colours.
+The idea: **one family name, Myna, and a use-case word for each app** (MynaHub, MynaCAD, MynaOps, MynaMod; decided 2026-11-10 after the user survey). Marks: the three-circle suite mark in each app's colour, and the orb for Myna (restored 2026-11-10). The **AI agent** wears all four colours.
 
 ## 1. The palette
 
@@ -30,27 +30,31 @@ All four Light Conditions accents are dark enough for **white** text and glyphs.
 | White on Ember | 5.6 : 1 | text and glyph on MynaHub's tile (AA ✓) |
 | Gold text `#9B6000` on white | 4.7 : 1 | AI agent accent text on white (AA ✓) |
 
+### Themes (2026-11-10)
+
+Every app has two themes, **pure white** and **pure black**, and the person chooses (or follows Windows). The neutrals are not tinted: light is `#FFFFFF` surfaces with `#000000` text, dark is `#000000` surfaces with `#FFFFFF` text. Regions are told apart by edge lines, not by a change of grey. Secondary text is `#4D4D4D` on white and `#B8B8B8` on black; control edges are `#767676` on white and `#8C8C8C` on black (both over 3:1, WCAG 1.4.11); hover is `#F0F0F0` / `#1F1F1F`. The **app colour** (Ember, Midnight, Dusk, Grove) stays for fills, marks, focus and selection; in dark it is the lighter tint in `SuiteAccent.<App>.Dark.xaml`. The drawing canvas of MynaCAD is white or black on its own switch. Defined in `o-ui` `O.Ui/Themes/SuiteColors.xaml` (light) and `SuiteColors.Dark.xaml`; MynaCAD's `Themes/ColorTokens.xaml` and the egui shell (`crates/ui-egui/src/theme.rs`) carry the same values.
+
 ## 2. The mark
 
-Each app has its own bird, white on a rounded tile in that app's colour (corner radius 42 of 194, about 21.5 %). A second tone is the colour washed toward white. The eye is a hole in the tile colour. Drawn by `o-ui` `tools/Brand` (`Birds.cs`); MynaCAD's `xtask` logo command uses the same MynaCAD curves.
+**One mark, three circles.** The suite mark is a half ring open to the right (the largest circle), a smaller half ring below the centre, and a small ring at the centre, all white. Every app wears it on a rounded tile in **that app's colour** (corner radius 42 of 194, about 21.5 %). **Myna**, the suite and its launcher, wears the **orb**: the same mark lit by all four app colours (section 3). Redrawn 2026-11-10 from the pre-bird marks; the bird marks of 2026-11-07 are retired. Drawn by `o-ui` `tools/Brand` (`Program.cs`); MynaCAD's `xtask` logo command draws the same curves.
 
-| App | Bird | Tile |
-|---|---|---|
-| MynaHub | long beak, chest under it | Ember |
-| MynaCAD | long crown, short beak | Midnight |
-| MynaMod | cap over a pale cheek | Grove |
-| MynaOps | domed head, hooked beak | Dusk |
-| Myna | cap, eye band, pointed beak | Ember |
+| App | Tile |
+|---|---|
+| MynaHub | Ember |
+| MynaCAD | Midnight |
+| MynaMod | Grove |
+| MynaOps | Dusk |
+| Myna | the orb (all four colours) |
 
 Rules
-- A bird is not redrawn, rotated or given a colour outside its row. White on these tiles meets the contrast table above.
+- The mark is not redrawn, rotated or given a colour outside its row. White on these tiles meets the contrast table above.
 - Clear space round a tile: a quarter of its width. Smallest size: 16 px (the ICO has 16, 24, 32, 48, 64, 128 and 256 px).
-- On a plain ground without a tile (a wide splash), the bird is white on a field of the same colour.
-- Never put a second logo, a shadow or a gradient on the tile.
+- On a plain ground without a tile (a wide splash), the mark is white on a field of the same colour.
+- Never put a second logo, a shadow or a gradient on an app tile.
 
 ### Files
 
-`o-ui/brand/<app>/` for `studio` (MynaHub), `draft` (MynaCAD), `form` (MynaMod), `coreop` (MynaOps), `launcher` (Myna): `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: MynaHub `native/Adms.Desktop/Assets` (every bird, plus `myna.ico` for the launcher), MynaOps `BBSDesktop/BBSApp/Assets`, MynaCAD `assets/app-icon`, MynaMod `scripts/startup/bl_app_templates_system/oform`.
+`o-ui/brand/<app>/` for `studio` (MynaHub), `draft` (MynaCAD), `form` (MynaMod), `coreop` (MynaOps), `launcher` (Myna): `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: MynaHub `native/Adms.Desktop/Assets` (every mark, plus `myna.ico` for the launcher), MynaOps `BBSDesktop/BBSApp/Assets`, MynaCAD `assets/app-icon`, MynaMod `scripts/startup/bl_app_templates_system/oform`.
 
 ## 3. The AI agent
 
