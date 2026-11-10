@@ -2819,9 +2819,13 @@ public sealed partial class MainWindow : Window
         var linked = state.ControlPort > 0;
         // Glow only while the assistant is actively working; address stays on hover.
         SetStatusGlow(AiChipHost, active: busy, accent: true);
-        var tip = linked
-            ? "127.0.0.1:" + state.ControlPort + (string.IsNullOrEmpty(state.AssistantModel) ? "" : " · " + state.AssistantModel)
-            : "AI assistant";
+        // The AI agent's state (hosted by MynaOps: "ready", "starting MynaOps…", "needs MynaOps", "the model is not installed") is shown
+        // whether or not the control channel is on; the control address follows it.
+        var tip = string.IsNullOrEmpty(state.AssistantModel) ? "AI assistant" : state.AssistantModel;
+        if (linked)
+        {
+            tip += " · control 127.0.0.1:" + state.ControlPort;
+        }
         if (busy)
         {
             tip += " · " + state.Assistant;

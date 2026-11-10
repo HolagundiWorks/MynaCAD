@@ -29,7 +29,7 @@ enum Phase {
 pub struct Desk {
     assistant: Assistant,
     worker: Option<Worker>,
-    /// Background OSAS AI Core reply when llama is not in this build.
+    /// Background reply from the AI agent MynaOps hosts, when llama is not in this build.
     osas_rx: Option<Receiver<Result<String, String>>>,
     phase: Phase,
     confirm: String,
@@ -62,8 +62,10 @@ impl Desk {
         }
     }
 
-    pub fn available(&self) -> bool {
-        aad_llm::available() || osas_ai::core_ready()
+    /// Whether a question would be taken now (a real check; tests only: the shell asks and reads the reply instead).
+    #[cfg(test)]
+    pub(crate) fn available(&self) -> bool {
+        aad_llm::available() || matches!(osas_ai::prepare(), osas_ai::Prepared::Ready)
     }
 
     pub fn phase(&self) -> &'static str {
@@ -104,17 +106,13 @@ impl Desk {
             return Err(message);
         }
         if !aad_llm::available() {
-            // The user is asking now: one real check, so a core that started a moment ago is not turned away on an old answer.
-            osas_ai::core_ready_now();
-        }
-        if !self.available() {
-            let message = if aad_llm::available() {
-                "The assistant model file was not found.".to_string()
-            } else {
-                format!("Local OLMo is not ready. In OSAS open AI → Start AI agent. ({})", osas_ai::status_label())
-            };
-            session.echo(message.clone());
-            return Err(message);
+            // The user is asking now: one real check, so a host that started a moment ago is not turned away on an old answer. When no host
+            // answers, MynaOps is started as the host (without a window); the question then waits for it on the worker thread, never here.
+            if let osas_ai::Prepared::Unavailable(why) = osas_ai::prepare() {
+                let message = format!("The AI assistant is not ready. {why}");
+                session.echo(message.clone());
+                return Err(message);
+            }
         }
         if !aad_llm::available() {
             self.model = osas_ai::status_label();
@@ -208,7 +206,7 @@ impl Desk {
             Some(Err(TryRecvError::Disconnected)) => {
                 self.osas_rx = None;
                 if !std::mem::take(&mut self.discard) {
-                    session.echo("AI: OSAS AI Core worker stopped".to_string());
+                    session.echo("AI: the AI agent worker stopped".to_string());
                     self.assistant.cancel();
                     self.phase = Phase::Idle;
                 }
@@ -281,11 +279,15 @@ impl Desk {
                         self.phase = Phase::Idle;
                     }
                 } else {
-                    // Suite path: local OLMo via OSAS AI Core (no llama in this binary).
+                    // Suite path: local OLMo through the AI agent MynaOps hosts (no llama in this binary).
                     let (tx, rx) = channel();
                     self.osas_rx = Some(rx);
                     self.phase = Phase::Thinking;
                     self.model = osas_ai::status_label();
+                    if osas_ai::starting() {
+                        // Shown in the Ask bar until the answer comes; the worker waits for MynaOps to answer first.
+                        self.partial = "Starting the AI agent in MynaOps…".to_string();
+                    }
                     thread::Builder::new()
                         .name("osas-ai".into())
                         .spawn(move || {

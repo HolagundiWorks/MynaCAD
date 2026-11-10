@@ -4471,7 +4471,7 @@ mod tests {
         }
         println!("12 zoom steps: worst {worst:.1} ms, mean {:.1} ms", total / 12.0);
     }
-    /// Making the host must not wait on the AI Core: with the suite launcher closed its health check can take the whole timeout, and it
+    /// Making the host must not wait on the AI agent: with no MynaOps hosting it, its health check can take the whole timeout, and it
     /// used to run on the UI thread before the window could appear (2 s on every start).
     #[test]
     fn creating_the_host_does_not_wait_for_the_ai_core() {
