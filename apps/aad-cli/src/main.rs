@@ -23,7 +23,7 @@ mod ask;
 mod auditor;
 
 const USAGE: &str = "usage:
-  aad-cli info FILE.dxf
+  aad-cli info FILE.(dxf|dwg|osp)
   aad-cli convert IN.(dxf|dwg|osp) OUT.(dxf|dwg|svg|png|pdf) [FRAMING]
   aad-cli convert IN.(dxf|dwg) OUT.osp          convert once to a native project file (OUT must not exist; prints what it did and the time of each stage)
   aad-cli import FILE.(dxf|dwg) [--on-changed auto|reimport|keep]   open as the app does: make or reuse the working copy, print where it is

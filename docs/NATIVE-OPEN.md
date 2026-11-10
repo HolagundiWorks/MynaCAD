@@ -1,7 +1,8 @@
 # Opening a DWG or DXF: the native working copy
 
-Status: **implemented** in the engine, the host (`app.open`, the WinUI open path) and `aad-cli`; measured on the two drawings below. The shell part
-(status text, the "source changed" question) is implemented in `apps/aad-winui` and compiled, see "Not verified" at the end.
+Status: **implemented** in the engine, the host (`app.open`, the WinUI open path) and `aad-cli`, with tests, and measured on the two drawings
+below. The shell part (status text, the "source changed" question) is implemented in `apps/aad-winui` and compiles; it was not driven in a
+running window (see "Not verified" at the end).
 
 ## What happens
 
@@ -72,8 +73,8 @@ What is stored is the drawing **as the reader produced it**, before the import's
 
 ## When the source has changed
 
-On every open of a DWG or DXF the source is read and hashed (SHA-256 of the whole file: 90 ms for the 121 MB test drawing, see below) and compared
-with `source.size` and `source.sha256`. A different last-write time alone is not a change.
+On every open of a DWG or DXF the source is read and hashed (SHA-256 of the whole file: 31 ms to read and 55 ms to hash the 115.7 MB test
+drawing, measured) and compared with `source.size` and `source.sha256`. A different last-write time alone is not a change.
 
 | Source | Working copy | What happens |
 |---|---|---|
@@ -115,6 +116,12 @@ only the application's open (`app.open`, File > Open, drag and drop, the recent 
 
 ## Fidelity
 
+Measured on Working Drawing.dwg (release, `a_real_drawing_is_the_same_through_its_native_copy`): 26 210 entities both ways, the decoded drawing
+equals the direct read (`==` on the whole model), 710 250 primitives, 1 137 662 line vertices and 14 961 024 triangle vertices both ways, and 0
+of 3 840 000 PNG pixels differ by more than 2 grey levels. `aad-cli info` took 1030 ms on the DWG and 284 ms on the `.osp`.
+On apw.dwg: 232 212 entities, 3 488 186 primitives, 6 112 531 line vertices and 29 980 602 triangle vertices both ways, 0 of 3 840 000 pixels
+different; `aad-cli info` 6502 ms on the DWG, 2052 ms on the `.osp`.
+
 - `aad_io::native` unit tests: a drawing with model space, blocks, layouts, levels and sheet sets decodes to an equal `Drawing` (`==` on the whole
   model); NaN and infinity survive; the same drawing gives the same bytes.
 - `crates/engine/tests/native_open.rs`: the converted drawing equals the direct read, and the reopened working copy equals it again.
@@ -125,7 +132,22 @@ only the application's open (`app.open`, File > Open, drag and drop, the recent 
 
 ## Measured
 
-See the table in [PERFORMANCE.md](PERFORMANCE.md), section "Native working copy (2026-11-10)".
+Release build, headless host (`native_open_timing` in `crates/aad-host/src/lib.rs`), 2026-11-11. "Open" is `app.open` (read, convert or decode,
+prepare, make the document, fit); "first frame" is the first display list and mesh (`Host::mesh`, no GPU). One run each; the machine was also
+running other builds, so treat them as indications.
+
+| | Working Drawing.dwg (3.5 MB, 26 210 entities) | apw.dwg (115.7 MB, 232 212 entities) |
+|---|---|---|
+| Direct read of the DWG (before this change, every open) | 1383 + 192 = 1575 ms | 6117 + 721 = 6837 ms |
+| First open: convert to the working copy | 1033 + 110 = 1143 ms (convert 831, encode 17, write 29) | 7438 + 619 = 8057 ms (convert 5520, encode 381, write 622) |
+| Later opens: the working copy | 220 + 113 = **333 ms** (hash 3, decode 58) | 1882 + 668 = **2550 ms** (hash 87, decode 761) |
+| Working copy size | 5.7 MB | 239.1 MB (115.7 MB source bytes + about 123 MB native model) |
+| After the first save | 8.7 MB | 258.8 MB |
+
+Writing the 232k-entity working copy takes about 1.0 s (encode 381 ms on every core, SQLite write 622 ms, most of it the 115.7 MB of source
+bytes and 123 MB of parts); the first open is dominated by the DWG conversion itself (5.5 s), which it does once. The remaining warm cost is the
+decode (0.76 s) and `prepare` (flatten to 2D and the copy kept as the saved state, about 1 s). More in [PERFORMANCE.md](PERFORMANCE.md),
+section "Native working copy, autosave and backups (2026-11-11)".
 
 ## Limits and things not done
 
@@ -136,3 +158,12 @@ See the table in [PERFORMANCE.md](PERFORMANCE.md), section "Native working copy 
 - A read-only source folder is handled by rule 3 but has no automated test (the test would need to change folder permissions on the build machine).
 - Working copies in the cache are never deleted automatically.
 - The engine command `open` does not use working copies (see above).
+- A source that changed while its working copy has no saved edits is converted again without asking (nothing of the user's is lost; the
+  earlier copy is kept as a `before-reimport` backup). The question is asked only when the working copy has saved edits.
+
+## Not verified
+
+- The WinUI shell code (`apps/aad-winui/SafeFiles.cs`, the changes in `MainWindow.xaml.cs`) compiles (`dotnet build -c Debug -p:Platform=x64`)
+  but was not run in a window: the busy text during conversion, the "changed outside MynaCAD" dialog, the tab text `plan.osp (from plan.dwg)`
+  and the status message were not seen on screen. The host methods they call are covered by the host tests.
+- A read-only source folder (rule 3) and the per-user cache path are not covered by an automated test.

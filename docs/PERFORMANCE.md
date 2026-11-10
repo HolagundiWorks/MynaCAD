@@ -384,3 +384,26 @@ The audit itself changed: `tools/perf/audit.ps1` checks the machine is quiet (an
 ### Zooming a 232k-entity drawing (apw.dwg), 2026-11-10
 
 The installed MynaCAD lagged on `apw.dwg`. With `AAD_PERF=1` each wheel zoom step stalled the UI thread for 137 to 405 ms (`mesh rebuild` on the UI thread: 4 to 6 giant tiles, so fingerprinting and remeshing used almost one core; a duplicate partition inside `mesh_tiling_viable`; a composed copy of every tile that only `ui.inspect` and tests read). Changes: lists of 30,000 or more primitives get finer tiles (`mesh_tile_edge_for`, aiming for about 6,000 primitives a tile, 19 to 52 tiles on apw) so every core has work; the partition is parallel and is made once (`tiling_plan`); tile fingerprints use a fast multiply-rotate hasher instead of SipHash; the composed mesh is not built when the mesh is tiled. Result, same file and machine: a zoom step is 59 to 105 ms on the UI thread (fingerprints 7 ms, remesh about 27 ms, partition 18 to 32 ms), down from 137 to 405 ms. Still open: opening the file takes about 8.7 s before the first frame (almost all of it reading the DWG), and every zoom step remeshes the whole drawing; meshing only the visible tiles, or on a worker thread, is the next step. The host log now also prints `pump:` and `mesh rebuild:` lines with `AAD_PERF=1`.
+
+## Native working copy, autosave and backups (2026-11-11)
+
+Design: [NATIVE-OPEN.md](NATIVE-OPEN.md), [AUTOSAVE-BACKUP.md](AUTOSAVE-BACKUP.md). Release build, headless host probe
+`native_open_timing` (`AAD_PERF_FILE=<dwg> AAD_PERF_DIR=<scratch> cargo test --release -p aad-host --lib native_open_timing -- --ignored
+--nocapture`), one run each on a machine that was also running other builds. "Open" is `app.open` (read, convert or decode, prepare, make the
+document, fit); "first frame" is the first display list and mesh without the GPU.
+
+| | Working Drawing.dwg (26 210 entities) | apw.dwg (232 212 entities, 115.7 MB) |
+|---|---|---|
+| Direct DWG read (every open before this change) | 1575 ms | 6837 ms |
+| First open, converting to the working copy | 1143 ms | 8057 ms (DWG conversion 5520, encode 381, write 622) |
+| Later opens from the working copy | **333 ms** | **2550 ms** (read and hash the source 87, decode 761, prepare and the rest about 1030, first frame 668) |
+| `.osp` size after the import / after a save | 5.7 / 8.7 MB | 239.1 / 258.8 MB |
+| Backup before a save (`VACUUM INTO`) | 27 ms | 619 ms |
+| Save into the working copy (on the save worker) | 1.27 s | 9.7 s |
+| Autosave: UI thread / first snapshot / after a one-entity edit | 0.09 ms / 46 ms / 8 ms | 0.13 ms / 1.86 s (128.6 MB) / 11 ms (26 KB) |
+
+`aad-cli info` on apw: 6502 ms on the DWG, 2052 ms on its `.osp`. Fidelity on apw: 232 212 entities, 3 488 186 primitives, 6 112 531 line
+vertices and 29 980 602 triangle vertices both ways, 0 of 3 840 000 PNG pixels different. Part 1 removes the DWG-to-DXF-to-parse cost
+(about 5.5 s of the 6.8 s direct open on apw) from every open after the first. What remains on a warm open is the decode (0.76 s) and
+`prepare` (flatten to 2D and the saved-state copy). The save time is not split further here; it writes the DWG bytes for MynaOps and older
+versions as before, plus the native model and the backup.

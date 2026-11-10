@@ -269,3 +269,40 @@ fn saving_a_working_copy_keeps_revisions_honest_and_exporting_leaves_it_in_place
     assert_eq!(direct(&out).entity_count(), s.doc().unwrap().entity_count());
     assert_eq!(std::fs::read(&src).unwrap(), source_bytes, "the source was never written");
 }
+
+#[test]
+fn a_save_whose_backup_cannot_be_made_fails_and_leaves_the_file_as_it_was() {
+    let d = dirs();
+    let src = d.work.join("Plan.dxf");
+    write_dxf(&src, 10);
+    let first = nativefile::open_for_edit(&src.to_string_lossy(), OnChanged::Auto, &quiet).unwrap();
+    let mut s = Session::empty();
+    aad_engine::cmd::file::finish_open(&mut s, aad_engine::cmd::file::prepare(first.drawing), &first.path).unwrap();
+    let native = Path::new(&first.path).to_path_buf();
+    let before = std::fs::read(&native).unwrap();
+    let rev = aad_odp::Odp::open(&native).unwrap().revision().unwrap();
+    // The backups folder cannot be made: a file has its name (a simulated failure in the middle of the save).
+    let blocked = aad_engine::backup::folder(&native);
+    std::fs::write(&blocked, b"in the way").unwrap();
+    s.execute("circle", &json!({ "center": [5.0, 5.0], "radius": 2.0 })).unwrap();
+    let err = s.execute("qsave", &json!({})).unwrap_err().to_string();
+    assert!(err.contains("backup"), "{err}");
+    assert!(s.state().unwrap().is_dirty(), "the drawing keeps its unsaved changes");
+    assert_eq!(aad_odp::Odp::open(&native).unwrap().revision().unwrap(), rev);
+    assert_eq!(std::fs::read(&native).unwrap(), before, "the project file is as it was");
+    // With the way clear the save works, keeps one backup, and the command lists and restores it.
+    std::fs::remove_file(&blocked).unwrap();
+    s.execute("qsave", &json!({})).unwrap();
+    assert!(aad_odp::Odp::open(&native).unwrap().revision().unwrap() > rev);
+    let list = s.execute("backup.restore", &json!({})).unwrap();
+    let backups = list["backups"].as_array().unwrap();
+    assert_eq!(backups.len(), 1, "{list}");
+    let backup = backups[0]["path"].as_str().unwrap().to_string();
+    let entities = s.doc().unwrap().entity_count();
+    s.execute("circle", &json!({ "center": [7.0, 5.0], "radius": 1.0 })).unwrap();
+    assert!(s.execute("backup.restore", &json!({ "backup": backup })).is_err(), "unsaved changes are not dropped silently");
+    s.execute("backup.restore", &json!({ "backup": backup, "discard": true })).unwrap();
+    assert_eq!(s.doc().unwrap().entity_count(), entities - 1, "the drawing as it was before the save");
+    assert_eq!(s.state().unwrap().path.as_deref(), Some(first.path.as_str()));
+    assert_eq!(aad_engine::backup::list(&native).len(), 2, "what the restore replaced is a backup too");
+}

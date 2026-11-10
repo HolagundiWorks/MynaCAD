@@ -59,6 +59,7 @@ The server waits up to 60 s for the app to answer a request. After that it repli
 | `ui.screenshot` | `{path?}` | egui: PNG of the window. WinUI: drawing PNG via the same path as `ui.render` (`drawing: true` in the result; not chrome). |
 | `ui.render` | `{path?, width?, height?, fit?}` | Headless render. `fit` (default true) frames the whole drawing; `false` uses the current view. Replies `{pngBase64, width, height, bytes, path?}`. Default rasteriser is `aad_render::raster` (tiny-skia). Optional prototype: `AAD_CANVAS=vello` selects L5 `aad-vello` / `vello_cpu` for this PNG only (interactive canvas unchanged; [canvas-smoothness.md](canvas-smoothness.md) #12). |
 | `app.open` / `app.save` / `app.quit` | `{path}` | File operations. Open/save run on a worker; the reply is sent when `Host::pump` finishes the poll (same JSON shape). Client wait is still one reply (control read timeout 120 s). |
+| `app.peek`, `autosave.status`, `autosave.now`, `recovery.list` / `restore` / `discard`, `backup.list` / `open` / `restore` | see [AUTOSAVE-BACKUP.md](AUTOSAVE-BACKUP.md) | WinUI host only (`Host::app`, also the C ABI `aad_host_app`). `app.open` also takes `onChanged: auto/reimport/keep` and replies with what the open did ([NATIVE-OPEN.md](NATIVE-OPEN.md)). |
 
 The MCP server (`aad-cli mcp --connect 127.0.0.1:PORT`) wraps this protocol; headless
 (`aad-cli mcp`) it serves the same methods from an in-process session.

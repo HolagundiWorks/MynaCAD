@@ -98,6 +98,15 @@ fn the_sample_is_the_same_drawing_and_picture_through_its_native_copy() {
     let dxf = dir.join("sample.dxf");
     ok(&cli(&["run", "--sample", "--script", "LINE 0,0 40,25\nCIRCLE 10,10 4\n", "--save", dxf.to_str().unwrap()]));
     compare(&dxf, &dir);
+    // `info`, `run` and `convert` read a DWG or DXF directly: no working copy appears beside it.
+    ok(&cli(&[
+        "run",
+        dxf.to_str().unwrap(),
+        "--script",
+        "CIRCLE 0,0 3
+",
+    ]));
+    assert!(!dir.join("sample.osp").exists());
     // The conversion never replaces a file, and the source is as it was.
     let before = std::fs::read(&dxf).unwrap();
     let again = cli(&["convert", dxf.to_str().unwrap(), dir.join("copy.osp").to_str().unwrap()]);
