@@ -10,6 +10,8 @@
 use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
+use rayon::prelude::*;
+
 use aad_color::Rgb;
 use aad_geom::{Bounds2, Vec2};
 
@@ -463,6 +465,37 @@ pub fn mesh_tile_edge(view_height: f64) -> f64 {
     if edge.is_finite() && edge > 0.0 { edge } else { 1.0 }
 }
 
+/// Lists with at least this many primitives get finer tiles than the view alone would give (see [`mesh_tile_edge_for`]).
+pub const FINE_TILES_FROM_PRIMS: usize = 30_000;
+
+/// Primitives a tile should hold, about, when the list is big: the tiles of a big drawing are meshed, fingerprinted and merged one tile per thread,
+/// so a handful of huge tiles leaves most cores idle (a 232k-entity drawing at the fitted view fell into four tiles).
+pub const TARGET_PRIMS_PER_TILE: usize = 6_000;
+
+/// Most tiles the finer edge aims for: well under [`MAX_MESH_TILES`], with room for the empty-to-full spread of a real drawing.
+const FINE_TILE_TARGET_MAX: usize = 64;
+
+/// [`mesh_tile_edge`], halved while a big list would otherwise fall into too few tiles to work on in parallel. Small lists, and a list whose bounds
+/// are unknown, get the plain edge. The result only depends on the list's size and bounds and the view height.
+pub fn mesh_tile_edge_for(list: &DisplayList, view_height: f64) -> f64 {
+    let mut edge = mesh_tile_edge(view_height);
+    let n = list.prims.len();
+    let b = list.bounds;
+    if n < FINE_TILES_FROM_PRIMS || b.is_empty() || !(b.width().is_finite() && b.height().is_finite()) {
+        return edge;
+    }
+    let target = (n / TARGET_PRIMS_PER_TILE).clamp(8, FINE_TILE_TARGET_MAX) as f64;
+    for _ in 0..4 {
+        let est = (b.width() / edge).ceil().max(1.0) * (b.height() / edge).ceil().max(1.0);
+        // Stop when there are enough tiles, or when halving again would overshoot the cap.
+        if est >= target || est * 4.0 > 220.0 {
+            break;
+        }
+        edge *= 0.5;
+    }
+    edge
+}
+
 /// `view_height` rounded down to a power of two. The mesh origin step and the tile edge are derived
 /// from this instead of the exact height, so a wheel-zoom tick inside the same factor-of-two range
 /// keeps the origin, the tile keys and therefore the cached meshes (before, every tick changed
@@ -577,12 +610,19 @@ pub fn partition_prims(list: &DisplayList, edge: f64) -> Vec<(TileId, Vec<usize>
     if !(edge.is_finite() && edge > 0.0) || list.prims.len() > MAX_MESH_PRIMS {
         return Vec::new();
     }
-    for (i, prim) in list.prims.iter().enumerate() {
-        if matches!(prim.kind, Kind::Infinite { .. }) {
-            continue;
-        }
-        let Some(c) = prim_centroid(list, prim) else { continue };
-        let Some(id) = tile_id_at(c, edge) else { continue };
+    // The tile of each primitive is worked out on all cores (the centroid of its points is most of the cost); grouping them is cheap and stays in order.
+    let ids: Vec<Option<TileId>> = list
+        .prims
+        .par_iter()
+        .map(|prim| {
+            if matches!(prim.kind, Kind::Infinite { .. }) {
+                return None;
+            }
+            prim_centroid(list, prim).and_then(|c| tile_id_at(c, edge))
+        })
+        .collect();
+    for (i, id) in ids.into_iter().enumerate() {
+        let Some(id) = id else { continue };
         map.entry(id).or_default().push(i);
         if map.len() > MAX_MESH_TILES {
             return Vec::new();
@@ -591,9 +631,64 @@ pub fn partition_prims(list: &DisplayList, edge: f64) -> Vec<(TileId, Vec<usize>
     map.into_iter().collect()
 }
 
+/// The tiles of `list` at `edge` when per-tile retention is worthwhile (the checks of [`mesh_tiling_viable`]), partitioned once so the caller does not
+/// partition again. `None` when it is not worthwhile, hostile, or unsafe.
+pub fn tiling_plan(list: &DisplayList, edge: f64) -> Option<Vec<(TileId, Vec<usize>)>> {
+    if list.prims.len() > MAX_MESH_PRIMS || wipeout_spans_tiles(list, edge) {
+        return None;
+    }
+    let parts = partition_prims(list, edge);
+    (MIN_MESH_TILES..=MAX_MESH_TILES).contains(&parts.len()).then_some(parts)
+}
+
+/// A small fast hasher for fingerprints (multiply and rotate, like rustc's FxHasher). The fingerprint of a big drawing hashes tens of millions of
+/// coordinates every time the zoom changes, and the standard SipHash was the larger part of that. A fingerprint only has to differ when the content differs
+/// within one run, so it needs no protection against crafted input.
+#[derive(Default)]
+struct FastHasher(u64);
+
+impl FastHasher {
+    const K: u64 = 0x517c_c1b7_2722_0a95;
+    #[inline]
+    fn add(&mut self, x: u64) {
+        self.0 = (self.0.rotate_left(5) ^ x).wrapping_mul(Self::K);
+    }
+}
+
+impl Hasher for FastHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        let (words, rest) = bytes.as_chunks::<8>();
+        for w in words {
+            self.add(u64::from_le_bytes(*w));
+        }
+        for &b in rest {
+            self.add(u64::from(b));
+        }
+    }
+    #[inline]
+    fn write_u8(&mut self, i: u8) {
+        self.add(u64::from(i));
+    }
+    #[inline]
+    fn write_u32(&mut self, i: u32) {
+        self.add(u64::from(i));
+    }
+    #[inline]
+    fn write_u64(&mut self, i: u64) {
+        self.add(i);
+    }
+    #[inline]
+    fn write_usize(&mut self, i: usize) {
+        self.add(i as u64);
+    }
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
 /// Fingerprint of the primitives in a tile (geometry + style). Used to skip remesh when unchanged.
 pub fn tile_content_fingerprint(list: &DisplayList, prim_indices: &[usize]) -> u64 {
-    let mut h = std::collections::hash_map::DefaultHasher::new();
+    let mut h = FastHasher::default();
     prim_indices.len().hash(&mut h);
     for &i in prim_indices.iter().take(MAX_MESH_PRIMS) {
         let Some(prim) = list.prims.get(i) else {

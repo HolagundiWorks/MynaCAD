@@ -182,6 +182,15 @@ impl FrameCache {
     }
 
     /// Drop composed and tiled meshes (origin / LOD basis change, or tiling abandoned).
+    /// Ring instances and mesh bytes of what is painted: the sum of the tiles when the mesh is tiled (no composed mesh is kept then), else the one mesh.
+    fn mesh_totals(&self) -> (usize, usize) {
+        let one = |m: &MeshData| (m.ring_instances(), m.lines.len() + m.tris.len() + m.quads.len() + m.rings.len());
+        if self.mesh_tiled {
+            return self.tiles.values().map(|t| one(&t.mesh)).fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
+        }
+        self.mesh.as_ref().map_or((0, 0), one)
+    }
+
     fn clear_mesh(&mut self) {
         self.invalidate_composed_mesh();
         self.tiles.clear();
@@ -1476,14 +1485,8 @@ impl Host {
     fn control_inspect(&self) -> Value {
         let view = self.session.state().map(|state| state.view()).unwrap_or(aad_engine::View { center: Vec2::ZERO, height: 1.0 });
         let settings = &self.session.settings;
-        let (prims, rings, mesh_bytes) = match &self.frame.mesh {
-            Some(m) => (
-                self.frame.list.as_ref().map(|l| l.prims.len()).unwrap_or(0),
-                m.ring_instances(),
-                m.lines.len() + m.tris.len() + m.quads.len() + m.rings.len(),
-            ),
-            None => (self.frame.list.as_ref().map(|l| l.prims.len()).unwrap_or(0), 0, 0),
-        };
+        let (rings, mesh_bytes) = self.frame.mesh_totals();
+        let prims = self.frame.list.as_ref().map(|l| l.prims.len()).unwrap_or(0);
         json_ok(serde_json::json!({
             "shell": "winui",
             "canvas": { "width": self.width, "height": self.height, "visible": self.canvas_visible },
@@ -2177,8 +2180,10 @@ impl Host {
 
     /// Ensure the cached display list and mesh match the session; return GPU key, uniforms and origin.
     fn mesh(&mut self) -> Result<(u64, [f32; 12], Vec2), String> {
+        let t_pre = perf::start();
         let lw = self.session.settings.lwdisplay;
         let state = self.session.state().map_err(|e| e.to_string())?;
+        let lap_state = perf::lap(&t_pre);
         let view = state.view();
         let px = view.height / f64::from(self.height.max(1));
         let band = aad_render::tessellation_band(px);
@@ -2345,6 +2350,7 @@ impl Host {
                 self.frame.invalidate_composed_mesh();
             }
         }
+        let lap_list = perf::lap(&t_pre);
         let list = self.frame.list.as_ref().ok_or_else(|| "display list missing".to_string())?;
         let origin = mesh::choose_origin(&list.bounds, view.center, view.height);
         let paper = self.paper();
@@ -2359,20 +2365,32 @@ impl Host {
             ^ (band as u64).rotate_left(40)
             ^ u64::from(true_scale).rotate_left(48);
         let mesh_key = state.revision ^ mesh_basis;
+        if t_pre.is_some() && (self.frame.mesh_key != Some(mesh_key) || self.frame.mesh.is_none()) {
+            perf::force(&format!(
+                "mesh() before the mesh step: session.state() {lap_state:.1}, until the display list is settled {lap_list:.1}, until here {:.1} ms",
+                perf::lap(&t_pre)
+            ));
+        }
         if self.frame.mesh_key != Some(mesh_key) || self.frame.mesh.is_none() {
             let t0 = std::time::Instant::now();
             let world_width = view.height * f64::from(self.width.max(1)) / f64::from(self.height.max(1));
-            let edge = mesh::mesh_tile_edge(view.height);
-            let tiled = mesh::mesh_tiling_viable(list, edge);
-            let (built, remeshed, tiles_total, mesh_tiled) = if tiled {
+            // Big drawings get finer tiles so the tiles can be worked on by every core; if that edge is not usable (a wipeout across tiles, too many
+            // tiles) the plain edge is tried. The partition is made once and reused below.
+            let t_plan = perf::start();
+            let base_edge = mesh::mesh_tile_edge(view.height);
+            let fine_edge = mesh::mesh_tile_edge_for(list, view.height);
+            let plan = mesh::tiling_plan(list, fine_edge).or_else(|| if fine_edge == base_edge { None } else { mesh::tiling_plan(list, base_edge) });
+            let lap_plan = perf::lap(&t_plan);
+            let (built, remeshed, tiles_total, mesh_tiled) = if let Some(parts) = plan {
                 if self.frame.mesh_basis != Some(mesh_basis) {
                     self.frame.tiles.clear();
                 }
-                let parts = mesh::partition_prims(list, edge);
+                let t_mb = perf::start();
                 let keep: std::collections::HashSet<TileId> = parts.iter().map(|(id, _)| *id).collect();
                 self.frame.tiles.retain(|id, _| keep.contains(id));
                 // Tiles are independent: fingerprint them all, then remesh the ones whose content changed, each on its own thread.
                 let keys: Vec<u64> = parts.par_iter().map(|(_, indices)| mesh::tile_content_fingerprint(list, indices) ^ mesh_basis).collect();
+                let lap_keys = perf::lap(&t_mb);
                 let stale: Vec<usize> = parts
                     .iter()
                     .zip(&keys)
@@ -2385,23 +2403,22 @@ impl Host {
                     .filter_map(|&i| parts.get(i).map(|(_, indices)| (i, mesh::build_mesh_prims(list, indices, origin, paper, lw_mode))))
                     .collect();
                 let remeshed = rebuilt.len();
+                let lap_remesh = perf::lap(&t_mb);
                 for (i, mesh) in rebuilt {
                     if let (Some((id, _)), Some(key)) = (parts.get(i), keys.get(i)) {
                         self.frame.tiles.insert(*id, TileMesh { key: *key, mesh });
                     }
                 }
                 let tiles_total = parts.len();
-                let mut merged = {
-                    let refs: Vec<&MeshData> = parts.iter().filter_map(|(id, _)| self.frame.tiles.get(id).map(|t| &t.mesh)).collect();
-                    mesh::merge_meshes(&refs)
-                };
-                mesh::append_infinite(&mut merged, list, origin, view.center, world_width, view.height, paper);
-                if true_scale {
-                    mesh::expand_hairlines_true_scale(&mut merged);
-                } else {
-                    mesh::expand_hairlines(&mut merged);
+                // The tiles are what is painted (`present_tiles`); the view-clipped infinite lines are added at each present. The composed mesh, one copy of
+                // every tile joined, was only read by `ui.inspect` and tests, and cost about 20 ms of every zoom step on a big drawing: it is not built.
+                let lap_merge = perf::lap(&t_mb);
+                if t_mb.is_some() {
+                    perf::force(&format!(
+                        "mesh rebuild: plan {lap_plan:.1}, fingerprints until {lap_keys:.1}, remesh until {lap_remesh:.1} ({remeshed} of {tiles_total} tiles), no merge {lap_merge:.1} ms"
+                    ));
                 }
-                (merged, remeshed, tiles_total, true)
+                (MeshData::default(), remeshed, tiles_total, true)
             } else {
                 self.frame.tiles.clear();
                 let mut mono = mesh::build_mesh_mode(list, origin, paper, lw_mode);
@@ -2444,8 +2461,12 @@ impl Host {
     /// Vertices in the current frame. Used by tests; the window paints the same mesh.
     pub fn mesh_vertices(&mut self) -> Result<usize, String> {
         let _ = self.mesh()?;
+        let count = |m: &MeshData| m.line_vertices() + m.tri_vertices() + m.quad_instances() + m.ring_instances();
+        if self.frame.mesh_tiled {
+            return Ok(self.frame.tiles.values().map(|t| count(&t.mesh)).sum());
+        }
         let built = self.frame.mesh.as_ref().ok_or_else(|| "mesh missing".to_string())?;
-        Ok(built.line_vertices() + built.tri_vertices() + built.quad_instances() + built.ring_instances())
+        Ok(count(built))
     }
 
     /// Zoom to the extents and remember the view that gave, so a later change of the drawing area
@@ -2536,8 +2557,10 @@ impl Host {
         if self.in_call {
             return Ok(());
         }
+        let t_pump = perf::start();
         self.drain_control();
         self.assistant.poll(&mut self.session);
+        let t_ctl = perf::lap(&t_pump);
         self.in_call = true;
         let result = (|| {
             if self.canvas_visible {
@@ -2545,10 +2568,15 @@ impl Host {
             }
             let events = self.bridge.drain();
             let had_events = !events.is_empty();
+            let n_events = events.len();
             for ev in events {
+                let t_ev = perf::start();
                 self.pointer(ev)?;
+                perf::note(&t_ev, &format!("pump: one pointer event took long (events this pump {n_events})"));
             }
+            let t_events = perf::lap(&t_pump);
             let zooming = self.tick_zoom()?;
+            let t_zoom = perf::lap(&t_pump);
             // Idle pumps skip the GPU path: document/overlay only change on input, commands
             // (`present_if_ready`), resize, a zoom animation, or a background display-list band finishing.
             let need = had_events || self.paint_dirty || zooming || self.frame.pending.is_some() || self.frame.first.is_some();
@@ -2556,6 +2584,15 @@ impl Host {
                 self.redraw()?;
                 self.paint_dirty = zooming;
             }
+            perf::note(
+                &t_pump,
+                &format!(
+                    "pump: control {t_ctl:.1}, events {n_events} until {t_events:.1}, zoom tick until {t_zoom:.1}, total {:.1} ms (zooming {zooming}, pending {}, first {})",
+                    perf::lap(&t_pump),
+                    self.frame.pending.is_some(),
+                    self.frame.first.is_some()
+                ),
+            );
             Ok(())
         })();
         self.in_call = false;
@@ -3076,7 +3113,7 @@ mod tests {
         assert!(host.frame.tiles_total >= 2, "expected ≥2 tiles, got {}", host.frame.tiles_total);
         let total = host.frame.tiles_total;
         assert_eq!(host.frame.tiles_remeshed, total, "cold build remeshes every tile");
-        let mesh_bytes_a = host.frame.mesh.as_ref().map(|m| m.lines.len() + m.tris.len() + m.quads.len() + m.rings.len()).unwrap_or(0);
+        let mesh_bytes_a = host.frame.mesh_totals().1;
 
         host.execute("move", &json!({ "handles": mid_handles, "delta": [20.0, 0.0] })).unwrap();
         let (key_b, _, _) = host.mesh().unwrap();
@@ -3084,7 +3121,7 @@ mod tests {
         assert!(host.frame.mesh_tiled);
         assert_eq!(host.frame.tiles_total, total, "tile count stays stable for an in-tile edit");
         assert_eq!(host.frame.tiles_remeshed, 1, "only the dirty tile remeshes, got {}", host.frame.tiles_remeshed);
-        let mesh_bytes_b = host.frame.mesh.as_ref().map(|m| m.lines.len() + m.tris.len() + m.quads.len() + m.rings.len()).unwrap_or(0);
+        let mesh_bytes_b = host.frame.mesh_totals().1;
         assert_eq!(mesh_bytes_a, mesh_bytes_b, "byte size stays stable when moving a stroke within a tile");
 
         // Fine pan after a tiled edit still keeps the composed upload key.
