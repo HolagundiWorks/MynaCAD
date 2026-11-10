@@ -1,81 +1,91 @@
-# MynaHub suite: names, roles, files, links and how it works live
+# Myna suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. Each app repository carries an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called, what their toolbars hold and how they connect. If you change one, change all four. Updated 2026-11-07.
+**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`O-COREOP`) and MynaCAD (`O-DRAFT-main`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11.
+
+## 0. What changed on 2026-11-11 (owner decisions)
+
+| Decision | State |
+|---|---|
+| The **Myna launcher** (`O-Studio.Launcher.exe`: tray icon, window, app tiles, AI Core host, launch requests, the "Myna" shortcuts) is **removed**. Nothing starts from it | Implemented (branch `claude/no-launcher`). `MynaHub-Setup` removes an installed launcher on upgrade |
+| **MynaHub** keeps every login (company sign-in, users, admin password, roles) and its own database (the company file `.osas`; Neon cloud sync is MynaHub only). MynaHub has **no AI**: no assistant bar, no AI status, no AI settings passed to the apps it starts | Implemented |
+| The **AI agent** (Olmo 3 7B through llama.cpp `llama-server`, loopback `127.0.0.1:8742`) is **hosted by MynaOps** and serves **MynaOps and MynaCAD** only. A MynaOps window hosts it; without a window MynaOps runs it headless (`O-CoreOp.exe --ai-host`), which **MynaCAD starts** when no host answers and which ends by itself when neither app is open | Implemented |
+| The **project database manager** for the shared `.osp` lives in **MynaOps** (Project > Project database, also File > Project database) | Implemented |
+| MynaCAD and MynaOps stay independent of MynaHub (no sign-in, no link) | Unchanged since 2026-11-08 |
 
 ## 1. Names
 
-**Naming (2026-11-10, after the user survey found the bird names confusing):** one family name, **Myna**, and a use-case word for each app. **Myna** is the suite and its launcher (tray icon, AI Core host); **MynaHub** is the hub (company, people, approvals; was Kivo); **MynaCAD** is drafting (was Tren); **MynaOps** is operations: quantities, estimates and billing (was Falcon); **MynaMod** is 3D / BIM modelling (was Finch). The older bird names (Kivo, Tren, Falcon, Finch) and the O- names are retired from user text. Installers are `Myna-Setup-<version>.exe`. Identifiers keep their old spellings (install folders, exe names, `OSTUDIO_*`, the stored origin stamp `"app":"Tren"`). Marks: the three-circle suite mark on each app's colour; Myna wears the orb (BRANDING.md).
-
-The suite is the **MynaHub family of apps** (MynaHub, MynaOps, MynaCAD, MynaMod, Myna, and O-UI). **MynaHub** is the hub: **company sign-in** (the session every other app asks for), users, estimates, running bills, **approvals and revisions**, and the Neon sync settings. **Myna** hosts only the **Olmo AI Core** and the **database service** (a local database that syncs to Neon); it does not sign anyone in. **MynaCAD** and **MynaOps** share one `.osp` file connected to that database. A name below is the name to use in text, menus and installers. Code identifiers keep older spellings because files already use them; they are identifiers, not names.
+**Myna** is the name of the suite (the family of apps); there is no app called Myna any more. Each app is Myna plus a use-case word: **MynaHub** is the hub (company, people, approvals; was Kivo); **MynaCAD** is drafting (was Tren); **MynaOps** is operations: quantities, estimates and billing (was Falcon); **MynaMod** is 3D / BIM modelling (planned; was Finch). The older bird names (Kivo, Tren, Falcon, Finch) and the O- names are retired from user text. Identifiers keep their old spellings (install folders, exe names, `OSTUDIO_*`, the stored origin stamp `"app":"Tren"`). Marks: the three-circle suite mark on each app's colour; the orb is the AI agent's mark inside MynaOps and MynaCAD (MynaHub `docs/BRANDING.md`).
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
-| **MynaHub** | Office and projects; **suite hub** (company file, users, launch MynaOps/MynaCAD, approvals; the one app that is synced to the cloud) | Ember `#B83E16` | `O-STUDIO` | `aos`, `AOSENC1`, `office-core`, `office.dll` |
-| **MynaOps** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling | Dusk `#5630A0` | `O-COREOP` | `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
-| **MynaCAD** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools | Midnight `#102C80` | `O-DRAFT` | `aad-*` crates, `aad-host.dll`, `aad-winui` |
+| **MynaHub** | Office and projects; **suite hub**: company file, sign-in, users, roles, approvals and revisions, Import from MynaOps (CSV); the one app synced to the cloud (Neon). No AI | Ember `#B83E16` | `O-STUDIO` | `O-Studio.exe`, `aos`, `AOSENC1`, `office-core`, `office.dll` |
+| **MynaOps** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling; **hosts the AI agent** for itself and MynaCAD; **project database manager** | Dusk `#5630A0` | `O-COREOP` | `O-CoreOp.exe`, `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
+| **MynaCAD** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools; a client of the AI agent | Midnight `#102C80` | `O-DRAFT-main` | `ODraft.WinUi.exe`, `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
-| **MynaMod**, **O-Dynamo** | Planned, not built | MynaMod: Grove `#166040` | `MynaMod`, `O-Dynamo` | |
+| **MynaMod**, **O-Dynamo** | Planned, not built | MynaMod: Grove `#166040` | `O-Form`, `O-Dynamo` | |
 
-**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `launch-request.json`, `ai\auth.token`). MynaHub starts sibling apps with `OSTUDIO_COMPANY`, one-time `OSTUDIO_TICKET`, optional `OSTUDIO_USER`, the locked project (`OSTUDIO_PROJECT_ID`, `OSTUDIO_PROJECT_OSP`, `OSTUDIO_PROJECT_NAME`), and Olmo client env (`OSTUDIO_AI_ROLE=client`, `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (MynaHub), `aad-office::wire` (MynaCAD).
+**Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `ai\auth.token`, `ai\host.json`, `ai\host.log`). MynaHub starts MynaOps, MynaCAD and MynaMod by path and passes **nothing** in their environment (no company, no ticket, no project, no AI settings). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (MynaHub).
+
+**AI agent wire (unchanged contract):** `GET /v1/health`, `POST /v1/chat`, `POST /v1/completion` on `127.0.0.1:8742`, bearer token from `%LOCALAPPDATA%\O-Studio\ai\auth.token` (created by the host). Overrides: `OSTUDIO_AI_HOST`, `OSTUDIO_AI_PORT`, `OSTUDIO_AI_TOKEN`, `OSTUDIO_AI_ROLE` (`client` or `host`). Added 2026-11-11, all optional: `ai\host.json` (`{format:"myna-ai-host", version:1, port, pid, mode:"window"|"headless", exe, started_utc}`, written by the MynaOps that hosts, removed when it stops), `host` and `pid` in the health reply, `OSTUDIO_AI_DIR` (moves the `ai` folder; tests), `OSTUDIO_AI_HOST_EXE` (MynaCAD: which `O-CoreOp.exe` to start), `OSTUDIO_AI_AUTOSTART=0` (MynaCAD: never start MynaOps), `OSTUDIO_AI_IDLE_SECONDS` (headless host idle time, default 180).
 
 Other names:
 
 | Term | Meaning |
 |---|---|
-| **Company file** | One file per practice, `.osas` (earlier `.adms` opens too). SQLite, optionally encrypted (`AOSENC1`). Chosen and created in **MynaHub**. **MynaOps** signs in as a MynaHub user and pushes project items into it. **MynaCAD** does not open it |
-| **Project file** | `.osp`. One SQLite file per project holding the drawing, the take-off and the project record. Format name `osp`, version 1. (`.odp` was the working name and clashed with LibreOffice Impress; it is not used) |
+| **Company file** | One file per practice, `.osas` (earlier `.adms` opens too). SQLite through the `office-core` Rust engine, optionally encrypted (`AOSENC1`). Chosen, created and signed in to in **MynaHub** only. MynaOps and MynaCAD do not open it |
+| **Project file** | `.osp`. One SQLite file per project holding the drawing, the take-off and the project record. Format name `osp`, version 1. Changes to it are additive only: new meta keys or new tables, never an altered table. (`.odp` was the working name and clashed with LibreOffice Impress; it is not used) |
 | **Take-off** | Quantities measured from a drawing. Recorded by MynaCAD into the project file; read by MynaOps |
 | **Revision** | The counter inside a project file (`meta.revision`). Every save by any program is one revision. Apps compare revisions to know someone else wrote |
-| **Active-project pointer** | `%LOCALAPPDATA%\O-Studio\active-project.json`, written by MynaCAD: which project file is open there, so MynaOps can open the same one |
-| **Shared project file** | One `.osp` opened in **MynaCAD** and **MynaOps**. Double-click opens it in MynaCAD; **Open in MynaOps** is a separate verb. Neither verb starts Myna. MynaCAD writes the drawing and take-off; MynaOps writes quantities, the estimate, bills, and the project maps and layouts |
-| **Ticket** | One-time sign-in token **MynaHub** gives an app it starts: 32 random bytes, two minutes, one use. The password is never passed on (`OSTUDIO_TICKET` in the environment) |
+| **Active-project pointer** | `%LOCALAPPDATA%\O-Studio\active-project.json`, written by MynaCAD: which project file is open there. MynaOps uses it to open the same file and, in the project database manager, to know MynaCAD has the file open |
+| **Shared project file** | One `.osp` opened in **MynaCAD** and **MynaOps**. Double-click opens it in MynaCAD; **Open in MynaOps** is a separate verb. MynaCAD writes the drawing and take-off; MynaOps writes quantities, the estimate, bills, and the project maps and layouts |
+| **Backups of a project file** | `<name>.backups\<name> <UTC yyyyMMddTHHmmssZ> <reason>.osp` beside the file, each a whole project file. MynaCAD makes one before every save that changes the drawing (`save`), before a re-import or a restore, and prunes to its `BACKUPCOUNT` (default 5, 90 days); MynaOps' manager adds `manual` ones (MynaCAD `docs/AUTOSAVE-BACKUP.md`) |
 | **Persona** | In MynaOps, Project Manager/PMC or Contractor: each has its own letterhead and numbering |
-| **AI Core** | Loopback assistant service on `127.0.0.1:8742` (`AiCoreListener`). **Myna** hosts **Olmo 3 7B** for as long as it runs; **MynaHub**, **MynaOps** and **MynaCAD** are clients only |
-| **Olmo 3 7B** | The shared local assistant model (GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`). Not Tulu and not in-process in MynaOps or MynaCAD |
+| **AI agent** | Olmo 3 7B Instruct (Q4_K_M GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`), served by `llama-server` (llama.cpp b11976, bundled in MynaOps' `runtime\`) behind MynaOps' `AiCoreListener` on `127.0.0.1:8742`. Runs on this computer only. **MynaOps** hosts it; **MynaCAD** is a client; MynaHub does not use it |
 
-## 1a. The workflow (decided 2026-11-08)
+## 1a. The workflow (decided 2026-11-08, AI host changed 2026-11-11)
 
 **MynaCAD and MynaOps are independent of MynaHub.** They do not sign in to MynaHub, ask it for a session, or need it running. They share one **local `.osp` file**, which is their database; it stays on this PC and is never synced. **MynaOps exports a CSV; MynaHub imports it** for estimates and running bills, and that data becomes part of the company database. **Approvals and revisions live in MynaHub.** Only MynaHub is synced to the cloud.
 
 | App | Owns | Does not need |
 |---|---|---|
-| **MynaCAD** | The drawing and its take-off rows, written into the local `.osp` | MynaHub, a sign-in, a network |
-| **MynaOps** | Quantities, rates, the estimate, read and written in the same local `.osp`; **Export for MynaHub (CSV)** | MynaHub, a sign-in, a network |
-| **MynaHub** | Company sign-in and users; estimates, running bills, **approvals, revisions**; **Import from MynaOps (CSV)**; the only cloud sync | |
-| **Myna** | The **AI Core** (Olmo, loopback `127.0.0.1:8742`), which MynaCAD, MynaOps and MynaHub may use when it runs; tray icon | |
+| **MynaCAD** | The drawing and its take-off rows, written into the local `.osp` through its own engine; rolling backups and crash recovery of its drawings | MynaHub, a sign-in, a network; MynaOps for anything but the AI agent |
+| **MynaOps** | Quantities, rates, the estimate, read and written in the same local `.osp`; **Export for MynaHub (CSV)**; the **AI agent host**; the **project database manager** | MynaHub, a sign-in, a network |
+| **MynaHub** | Company sign-in, users, roles and the admin password; the company file; estimates, running bills, **approvals, revisions**; **Import from MynaOps (CSV)**; the only cloud sync (Neon) | An AI agent, MynaOps or MynaCAD running |
 
 How the pieces connect:
 
 - **Project data.** MynaCAD and MynaOps read and write the same `.osp` on this PC. Nothing in it is pushed anywhere (`Osas.Core.ProjectFilePolicy`; `OSAS_PUSH_PROJECT_FILES=1` is an opt-in that is off).
-- **CSV.** MynaOps writes `osas-falcon-csv/1` (20 columns; rows `meta`, `estimate`, `measured`, `takeoff`, `total`; UTF-8 with BOM, RFC 4180, CRLF). MynaHub previews it and imports it in one transaction onto estimate versions and draft running bills. Contracts: `contracts/falcon-csv.md` (MynaHub repo, `docs/contracts/falcon-csv.md`), `contracts/falcon-csv-import.md` (MynaHub repo, `docs/contracts/falcon-csv-import.md`); a running bill locks its measured-to-date once certified.
-- **Retired 2026-11-08:** MynaHub's session broker, Myna's database service, the sign-in ticket MynaHub passed to the apps it started, and the project Myna locked are gone. MynaCAD and MynaOps no longer read a company file or take a sign-in from anywhere; MynaOps no longer pushes anything into MynaHub. MynaHub starts MynaOps and MynaCAD with nothing but where the AI Core is (MynaHub `docs/contracts/session-broker.md` is kept only as history).
-- **Design note:** `WORKFLOW-KIVO-HUB.md` (MynaHub repo, `docs/WORKFLOW-KIVO-HUB.md`).
+- **CSV.** MynaOps writes `osas-falcon-csv/1` (20 columns; rows `meta`, `estimate`, `measured`, `takeoff`, `total`; UTF-8 with BOM, RFC 4180, CRLF). MynaHub previews it and imports it in one transaction onto estimate versions and draft running bills. Contracts: MynaHub `docs/contracts/falcon-csv.md` and `docs/contracts/falcon-csv-import.md`; a running bill locks its measured-to-date once certified.
+- **AI agent.** A MynaOps window hosts it in-process when the port is free; a second MynaOps window is a client. When only MynaCAD is open and the user asks something, MynaCAD starts `O-CoreOp.exe --ai-host` (no window; found through `OSTUDIO_AI_HOST_EXE`, `ai\host.json`, the folder beside MynaCAD's, or `%LOCALAPPDATA%\Programs\O-CoreOp`), shows "starting MynaOps…" and sends the question when the host answers; the UI never waits on it. The headless host is one per Windows session (a mutex), loads the model on the first question, and ends when no MynaCAD or MynaOps process has run and nothing has asked for 3 minutes, or on `O-CoreOp.exe --ai-host-stop`. The MynaOps and MynaCAD Setup stops a headless host before it replaces or removes files.
+- **Retired 2026-11-08:** MynaHub's session broker, the database service, the sign-in ticket MynaHub passed to the apps it started, and the locked project. MynaHub `docs/contracts/session-broker.md` is kept only as history.
+- **Retired 2026-11-11:** the Myna launcher, its AI Core hosting, `launch-request.json`, `launcher-status.txt`, the tray icon and the "Myna" shortcuts; MynaHub's assistant bar and AI status.
+- **Design note:** MynaHub `docs/WORKFLOW-KIVO-HUB.md`.
 
 ## 2. Hierarchy
 
 ```
-MynaHub (company sign-in, users, practice records, estimates, bills, approvals, revisions); Myna (AI Core host, database service, Neon sync)   <- which company, who is signed in
+MynaHub (company sign-in, users, roles, practice records, estimates, bills, approvals, revisions, Neon sync)   <- which company, who is signed in
  |
  +-- Company file (.osas)                                 <- the practice: clients, projects, users, accounts
  |     |
  |     +-- Project (ProjectRef: company_uuid + project_id)  <- identity shared by all apps
  |           |
- |           +-- Project file (.osp)                        <- the working data of one project
+ |           +-- Project file (.osp)                        <- the working data of one project (on this PC)
  |                 |-- drawing(s)  (DWG/DXF bytes, unchanged)
  |                 |-- take-off    (headers, rows, annotated PDFs)
  |                 |-- project record (estimate, bills, tasks, quantities, POs)
  |                 |-- markups, history, change log
  |
- +-- MynaOps   reads company details; reads/writes the project record and take-off view in the .osp
- +-- MynaCAD    writes the drawing and take-off in the .osp
+ +-- MynaOps   reads/writes the project record and take-off view in the .osp; exports the CSV MynaHub imports; hosts the AI agent
+ +-- MynaCAD   writes the drawing and take-off in the .osp; asks the AI agent MynaOps hosts
  +-- Viewer (planned: tablet/phone)  views and marks up the synced project
 ```
 
-Rule: **a project's data lives in its `.osp`; the practice's data lives in the company file; nothing else is a source of truth.** Cloud (**Neon** — Lakebase Postgres and Object Storage) is a master copy that MynaHub syncs; the apps never hold cloud keys.
+Rule: **a project's data lives in its `.osp`; the practice's data lives in the company file; nothing else is a source of truth.** Cloud (**Neon** — Postgres and Object Storage) is a master copy that MynaHub syncs; MynaOps and MynaCAD never hold cloud keys.
 
 ## 3. Roles
 
-Users belong to the company, so they are the same in every app. Roles are in `office-core` (`auth.rs`):
+Users belong to the company. Roles are in `office-core` (`auth.rs`):
 
 | Role | Can |
 |---|---|
@@ -85,7 +95,7 @@ Users belong to the company, so they are the same in every app. Roles are in `of
 | **Document editor** | View and edit documents |
 | **Auditor** | View, and view the audit trail (read only) |
 
-Users are added, re-roled and re-passworded in **MynaHub** (Office > Users or company sign-in flows), each change asking for the owner's password again; the last active owner cannot be removed. MynaOps signs in as one of those users and pushes project items; it does not edit users. Firm details for MynaCAD title blocks are an exported pack, not a live company-file session. The project's persona (PM/PMC or Contractor) is separate from the user's role.
+Users are added, re-roled and re-passworded in **MynaHub** (Office > Users), each change asking for the signed-in person's password again; the last active owner cannot be removed. MynaOps and MynaCAD have no sign-in. Firm details for MynaCAD title blocks are an exported pack, not a live company-file session. The project's persona (PM/PMC or Contractor) is separate from the user's role.
 
 ## 4. What each app has on screen
 
@@ -97,50 +107,54 @@ Users are added, re-roled and re-passworded in **MynaHub** (Office > Users or co
 | Top tool strip (row 1) | Layer box, **Draw / Modify / Annotate** (horizontal), architecture tools, gear (View > Customize Top Bar) |
 | Take-off strip (row 2) | **Take-off tools only** (Ext wall, Int wall, Beam, … Record, Map layers, phase pickers) while **Take-off** is on in Classic workspace |
 | Right | Layers / Properties / Blocks tabbed stack |
-| Bottom bar | Snap/ortho/polar toggles, coordinates, units, **Take-off toggle** (next to Nameplate) |
-| File | New, Open, Save, Save as, Close, Export, Print/Plot, History, and **Import company details** (`company.pack.import`). The project file is the `.osp` shared with MynaOps. Company details for title blocks are a JSON pack exported from MynaHub (Firm settings, **Export for MynaCAD**). MynaCAD does not call MynaHub or Myna |
+| Bottom bar | Snap/ortho/polar toggles, coordinates, units, **Take-off toggle** (next to Nameplate); the AI agent mark, whose tooltip shows the agent's state ("ready (MynaOps)", "starting MynaOps…", "needs MynaOps", "the model is not installed") |
+| File | New, Open, Save, Save as, Close, Export, Print/Plot, History, Restore from Backup, and **Import company details** (`company.pack.import`). The project file is the `.osp` shared with MynaOps. Company details for title blocks are a JSON pack exported from MynaHub (Firm settings, **Export for MynaCAD**). MynaCAD does not call MynaHub |
 | Command line | Every tool is also a typed command, e.g. `takeoff.record` |
 
-Details: `docs/UI_UX.md`.
+Details: MynaCAD `docs/UI_UX.md`.
 
 ### MynaOps (WinUI shell, C++ engine)
 
 | Region | Contents |
 |---|---|
 | Main ribbon | One text tab per section: Project, RCC steel, Civil BOQ, Schedule, Contracts, Stores, Outputs (Ctrl+1 to Ctrl+7). Office, Accounts and HR live in MynaHub |
-| Sub ribbon | One text tab per page of the open section |
+| Sub ribbon | One text tab per page of the open section. Project: Dashboard, Levels, Take-off (MynaCAD), **Project database** |
 | Take-off page | Reads the take-off from the open `.osp`; shows "MynaCAD updated the take-off" when MynaCAD writes; Import brings it into the estimate |
-| Layout page | Outputs > Layout. The left side is the project map and its layouts (for example Ground floor working drawing). The right side lists print blocks saved in the open `.osp` by MynaCAD. Insert places the related print block, Update nameplate stores the title fields in the project document, and Export PDF writes a sheet record. The PDF does not redraw the model |
-| File | Open project (the shared `.osp`), Save, **Sign in to MynaHub**, **Push to MynaHub**, Take-off, Import from CAD, Export. Sign-in uses the MynaHub user and the company file. Push writes this project's items (`aqc.project`, and an estimate draft when one has been calculated) |
-| Bottom shell | Full-bleed status row + floating Ask pill (`O.Ui` `SuiteBottomStatusBar`, `SuiteAskBar`) — MynaCAD layout is canonical |
-| Assistant (Olmo) | Hosted by Myna on `:8742`; MynaOps and MynaCAD are clients |
+| Project database page | The shared `.osp` as a database: format and version, revision, size (and write-ahead log), free space, folder, rows per table; **Check integrity**, **Compact**, **Back up now**, the backups (newest first) and **Restore selected**; who else has the file open (MynaCAD through the active-project pointer while it runs, or any program holding the file). Compact and Restore are refused while the file is open elsewhere. Nothing changes the format |
+| Layout page | Outputs > Layout. The left side is the project map and its layouts. The right side lists print blocks saved in the open `.osp` by MynaCAD. Insert places the related print block, Update nameplate stores the title fields in the project document, and Export PDF writes a sheet record |
+| File | Open project (the shared `.osp`), Save, Take-off, Import from CAD, Export for CAD, Undo last CAD import, **Project database**, Exit |
+| Edit | Project settings, Engineering settings, Cost percentages, **Assistant model** (where the model is, who hosts the agent, Download the model with size and SHA-256 checked, Locate a model file) |
+| Bottom shell | Full-bleed status row + floating Ask pill (`O.Ui` `SuiteBottomStatusBar`, `SuiteAskBar`); the status row shows **AI: ready / off / model not installed / runtime missing** (checked every 10 s; click for Assistant model) |
+| Assistant (Olmo) | Hosted by MynaOps (this window, or the headless MynaOps when another one already serves `:8742`) |
 
-Details: `docs/WINUI-SHELL.md`.
+Details: MynaOps `docs/WINUI-SHELL.md`.
 
 ### MynaHub (WinUI shell over a Rust engine)
 
 | Region | Contents |
 |---|---|
-| Sign-in / company | New or open company file (`.osas`) **in MynaHub**; sign in once (MynaHub serves the session to MynaOps and MynaCAD on request); remember path in `suite.json`; admin password and **Users** (in MynaHub) |
+| Sign-in / company | New or open company file (`.osas`) **in MynaHub**; sign in; remember the path in `suite.json`; admin password and **Users** |
 | Left pane | Practice (Pulse, Clients, Projects, enquiries, site records, permits, proposals, meetings); Documents (letters, templates); Billing (invoices, receipts, reconciliation); Books (expenses, income, salaries, assets, journals); Reports and tax; Office (firm profile, staff, leave, attendance, library, security, backup); **Suite** (dashboard, **Cloud sync**, approvals) |
 | Shortcuts | Ctrl+N new record, Ctrl+S save, Ctrl+P print, Ctrl+F search, Ctrl+K go to page |
-| Bottom shell | Same status row and Ask pill as MynaCAD and MynaOps (`O.Ui`); **launch MynaOps, MynaCAD, MynaMod** from the status row |
-| Assistant (Olmo) | Client of Myna's host on `:8742`; read-only practice tools in the floating bar |
+| Bottom shell | Status row (`O.Ui`); **opens MynaOps, MynaCAD, MynaMod** from the status row (by path, nothing passed) |
+| Cloud sync | Suite > Cloud sync: Neon settings, Test connection, **Start sync** (background sync runs in MynaHub while it is open), per-project push and pull |
+
+MynaHub has no Ask bar and no assistant.
 
 ## 5. How they are linked, and how it works live
 
 | Link | Mechanism | Latency |
 |---|---|---|
-| MynaHub -> apps | Starts the app with `OSTUDIO_COMPANY` + one-time `OSTUDIO_TICKET` (and Olmo client env when applicable) | on launch |
-| Company -> apps | `office.dll` (C ABI from `office-ffi`), read by the app | on open |
+| MynaHub -> apps | Starts the app by path; nothing is passed | on launch |
 | MynaCAD -> MynaOps | Both open the **same `.osp`**. MynaCAD's `takeoff.record` writes headers/rows/annotated PDF in one revision; MynaOps polls `meta.revision` every 2 s and notifies | about 2 s, no server |
-| MynaOps -> company file | File > **Sign in to MynaHub** (`auth.login` on the `.osas`), then **Push to MynaHub**. If the open `.osp` is not linked, MynaOps asks which MynaHub project receives the items | on push |
-| MynaHub -> MynaCAD (company details) | Firm settings > **Export for MynaCAD** writes `osas-company-pack` v1 JSON (name, address, phone, email, PAN, GSTIN, COA registration, architect). MynaCAD **Import company details** applies it to title blocks. No live session and no launcher | on import |
-| MynaCAD -> MynaOps (which file) | The same `.osp`, opened in each app. Active-project pointer remains: `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
+| MynaCAD -> MynaOps (AI agent) | Loopback HTTP to `127.0.0.1:8742` with the token; MynaCAD starts `O-CoreOp.exe --ai-host` when nothing answers | first question: MynaOps start plus model load |
+| MynaOps -> MynaHub | **Export for MynaHub** writes the CSV; MynaHub imports it | on export and import |
+| MynaHub -> MynaCAD (company details) | Firm settings > **Export for MynaCAD** writes `osas-company-pack` v1 JSON. MynaCAD **Import company details** applies it to title blocks. No live session | on import |
+| MynaCAD -> MynaOps (which file) | The same `.osp`, opened in each app. Active-project pointer: `{format:"studio-active-project", app, drawing, project, updated_utc}` | on drawing change |
 | Two programs, one file | SQLite WAL, immediate write transactions, 5 s busy timeout: writers take turns, every commit is exactly one revision, readers never block (tested with 4 writers x 40 commits) | immediate |
-| Machine -> machine | MynaHub syncs `.osp` with **Neon** by revision (connector MVP; see `docs/CLOUD-NEON.md`); a viewer on tablet/phone reads what MynaHub pushed and sends markups back | Postgres revision + Object Storage |
+| Machine -> machine | MynaHub syncs with **Neon** (MynaHub `docs/CLOUD-NEON.md`); project files stay on this PC unless the push opt-in is set | Postgres revision + Object Storage |
 
-Both apps share one format library: Rust `aad-odp` (MynaCAD) and .NET `Office.Shared.OdpFile` (MynaOps), kept compatible by tests that read each other's files.
+Both apps share one format library: Rust `aad-odp` (MynaCAD) and .NET `Office.Shared.OdpFile` (MynaOps), kept compatible by tests that read each other's files. MynaOps' `Office.Shared.ProjectDatabase` (the manager) only reads, compacts with `VACUUM`, and copies with `VACUUM INTO`; it adds no table and does not move the revision.
 
 Saving: MynaCAD writes the drawing back into the `.osp` only when its bytes changed (so a take-off-only change does not touch the drawing), and records take-off changes as differences only.
 
@@ -149,31 +163,32 @@ Saving: MynaCAD writes the drawing back into the `.osp` only when its bytes chan
 | Topic | Document |
 |---|---|
 | Project file format and sync plan | MynaHub `docs/ODP-PROJECT-FILE-AND-SYNC.md` (filename keeps the working name) |
-| Project hierarchy and security | `docs/PROJECT-HIERARCHY-AND-SECURITY.md` |
+| Project file backups, autosave, recovery | MynaCAD `docs/AUTOSAVE-BACKUP.md` |
+| Project hierarchy and security | MynaHub `docs/PROJECT-HIERARCHY-AND-SECURITY.md` |
 | Suite architecture and integration map | MynaHub `docs/suite-architecture.md`, `docs/suite-hub.md` |
-| Suite hub and wire | MynaHub `docs/suite-hub.md`, `Office.Shared/SuiteWire.cs` |
 | Company file ABI | MynaHub `docs/office-abi.md` |
-| MynaCAD UI, commands, performance | MynaCAD `docs/UI_UX.md`, `docs/PERFORMANCE.md`, `docs/PERFORMANCE-AUDIT-2026-10-30.md` |
+| MynaCAD UI, commands, performance | MynaCAD `docs/UI_UX.md`, `docs/PERFORMANCE.md` |
 | MynaOps shell, model, take-off | MynaOps `docs/WINUI-SHELL.md`, `docs/LOCAL-MODEL.md`, `docs/PROJECT-FILE.md` |
-| MynaHub assistant and Neon sync | MynaHub `docs/AI_RUNTIME.md`, `docs/CLOUD-NEON.md`, `docs/ODP-PROJECT-FILE-AND-SYNC.md` |
+| Neon sync | MynaHub `docs/CLOUD-NEON.md` |
 | Shared WinUI chrome | O-UI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |
 | ShilpiDB → `.osp` migration (historical) | Each app repo `docs/MIGRATION-OSP.md` — do not use **ShilpiDB** in new user text |
-| Installers | **Unified:** MynaHub `installer/suite/README.md` (`Myna-Setup-<version>.exe`, install and remove modes). Per-app: MynaHub `docs/packaging.md`, MynaOps `docs/PACKAGING.md`, MynaCAD `docs/RELEASE_AND_PACKAGING.md` |
+| Installers | **Two installers:** `MynaHub-Setup-<version>.exe` (MynaHub; removes the Myna launcher of a 1.7.x install) and `MynaOpsCAD-Setup-<version>.exe` (MynaOps and MynaCAD together, because they depend on each other; bundles the llama runtime; optional model download task). Build with MynaHub `installer/suite/build-all.ps1`, see `installer/suite/README.md`. Per-app: MynaHub `docs/packaging.md`, MynaOps `docs/PACKAGING.md`, MynaCAD `docs/RELEASE_AND_PACKAGING.md` |
 | Testing | MynaHub `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
 | Brand (palette, the mark, the AI agent orb, type) | MynaHub `docs/BRANDING.md`; artwork and colour files in `o-ui` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
 
 ## 7. Conventions
 
-- **App names (user-visible):** MynaHub, MynaOps, MynaCAD, MynaMod, Myna, and O-UI. Spell exactly. MynaMod is planned. Myna is the launcher. Do not use the earlier names O-Studio, O-CoreOp, O-Draft, or O-Form in menus, dialogs, or user-facing sentences. Those names remain ticket ids, install folders, and executable names.
-- **Suite hub:** say **MynaHub**. The launcher is **Myna**. Do not say OSAS or "the OSAS suite" in user text.
-- **Never in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, **OSAS** as a product name, **OSAS.exe** (assistant is **Olmo 3 7B**). Legacy exe names (`AQCCore.exe`, `aad-host.dll`) belong in migration or identifier columns only.
+- **App names (user-visible):** MynaHub, MynaOps, MynaCAD, MynaMod, and O-UI. Spell exactly. MynaMod is planned. **Myna** alone is the suite's name, never an app (the launcher that was called Myna was removed on 2026-11-11). Do not use the earlier names O-Studio, O-CoreOp, O-Draft, O-Form, Kivo, Tren, Falcon or Finch in menus, dialogs, or user-facing sentences. Those names remain ticket ids, install folders, and executable names.
+- **Suite hub:** say **MynaHub**. Do not say OSAS or "the OSAS suite" in user text.
+- **AI:** say **the AI agent** (the model is **Olmo 3 7B**). It runs in **MynaOps**; MynaCAD uses it; MynaHub has none.
+- **Never in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, **OSAS** as a product name, **OSAS.exe**, "the launcher", "AI Core". Legacy exe names (`AQCCore.exe`, `aad-host.dll`) belong in migration or identifier columns only.
 - **Files:** project file = **`.osp`**; company file = **`.osas`**. Do not call the project file ODP or `.odp` in user text.
 - **Take-off:** hyphenated **Take-off** (not takeoff or take off) in UI and documentation.
 - **Company file** vs **project file:** practice-wide data lives in the company file; one project's drawing, take-off, and estimate live in its `.osp`.
-- New project data goes in the `.osp` schema with a change-log row, not a sidecar file.
-- Apps do not call each other; they meet in the `.osp`, the company file, the active-project pointer, or the AI Core on loopback.
-- Cloud keys, Neon credentials, and the Olmo host process live only in **Myna** and **MynaHub**; MynaOps and MynaCAD hold none.
+- New project data goes in the `.osp` schema with a change-log row, not a sidecar file, and only as new meta keys or new tables (MynaOps and MynaCAD share the file).
+- Apps do not call each other; they meet in the `.osp`, the company file, the active-project pointer, or the AI agent on loopback.
+- Cloud keys and Neon credentials live only in **MynaHub**; the Olmo host process only in **MynaOps**. MynaCAD holds neither.
 
 ## AI agent privacy
 
-The AI agent (Olmo 3 7B) runs on this computer and is hosted by Myna. Myna's Ask page has a **Privacy** panel whose choices are saved in `%LOCALAPPDATA%\O-Studio\ai-privacy.json` (`Osas.Core.Suite.AiPrivacy`): tell it which project is loaded (default off), remember the conversation while the window is open (default off), allow attaching files with the + button (default on), and Clear this conversation. Not done yet: a switch to stop the agent altogether, per-app permissions for MynaCAD and MynaOps, and the same panel in those apps' prompt bars.
+The AI agent (Olmo 3 7B) runs on this computer and is hosted by MynaOps; nothing leaves the PC. Its token is in `%LOCALAPPDATA%\O-Studio\ai\auth.token` and it listens on loopback only. The privacy panel that the removed launcher had (`ai-privacy.json`) went with it. **Planned, not built:** a switch to stop the agent altogether, per-app permissions for MynaCAD and MynaOps, and a privacy panel in their Ask bars.

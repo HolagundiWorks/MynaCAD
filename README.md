@@ -32,7 +32,7 @@ documentation describes a feature as available unless it exists and has tests.
 | Side panels (right) | **Properties**, **Layers**, **Blocks**, **Project**, **History** and **Revisions**, chosen from the rail on the right edge. Properties shows what is under the pointer; for a parametric block it lists the type and every parameter. |
 | Status bar | Pointer coordinates and the drafting switches (object snap, ortho, polar, snap tracking, dynamic input), lineweight and transparency display, drawing units, the layer manager, plot preview, the theme, and the state of the AI assistant. |
 
-**Ask bar.** The pill at the bottom of the canvas takes plain-language requests for the local assistant, hosted by Myna. It asks before it changes anything (Allow or Decline). Typed commands (`line`, `zoom`, `smartblock.insert ...`) go to the command line, which opens as you type.
+**Ask bar.** The pill at the bottom of the canvas takes plain-language requests for the local AI agent (Olmo 3 7B on this computer), hosted by MynaOps: when no MynaOps hosts it, MynaCAD starts MynaOps without a window on the first question and shows "starting MynaOps…" meanwhile. It asks before it changes anything (Allow or Decline). Typed commands (`line`, `zoom`, `smartblock.insert ...`) go to the command line, which opens as you type.
 
 ### Structural details
 

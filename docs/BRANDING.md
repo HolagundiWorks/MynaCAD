@@ -3,7 +3,7 @@
 **Canonical copy:** MynaHub `docs/BRANDING.md`. MynaOps and MynaCAD keep an identical copy; **O-UI** (`o-ui`) holds the artwork, the colour files and the tool that draws them.
 **Names and terms:** [SUITE.md](SUITE.md). **Written 2026-11-01.**
 
-The idea: **one family name, Myna, and a use-case word for each app** (MynaHub, MynaCAD, MynaOps, MynaMod; decided 2026-11-10 after the user survey). Marks: the three-circle suite mark in each app's colour, and the orb for Myna (restored 2026-11-10). The **AI agent** wears all four colours.
+The idea: **one family name, Myna, and a use-case word for each app** (MynaHub, MynaCAD, MynaOps, MynaMod; decided 2026-11-10 after the user survey). Marks: the three-circle suite mark in each app's colour. The **orb** is the **AI agent's** mark and wears all four colours; it appears inside MynaOps and MynaCAD, where the agent works. **Myna** is the suite's name; since 2026-11-11 there is no app called Myna (the launcher was removed).
 
 ## 1. The palette
 
@@ -28,7 +28,6 @@ All four Light Conditions accents are dark enough for **white** text and glyphs.
 | White on Dusk | 9.1 : 1 | text and glyph on MynaOps's tile |
 | White on Grove | 7.6 : 1 | text and glyph on MynaMod's tile |
 | White on Ember | 5.6 : 1 | text and glyph on MynaHub's tile (AA ✓) |
-| Gold text `#9B6000` on white | 4.7 : 1 | AI agent accent text on white (AA ✓) |
 
 ### Themes (2026-11-10)
 
@@ -36,7 +35,7 @@ Every app has two themes, **pure white** and **pure black**, and the person choo
 
 ## 2. The mark
 
-**One mark, three circles.** The suite mark is a half ring open to the right (the largest circle), a smaller half ring below the centre, and a small ring at the centre, all white. Every app wears it on a rounded tile in **that app's colour** (corner radius 42 of 194, about 21.5 %). **Myna**, the suite and its launcher, wears the **orb**: the same mark lit by all four app colours (section 3). Redrawn 2026-11-10 from the pre-bird marks; the bird marks of 2026-11-07 are retired. Drawn by `o-ui` `tools/Brand` (`Program.cs`); MynaCAD's `xtask` logo command draws the same curves.
+**One mark, three circles.** The suite mark is a half ring open to the right (the largest circle), a smaller half ring below the centre, and a small ring at the centre, all white. Every app wears it on a rounded tile in **that app's colour** (corner radius 42 of 194, about 21.5 %). The **orb** (the same mark lit by all four app colours, section 3) belongs to the **AI agent**, not to an app; the launcher that wore it until 2026-11-11 is gone. Redrawn 2026-11-10 from the pre-bird marks; the bird marks of 2026-11-07 are retired. Drawn by `o-ui` `tools/Brand` (`Program.cs`); MynaCAD's `xtask` logo command draws the same curves.
 
 | App | Tile |
 |---|---|
@@ -44,7 +43,7 @@ Every app has two themes, **pure white** and **pure black**, and the person choo
 | MynaCAD | Midnight |
 | MynaMod | Grove |
 | MynaOps | Dusk |
-| Myna | the orb (all four colours) |
+| the AI agent (in MynaOps and MynaCAD) | the orb (all four colours) |
 
 Rules
 - The mark is not redrawn, rotated or given a colour outside its row. White on these tiles meets the contrast table above.
@@ -54,30 +53,23 @@ Rules
 
 ### Files
 
-`o-ui/brand/<app>/` for `studio` (MynaHub), `draft` (MynaCAD), `form` (MynaMod), `coreop` (MynaOps), `launcher` (Myna): `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: MynaHub `native/Adms.Desktop/Assets` (every mark, plus `myna.ico` for the launcher), MynaOps `BBSDesktop/BBSApp/Assets`, MynaCAD `assets/app-icon`, MynaMod `scripts/startup/bl_app_templates_system/oform`.
+`o-ui/brand/<app>/` for `studio` (MynaHub), `draft` (MynaCAD), `form` (MynaMod), `coreop` (MynaOps), and `launcher` (the retired launcher; kept as artwork only): `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: MynaHub `native/Adms.Desktop/Assets` (its mark and the marks of the apps it opens; `myna.ico` was removed with the launcher), MynaOps `BBSDesktop/BBSApp/Assets`, MynaCAD `assets/app-icon`, MynaMod `scripts/startup/bl_app_templates_system/oform`.
 
 ## 3. The AI agent
 
-The AI agent is the **suite logo on a molten-gold tile**. Its three circles (the big C, the bowl under it and the ring at the centre) are drawn in **white** on a gold radial-gradient disc — a distinct identity separate from the four app colours.
+The AI agent has its own symbol, drawn in the design file `o-ui/brand/ai/ai-orb.html` (the animated master): a **dark sphere lit by four soft lobes**, one in each app colour (Ember upper left, Dusk upper right, Midnight lower right, Grove lower left), the **suite mark in white** with round ends on it, a halo of the same four colours behind, and **four small particles** orbiting. It wears all four app colours because it is the suite's agent. Since 2026-11-11 it is hosted by MynaOps and works in MynaOps and MynaCAD; MynaHub has no AI and does not show the orb.
 
 | State | Look |
 |---|---|
-| **Running** | White ring strokes on a pulsing gold disc; a warm gold halo breathes every four seconds. Gold particles orbit the disc in four variants: #F0C840, #D4980E, #E8B030, #C88010 |
-| **Waiting** (starting) | Ring strokes at half white opacity, disc at 60 % gold |
-| **Not running / off** | Disc and strokes at 30 % — nearly dark |
+| **Running** | The sphere breathes (7.5 s, 5 %), the four halos swell and fade on their own beats (5.2, 6.8, 7.4 and 5.9 s), the white mark glows (4.8 s), and the particles orbit: Ember `#E05A28` in 11 s, Dusk `#7858D0` in 16 s (the other way), Midnight `#2858B8` in 20 s, Grove `#22A870` in 26 s (the other way) |
+| **Waiting** (starting) | Still, at 60 % |
+| **Not running / off** | Still, at 30 % |
 
-The gold gradient (radial, upper-left highlight):
+With "reduce motion" on, the design file stops all animation; an app shows the still orb then.
 
-| Stop | Colour | Offset |
-|---|---|---|
-| Bright highlight | `#F0C840` | 0 % |
-| Mid gold | `#D4980E` | 35 % |
-| Deep gold | `#9B6000` | 65 % |
-| Dark amber | `#6B4000` | 100 % |
+Files: `o-ui/brand/ai/ai-orb.html` (design file, animated), `ai-orb.svg` and `ai-orb-<size>.png` (first frame). In the apps it is drawn by `O.Ui` (`SuiteDrawnIcon` kind `agent`, in MynaOps' and MynaCAD's bottom bar beside the Ask bar). The launcher's animated `AiOrb` and MynaHub's assistant bar were removed on 2026-11-11.
 
-Files: `o-ui/brand/ai/ai-orb.svg` (static mark, animated master), `ai-orb-<size>.png` (still). In Myna, the app bar and the Services page.
-
-The database server and the company file use plain icons, not the orb: a database icon and a folder icon, lit (accent wash) while they run and dim grey when they do not.
+The company file uses a plain icon, not the orb.
 
 ## 4. Type
 
@@ -89,13 +81,13 @@ The database server and the company file use plain icons, not the orb: a databas
 
 The files (`ApfelGrotezk-Regular/Mittel/Fett.otf`, `MaziusDisplay-Regular/Bold.otf`, with their licence texts) are bundled in `o-ui` `O.Ui/Assets/Fonts` and copied beside every app that references O.Ui; `O.Ui.SuiteFonts.Names` and `.Display` load them from `Assets\Fonts`, else an installed font of the same name, else the fallbacks (Segoe UI Variable Display, Sitka Display). The brand sheet is drawn in Segoe UI.
 
-Rules: the user-visible names are MynaHub, MynaOps, MynaCAD, MynaMod and Myna, spelled exactly that way, in the Names font; never in capitals; never AQC, AOS, AAD, ShilpiDB or OSAS in user text. Install folders and ticket ids keep the earlier names.
+Rules: the user-visible names are MynaHub, MynaOps, MynaCAD and MynaMod (and Myna for the suite as a whole), spelled exactly that way, in the Names font; never in capitals; never AQC, AOS, AAD, ShilpiDB or OSAS in user text. Install folders and ticket ids keep the earlier names.
 
 ## 5. Using the colours in the apps
 
 - Surfaces are neutral (white, soft grey-blue); the app colour is for the **primary action, the selection and the tile**, not for large areas.
 - Ink is Midnight `#102C80` everywhere. Disabled is Midnight at 40 %.
-- One accent per window: the colour of the app the window belongs to. Myna belongs to MynaHub (Ember); the app tiles in it carry their own app's mark.
+- One accent per window: the colour of the app the window belongs to. Tiles that open another app (MynaHub's bottom bar) carry that app's mark.
 - Status colours are separate from the brand and keep their meaning: green running, amber waiting, red not running, grey off. They are used only for service state.
 
 ## 6. What is done and what is not (2026-11-01)
@@ -103,11 +95,11 @@ Rules: the user-visible names are MynaHub, MynaOps, MynaCAD, MynaMod and Myna, s
 | Part | State |
 |---|---|
 | Light Conditions palette (Ember / Midnight / Grove / Dusk), WCAG 2.2 AA audit | done |
-| The four marks, ICO and tiles, lockups, brand sheet | done: `o-ui` `feat/brand` |
+| The four marks, ICO and tiles, lockups, brand sheet | done: `o-ui` `master` |
 | Accent colour files per app (`SuiteAccent.Orange / Mirage / Sea / Sand`, values updated to Light Conditions) | done |
 | `SuiteFonts` (Names, Display with fallbacks), `SuiteApp.Form` | done; the font files are not added |
-| AI orb — molten-gold identity (`o-ui/brand/ai/ai-orb.svg`) | done |
-| Myna: marks in tiles, MynaMod tile, Ember accent, animated AI orb, Names font for app names, Display font for titles | done |
+| AI orb — four-colour sphere from the design file (`o-ui/brand/ai/ai-orb.html`) | done |
+| Myna launcher: marks in tiles, MynaMod tile, Ember accent, animated AI orb | removed with the launcher (2026-11-11) |
 | MynaHub: marks and `app.ico` | done; its own pages take Ember from `SuiteAccent.Orange` automatically |
 | MynaOps: Dusk accent, tiles and `app.ico` | done |
 | MynaCAD: app icon files (`assets/app-icon`) | done; window chrome on the Midnight accent (2026-11-02) |
