@@ -59,11 +59,11 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("geodb.report", "Geometry Database Report", run_report)
             .menu(&["Tools", "Geometry Database", "Report"])
             .noundo()
-            .params("{detail?: summary|ambiguous|features, kind?: wall|door|window, limit?: n} → {summary, ...}; ambiguous lists the features under the confidence threshold with their numbers"),
+            .params("{detail?: summary|ambiguous|features|rooms|regions, kind?: wall|beam|column|door|window|room|slab, limit?: n} → {summary, ...}; ambiguous lists the features under the confidence threshold with their numbers; rooms lists area and perimeter in mm; regions lists the page regions (plan, structure, other)"),
         CommandSpec::new("geodb.rules", "Geometry Rules", run_rules)
             .menu(&["Tools", "Geometry Database", "Rules"])
             .noundo()
-            .params("{set?: {section: wall_types|cavity_parts|pair|door|window|evidence, params}} → {rules, version}; a change bumps the version and reclassifies"),
+            .params("{set?: {section: wall_types|cavity_parts|pair|door|window|evidence|column|beam|room|region, params}} → {rules, version}; a change bumps the version and reclassifies"),
         CommandSpec::new("geodb.review", "Review a Detected Feature", run_review)
             .noundo()
             .params("{key, state: accepted|rejected|edited, note?} | {key, clear: true} → {reviews}; keyed by the feature's geometry hash, so it survives a rebuild"),
@@ -282,9 +282,12 @@ fn run_build(s: &mut Session, p: &Value) -> Result<Value> {
     let min = m.rules.evidence.classify_min;
     let n = |k: &str| m.features.iter().filter(|f| f.kind == k && f.confidence >= min).count();
     let mut line = format!(
-        "Geometry database ({mode}, {} ms): {} walls, {} doors, {} windows in {} {}; {} below the confidence threshold.",
+        "Geometry database ({mode}, {} ms): {} walls, {} beams, {} columns, {} rooms, {} doors, {} windows in {} {}; {} below the confidence threshold.",
         m.timings.total_ms,
         n("wall"),
+        n("beam"),
+        n("column"),
+        n("room"),
         n("door"),
         n("window"),
         m.units.unit,
@@ -361,11 +364,41 @@ fn run_report(s: &mut Session, p: &Value) -> Result<Value> {
     let m = &st.model;
     let min = m.rules.evidence.classify_min;
     let mut out = json!({ "summary": m.summary(), "origin": origin });
+    if detail == "rooms" || detail == "regions" {
+        let list: Vec<Value> = if detail == "rooms" {
+            m.rooms
+                .iter()
+                .filter(|r| kind.is_none_or(|k| r.kind == k))
+                .take(limit)
+                .map(|r| {
+                    json!({
+                        "key": r.key, "kind": r.kind, "region": r.region, "areaMm2": r.area_mm2.round(), "perimeterMm": r.perimeter_mm.round(),
+                        "hatches": r.hatches, "outline": r.outline.iter().take(64).map(|p| json!([p[0].round(), p[1].round()])).collect::<Vec<_>>(),
+                    })
+                })
+                .collect()
+        } else {
+            m.regions
+                .iter()
+                .filter(|r| r.kind != "empty")
+                .take(limit)
+                .map(|r| {
+                    json!({
+                        "id": r.id, "kind": r.kind, "box": r.bbox.map(f64::round), "score": (r.score * 100.0).round() / 100.0, "walls": r.walls,
+                        "wallLengthMm": r.wall_len_mm.round(), "doors": r.doors, "columns": r.columns, "rooms": r.rooms, "closure": (r.closure * 100.0).round() / 100.0,
+                    })
+                })
+                .collect()
+        };
+        out["total"] = json!(list.len());
+        out["list"] = Value::Array(list);
+        return Ok(out);
+    }
     let mut pick: Vec<&aad_geodb::model::Feature> = match detail {
         "summary" => Vec::new(),
         "ambiguous" => m.features.iter().filter(|f| f.confidence < min && f.confidence >= min - 0.25).collect(),
         "features" => m.features.iter().filter(|f| f.confidence >= min).collect(),
-        other => return Err(bad(CMD, format!("unknown detail `{other}` (summary, ambiguous, features)"))),
+        other => return Err(bad(CMD, format!("unknown detail `{other}` (summary, ambiguous, features, rooms, regions)"))),
     };
     if let Some(k) = kind {
         pick.retain(|f| f.kind == k);
@@ -466,6 +499,8 @@ fn target_of(kind: &str) -> Option<&'static str> {
         "wall" => Some("A-WALL"),
         "door" => Some("A-DOOR"),
         "window" => Some("A-WIND"),
+        "column" => Some("A-COL"),
+        "beam" => Some("S-BEAM"),
         _ => None,
     }
 }
@@ -487,10 +522,10 @@ fn make_preview(s: &Session, p: &Value) -> Result<Vec<Row>> {
             continue;
         }
         let Some(to) = target_of(&f.kind) else { continue };
-        let prio = if f.kind == "wall" { 0 } else { 1 };
+        let prio = if matches!(f.kind.as_str(), "wall" | "beam") { 0 } else { 1 };
         for mem in &f.members {
             // A wall face inside a block would move the whole block; leave those to a person.
-            if f.kind == "wall" && m.prim(mem.handle, mem.prim).is_some_and(|pr| pr.in_block()) {
+            if matches!(f.kind.as_str(), "wall" | "beam") && m.prim(mem.handle, mem.prim).is_some_and(|pr| pr.in_block()) {
                 continue;
             }
             let Some(e) = doc.entity(Handle(mem.handle)) else { continue };
@@ -571,10 +606,13 @@ fn run_apply(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let (mut moved, mut locked) = (0usize, 0usize);
     let d = s.doc_mut()?;
-    for to in ["A-WALL", "A-DOOR", "A-WIND"] {
-        if d.layer(to).is_none()
-            && let Some(l) = super::hcw::STANDARD_LAYERS.iter().find(|l| l.0 == to)
-        {
+    for to in ["A-WALL", "A-DOOR", "A-WIND", "A-COL", "S-BEAM"] {
+        if d.layer(to).is_some() {
+            continue;
+        }
+        if let Some(l) = super::hcw::STANDARD_LAYERS.iter().find(|l| l.0 == to) {
+            super::legacytools::apply_layer(d, l.0, l.1, l.2, l.3, true);
+        } else if let Some(l) = EXTRA_LAYERS.iter().find(|l| l.0 == to) {
             super::legacytools::apply_layer(d, l.0, l.1, l.2, l.3, true);
         }
     }
@@ -781,6 +819,41 @@ mod tests {
         let (p, rec) = (tp / pred.len().max(1) as f64, tp / truth_walls.len().max(1) as f64);
         eprintln!("wall precision {p:.3} recall {rec:.3} ({} predicted, {} true)", pred.len(), truth_walls.len());
         assert!(p >= 0.95 && rec >= 0.9, "precision {p} recall {rec}");
+    }
+
+    #[test]
+    fn beams_and_columns_go_to_their_own_layers_after_a_preview_and_an_approval() {
+        let mut s = Session::new();
+        unstamp(&mut s);
+        s.doc_mut().unwrap().header.set_i64("INSUNITS", 4);
+        // A dashed pair (a beam above) and a plain wall pair.
+        lines(
+            &mut s,
+            &[((0.0, 0.0), (5000.0, 0.0)), ((0.0, 230.0), (5000.0, 230.0)), ((0.0, 3000.0), (5000.0, 3000.0)), ((0.0, 3230.0), (5000.0, 3230.0))],
+        );
+        let hs = s.doc().unwrap().model.handles();
+        let d = s.doc_mut().unwrap();
+        for h in hs.iter().skip(2) {
+            let _ = d.modify_entity(*h, |e| e.common.linetype = "DASHED".into());
+        }
+        stamp_new(s.doc_mut().unwrap(), true);
+        s.doc_mut().unwrap().header.set_i64("INSUNITS", 4);
+        let r = s.execute("geodb.build", &json!({})).unwrap();
+        let kinds: Vec<String> = r["summary"]["features"].as_array().unwrap().iter().map(|f| f["kind"].as_str().unwrap_or("").to_string()).collect();
+        assert!(kinds.iter().any(|k| k.starts_with("beam.")), "{kinds:?}");
+        let pv = s.execute("geodb.apply", &json!({})).unwrap();
+        let to: Vec<&str> = pv["preview"].as_array().unwrap().iter().filter_map(|r| r["to"].as_str()).collect();
+        assert_eq!(to.iter().filter(|t| **t == "S-BEAM").count(), 2, "{pv}");
+        assert_eq!(to.iter().filter(|t| **t == "A-WALL").count(), 2, "{pv}");
+        assert!(s.doc().unwrap().layer("S-BEAM").is_none(), "a preview creates nothing");
+        let ap = s.execute("geodb.apply", &json!({ "approve": true })).unwrap();
+        assert_eq!(ap["moved"], json!(4));
+        assert_eq!(s.doc().unwrap().model.iter().filter(|e| e.common.layer == "S-BEAM").count(), 2);
+        assert!(s.doc().unwrap().layer("S-BEAM").is_some());
+        // The report lists rooms and regions as numbers.
+        let rep = s.execute("geodb.report", &json!({ "detail": "regions" })).unwrap();
+        assert!(rep["list"].is_array(), "{rep}");
+        assert!(s.execute("geodb.report", &json!({ "detail": "rooms" })).unwrap()["list"].is_array());
     }
 
     #[test]

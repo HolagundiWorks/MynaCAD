@@ -1,6 +1,6 @@
 # Geometry database: turn the drawing into numbers
 
-Status: **phases 0 and 1 are built** (crate `aad-geodb`, commands `geodb.*`); phases 2 to 5 are planned. Measured results and what is not handled yet: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md). The owner's decisions of 2026-11-08 are in section 2 and are part of the design.
+Status: **phases 0, 1 and 2 are built** (crate `aad-geodb`, commands `geodb.*`); phases 3 to 5 are planned. Measured results and what is not handled yet: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md). The owner's decisions of 2026-11-08 are in section 2 and are part of the design.
 
 ## 1. Idea in one paragraph
 
@@ -45,16 +45,21 @@ Where the unit is recorded: new drawings in Tren get `draftingUnits` (`{"system"
         v
   geo_pair
         |
-  [3 classify]  wall runs, joins, door swings and blocks, windows            (rules from geo_rule)
+  [3 classify]  columns, wall runs, joins, door swings and blocks, windows    (rules from geo_rule)
         v
-  geo_feature / geo_feature_member
+  base features (what the geometry of each piece says)
+        |
+  [4 context]   page regions, rooms and slab on a raster, plan / structure / other,
+        |       beams, wall confidence from rooms, hatch assignment                 (whole sheet)
+        v
+  geo_feature / geo_feature_member / geo_region / geo_room / geo_hatch_link
         |
   [5 report / apply]   geodb.report, geodb.apply preview and approve
 ```
 
-(Stage 4, networks, is phase 3.) Incremental update: `EntityStore::changed_since` / `removed_since` give the changed and erased handles; only those entities are re-extracted. Features touching the edit (inflated by what one face can pair across) are dropped and re-derived whole inside a window around them; nothing else is touched. Changed block definitions mark their inserts dirty. A change of `INSUNITS` / `MEASUREMENT` triggers a full rebuild. The stored copy is updated with `store::write_update` (delete the dirty handles' rows, insert the new ones).
+(Networks, electrical and plumbing, are phase 3 and would be a later stage.) Stage 3 works inside a window around an edit; stage 4 looks at the whole sheet and is recomputed from the base features after every update, which is why an incremental result equals a full rebuild (the cost is in the results document). Incremental update: `EntityStore::changed_since` / `removed_since` give the changed and erased handles; only those entities are re-extracted. Features touching the edit (inflated by what one face can pair across) are dropped and re-derived whole inside a window around them; nothing else is touched. Changed block definitions mark their inserts dirty. A change of `INSUNITS` / `MEASUREMENT` triggers a full rebuild. The stored copy is updated with `store::write_update` (delete the dirty handles' rows, insert the new ones).
 
-## 6. Schema (version 1)
+## 6. Schema (version 2)
 
 All lengths millimetres, REAL. Coordinates also have a quantised twin (`round(v * 10)`, 0.1 mm integer): `qx1 qy1 qx2 qy2` on `geo_seg`, `qcx qcy qr` on `geo_arc`. A block's expanded geometry carries the **top-level insert's handle** (the thing that can be moved) and the block path.
 
@@ -71,15 +76,18 @@ All lengths millimetres, REAL. Coordinates also have a quantised twin (`round(v 
 | `geo_rtree` | virtual `rtree(id, minx, maxx, miny, maxy)` | over `geo_prim` |
 | `geo_pair` | id, seg_a, seg_b, gap, overlap, overlap_ratio, axis_x1.., band, ladder | two parallel faces and their centre line |
 | `geo_rule` | id, kind, enabled, params_json, version, weight | one row per rule section; **survives a rebuild** |
-| `geo_feature` | id, feature_key, kind, subkind, confidence, rule_id, rules_version, x1 y1 x2 y2, width, depth, length, props_json | wall, door, window |
-| `geo_feature_member` | feature_id, prim_id, handle, role | `face`, `cap`, `swing`, `leaf`, `block`, `sill` |
+| `geo_feature` | id, feature_key, kind, subkind, confidence, rule_id, rules_version, x1 y1 x2 y2, width, depth, length, props_json | wall, beam, column, door, window, room, slab. A room or slab stores its extent in `x1 y1 x2 y2`, its perimeter in `length`, and `area_mm2` in `props_json` |
+| `geo_feature_member` | feature_id, prim_id, handle, role | `face`, `cap`, `section` (column), `swing`, `leaf`, `block`, `sill` |
+| `geo_region` | id, minx miny maxx maxy, kind, score, walls, wall_len, doors, rooms, closure, items | page regions: `plan`, `structure`, `other`, `unjudged`, `empty` (no wall runs) |
+| `geo_room` | feature_id, feature_key, kind (`room` or `slab`), region_id, area_mm2, perimeter_mm, loop_json, hatches | closed loops with their outline polygon in mm |
+| `geo_hatch_link` | hatch_id, prim_id, handle, kind (`room`, `wall`), feature_key | which room or wall a hatch sits in |
 | `geo_review` | feature_key, state, note, by, at | accepted / rejected / edited, keyed by the geometry hash; **survives a rebuild** |
 
-Not yet built: `geo_loop`, `geo_node`, `geo_edge`, `geo_conn` (phases 2 and 3).
+`geo_region`, `geo_room` and `geo_hatch_link` are derived from the whole sheet and are replaced as a set on every write. Not yet built: `geo_node`, `geo_edge`, `geo_conn` (phase 3). The schema version went from 1 to 2: a file with version 1 has its derived tables dropped and rebuilt; `geo_rule` and `geo_review` stay.
 
 ## 7. Rules (`geo_rule`, defaults in millimetres)
 
-Sections: `wall_types`, `cavity_parts`, `pair`, `door`, `window`, `evidence`. `geodb.rules` shows and edits them; every edit is validated (finite, bands of the wall types must not overlap) and bumps the version.
+Sections: `wall_types`, `cavity_parts`, `pair`, `door`, `window`, `evidence`, `column`, `beam`, `room`, `region`. `geodb.rules` shows and edits them; every edit is validated (finite, bands of the wall types must not overlap) and bumps the version.
 
 **Wall pair.** Two segments are a pair when they are parallel (`angle_tol_deg` 1.0), their gap is within `tolerance_mm` (8) of a wall type's thickness for the drawing's unit system, they share at least `min_overlap_mm` (100) along the axis and at least `min_overlap_ratio` (0.6) of the shorter one, and they are not two parts of one block. The gap must hold at both ends of the shared part. Real plans draw walls in many short pieces, so the pair threshold is low and the length test is on the **run**.
 
@@ -91,9 +99,26 @@ Sections: `wall_types`, `cavity_parts`, `pair`, `door`, `window`, `evidence`. `g
 
 **Window.** A block with `OKIND` `window` or a name matching `window.block_patterns`; or, along a wall run, 2 to 5 thin lines parallel to it, 450 to 3000 mm long, that start and stop at the same places, span at least half the thickness and either include a line between the two faces (a sill) or fill the gap between two wall ends. A door leaf in the opening is not a window. The contents of door and window blocks are the symbol and take no part in wall or swing detection.
 
+**Column** (`column` section). A closed polyline or four separate lines that meet at square corners (within `corner_tol_mm`, sides `min_side_mm` to `max_side_mm`, longest over shortest at most `max_aspect`), or a circle of radius `round_r_min_mm` to `round_r_max_mm`. Confidence: `base` 0.25, `layer_match` (+0.3, layer like `*COL*`), `typical_bonus` (+0.15, sides 200 to 600 mm and nearly square), `fill_bonus` (+0.2, a hatch or solid centre lies inside), `near_wall_bonus` (+0.05, a wall run passes within reach), `structure_bonus` (+0.15, in a structural layout region); circles take `round_penalty`. Rectangles with confidence at or above `evidence.classify_min` leave the wall candidates (their lines are not paired); a doubtful rectangle stays a candidate, because a short wall piece is also a small closed rectangle.
+
+**Page regions** (`region` section). Every line, arc, text and hatch extent is marked on a grid of `gap_mm` (1500) cells and 8-connected cells form a region, so views drawn closer than about `gap_mm` to each other are one region; lines longer than `frame_share` of the sheet diagonal and at least `frame_min_mm` (a sheet frame) are left out. Each region with wall runs is judged on its wall runs:
+
+- **plan**: it has at least one room, at least `min_wall_mm` of wall, at least `plan_min_doors` door features, and a plan score of at least `plan_min_score`, where the score is (wall length touching a room / wall length) + `door_weight` per door swing (at most 2) + `room_weight` per room (at most 3). Window lines do not count, because beam layouts produce them.
+- **structure**: no doors and at least `structure_min_columns` columns (a beam and column layout). Its pairs get `beam.structure` towards the beam score.
+- **other**: the sheet has a plan and this region is neither (elevations, details, sections). Wall, column, door and window confidences lose `non_plan_penalty`.
+- **unjudged**: no plan anywhere on the sheet (a small test drawing, a partial plan): nothing is penalised.
+
+**Rooms and slab** (`room` section). The wall runs of a region (not dashed, confidence at or above `classify_min`) are drawn on a raster of `cell_mm` (50; larger if the region would exceed `max_cells`), each padded by half its thickness at the ends. Where a free wall end faces another wall within `bridge_mm` (1500) along its axis the gap is closed (a door or window opening). Empty cells not connected to the border are rooms (area between `min_area_mm2` and `max_area_mm2`); the area is cells times cell area, the perimeter the boundary length, the outline a simplified polygon. The filled shape (walls and rooms) is the **slab**, one per connected shape that contains a room and is at least `slab_min_area_mm2`.
+
+**Wall evidence from rooms.** A wall run that separates a room from another room or the open sheet gets `room_bonus`; one that touches no room gets `isolated_penalty`; one with the same room on both sides and no joined wall gets `floating_penalty`; one with a hatch inside its outline gets `wall_hatch_bonus` (poche). These apply only in regions that have rooms.
+
+**Beam** (`beam` section). A wall run becomes a `beam` feature when its score reaches `min_score` (0.5) and it is at least `min_length_mm` long. Score: `dashed` 0.6 (faces drawn dashed or hidden), `non_separating` 0.2 (the same room on both sides), `floating` 0.3 (and no joined wall), `over_wall` 0.3 (inside a thicker run), `across_wall` 0.3 (passes right through a wall running across it), `structure` 0.4 (in a structural layout), `layer_match` 0.3 (layer like `*BEAM*`). The evidence list is stored in `props.beam_evidence`. The region weight alone does not make a beam by default: a structural layout also shows the walls, and nothing in a pair tells the two apart without a linetype.
+
+**Hatches.** `geo_hatch` keeps every hatch and solid boundary. A hatch whose centre sits in a room is linked to the room, one inside a wall run's outline to the wall (`geo_hatch_link`); the slab is the outline of the filled shape and its hatches are counted. Nothing is moved: hatches are not an `apply` target.
+
 ## 8. Layers (fixed standard set)
 
-`geodb.apply` targets the app's existing standard layers (`crates/engine/src/cmd/hcw.rs`, `STANDARD_LAYERS`): walls `A-WALL`, doors `A-DOOR`, windows `A-WIND`. They are created with the standard look when missing. Phase 2 targets: columns `A-COL` (there is no `S-COLS` in the standard set; the earlier draft's name is not used), beams `S-BEAM`. `S-BEAM` was only created by the beam layout of the project wizard; this change adds it to a small extra list in `cmd/geodb.rs` (`EXTRA_LAYERS`) so it counts as standard and can be a target. Nothing else was added. The list is not user-configurable.
+`geodb.apply` targets the app's existing standard layers (`crates/engine/src/cmd/hcw.rs`, `STANDARD_LAYERS`): walls `A-WALL`, doors `A-DOOR`, windows `A-WIND`. They are created with the standard look when missing. Phase 2 targets: columns `A-COL` (there is no `S-COLS` in the standard set; the earlier draft's name is not used), beams `S-BEAM`. `S-BEAM` was only created by the beam layout of the project wizard; `cmd/geodb.rs` keeps it in a small extra list (`EXTRA_LAYERS`) so it counts as standard and `geodb.apply` can create and target it. Nothing else was added. Rooms, slabs and hatch links are not moved to any layer. The list is not user-configurable.
 
 ## 9. Foreign drawings and the layer mapper
 
@@ -103,7 +128,7 @@ For a foreign drawing `geodb.build` still classifies (geometry does not need the
 
 ## 10. Using the result
 
-- **Move to layers.** `geodb.apply` (no `approve`) builds the preview from `geo_feature_member`. Rules: only features at or above `minConfidence` (default 0.6, never below `classify_min`), none rejected in `geo_review`; wall faces inside blocks are left alone (moving them would move the block); an object claimed by an opening and a wall goes to the opening; rows already on the target layer are dropped. `approve: true` applies the preview (optionally a subset by `handles`), refuses when the drawing changed since the preview, when units are unconfirmed or the drawing is foreign, skips objects on locked layers, and is one undo step. `BuildingElement` stamping through `classify.set` is not done yet.
+- **Move to layers.** `geodb.apply` (no `approve`) builds the preview from `geo_feature_member` (walls to `A-WALL`, beams to `S-BEAM`, columns to `A-COL`, doors and windows to their layers). Rules: only features at or above `minConfidence` (default 0.6, never below `classify_min`), none rejected in `geo_review`; wall faces inside blocks are left alone (moving them would move the block); an object claimed by an opening and a wall goes to the opening; rows already on the target layer are dropped. `approve: true` applies the preview (optionally a subset by `handles`), refuses when the drawing changed since the preview, when units are unconfirmed or the drawing is foreign, skips objects on locked layers, and is one undo step. `BuildingElement` stamping through `classify.set` is not done yet.
 - **Report.** `geodb.report` returns counts by kind, units, scale check, timings, warnings; `detail: ambiguous` lists the features just under the threshold with their numbers. `build` writes a one-line summary to the command log (the shell's status text).
 - **Take-off and AI (later).** Wall length, thickness and opening counts to `takeoff_row`; read-only agent tools `geo_summary`, `geo_ambiguous`, `geo_propose` over the tables. Planned, not built.
 
@@ -116,7 +141,9 @@ crates/geodb/src/
   model.rs     in-memory rows and features, quantised coordinates
   extract.rs   entity -> rows (blocks, transforms, caps and depth limits)
   derive.rs    parallel pairs
-  classify.rs  wall runs, joins, caps, doors, windows
+  classify.rs  wall runs, joins, caps, doors, windows (and calls columns.rs first)
+  columns.rs   column rectangles (closed polylines, four lines) and circles
+  context.rs   page regions, raster rooms and slab, plan / structure / other, beams, hatch links
   origin.rs    Tren stamp and foreign-drawing detection
   store.rs     the geo_* tables in the .osp (bulk write, incremental write, rules, reviews, meta)
   lib.rs       GeoModel: build, update, reclassify, scale check, summary
@@ -128,7 +155,7 @@ crates/engine/src/cmd/geodb.rs         geodb.build / report / rules / review / o
 
 ## 12. How it is measured
 
-`cargo run --release -p aad-engine --example geodb_groundtruth -- <file> [--units u] [--keep-linetype] [--sweep] [--edit] [--tol mm] [--min-run mm] [--diag] [--near x y half] [--shot png n half]`: records each object's layer, sets every layer to `0` (blocks too), builds from geometry alone and scores walls, doors and windows against the recorded layers (`*WALL*`, `*DOOR*`, `*WIND*`), then optionally measures one incremental edit. Golden files: `crates/geodb/tests/golden/` (rewrite with `GEODB_BLESS=1` after checking a change). The engine test `a_plan_drawn_with_the_wall_commands_is_recovered_from_geometry_alone` scores Tren's own plans the same way. Numbers: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md).
+`cargo run --release -p aad-engine --example geodb_groundtruth -- <file> [--units u] [--keep-linetype] [--sweep] [--edit] [--tol mm] [--min-run mm] [--rule section.field=json] [--diag] [--near x y half] [--shot png n half]`: records each object's layer, sets every layer to `0` (blocks too), builds from geometry alone and scores walls, doors and windows against the recorded layers (`*WALL*`, `*DOOR*`, `*WIND*`), then optionally measures one incremental edit. Phase 2 adds columns and beams against `*COL*` / `*BEAM*` layers, the region table, the fate of the true wall objects (kept, below threshold, turned into beams) and the true and false wall objects per region. `--rule room.isolated_penalty=0.4` sets any rule field for a run. Golden files: `crates/geodb/tests/golden/` (rewrite with `GEODB_BLESS=1` after checking a change). The engine test `a_plan_drawn_with_the_wall_commands_is_recovered_from_geometry_alone` scores Tren's own plans the same way. Numbers: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md).
 
 ## 13. Phases
 
@@ -136,7 +163,7 @@ crates/engine/src/cmd/geodb.rs         geodb.build / report / rules / review / o
 |---|---|---|
 | 0 | schema, extract, R-tree, scale check, incremental update, bulk write | built, tested |
 | 1 | pairs, wall runs (three types), doors, windows, rules table, review keys, `geodb.*` commands | built; accuracy on real plans below the 95 % target, see results |
-| 2 | columns, beams, rooms, hatches, slab | planned |
+| 2 | columns, beams, rooms, page regions, hatches, slab | built; wall precision on the real plan is still far below 95 % (29.8 % precision, 49.4 % recall on `Working Drawing.dwg`), see results |
 | 3 | electrical and plumbing points and networks | planned |
 | 4 | status-bar summary panel, `classify.set` stamping, review UI | planned |
 | 5 | AI tools over the tables, model comparison | planned |

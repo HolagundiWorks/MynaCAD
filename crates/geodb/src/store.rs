@@ -21,7 +21,7 @@ impl From<rusqlite::Error> for Error {
     }
 }
 
-const DERIVED: [&str; 11] = [
+const DERIVED: [&str; 14] = [
     "geo_run",
     "geo_prim",
     "geo_seg",
@@ -32,6 +32,9 @@ const DERIVED: [&str; 11] = [
     "geo_pair",
     "geo_feature",
     "geo_feature_member",
+    "geo_region",
+    "geo_room",
+    "geo_hatch_link",
     "geo_rtree",
 ];
 
@@ -63,6 +66,11 @@ CREATE TABLE IF NOT EXISTS geo_feature (id INTEGER PRIMARY KEY, feature_key TEXT
 CREATE INDEX IF NOT EXISTS geo_feature_key ON geo_feature (feature_key);
 CREATE TABLE IF NOT EXISTS geo_feature_member (feature_id INTEGER NOT NULL, prim_id INTEGER NOT NULL, handle TEXT NOT NULL, role TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS geo_member_feature ON geo_feature_member (feature_id);
+CREATE TABLE IF NOT EXISTS geo_region (id INTEGER PRIMARY KEY, minx REAL, miny REAL, maxx REAL, maxy REAL, kind TEXT NOT NULL, score REAL, walls INTEGER, wall_len REAL,
+    doors INTEGER, rooms INTEGER, closure REAL, items INTEGER);
+CREATE TABLE IF NOT EXISTS geo_room (feature_id INTEGER PRIMARY KEY, feature_key TEXT NOT NULL, kind TEXT NOT NULL, region_id INTEGER, area_mm2 REAL, perimeter_mm REAL,
+    loop_json TEXT NOT NULL, hatches INTEGER);
+CREATE TABLE IF NOT EXISTS geo_hatch_link (hatch_id INTEGER PRIMARY KEY, prim_id INTEGER NOT NULL, handle TEXT NOT NULL, kind TEXT NOT NULL, feature_key TEXT NOT NULL);
 ";
 
 const RTREE: &str = "CREATE VIRTUAL TABLE IF NOT EXISTS geo_rtree USING rtree(id, minx, maxx, miny, maxy)";
@@ -311,6 +319,52 @@ fn insert_pair(tx: &Transaction, p: &PairRow) -> Result<()> {
     Ok(())
 }
 
+/// Regions, rooms and slabs, hatch links: derived from the whole sheet, so they are replaced as a set.
+fn write_context(tx: &Transaction, m: &GeoModel) -> Result<usize> {
+    for t in ["geo_region", "geo_room", "geo_hatch_link"] {
+        tx.execute(&format!("DELETE FROM {t}"), [])?;
+    }
+    let mut n = 0;
+    {
+        let mut st = tx.prepare_cached("INSERT INTO geo_region (id, minx, miny, maxx, maxy, kind, score, walls, wall_len, doors, rooms, closure, items) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)")?;
+        for r in &m.regions {
+            st.execute(params![
+                r.id as i64,
+                r.bbox[0],
+                r.bbox[1],
+                r.bbox[2],
+                r.bbox[3],
+                r.kind,
+                r.score,
+                r.walls as i64,
+                r.wall_len_mm,
+                r.doors as i64,
+                r.rooms as i64,
+                r.closure,
+                r.items as i64
+            ])?;
+            n += 1;
+        }
+    }
+    {
+        let mut st = tx.prepare_cached("INSERT INTO geo_room (feature_id, feature_key, kind, region_id, area_mm2, perimeter_mm, loop_json, hatches) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)")?;
+        for r in &m.rooms {
+            let lp = serde_json::to_string(&r.outline).unwrap_or_else(|_| "[]".into());
+            st.execute(params![r.feature_id as i64, r.key, r.kind, r.region as i64, r.area_mm2, r.perimeter_mm, lp, r.hatches as i64])?;
+            n += 1;
+        }
+    }
+    {
+        let mut st =
+            tx.prepare_cached("INSERT OR REPLACE INTO geo_hatch_link (hatch_id, prim_id, handle, kind, feature_key) VALUES (?1,?2,?3,?4,?5)")?;
+        for l in &m.hatch_links {
+            st.execute(params![l.hatch as i64, l.prim as i64, hex(l.handle), l.kind, l.feature_key])?;
+            n += 1;
+        }
+    }
+    Ok(n)
+}
+
 fn write_run(tx: &Transaction, m: &GeoModel, drawing: &str, revision: i64) -> Result<()> {
     tx.execute("DELETE FROM geo_run", [])?;
     let info = json!({ "summary": m.summary() });
@@ -343,6 +397,7 @@ pub fn write_full(conn: &mut Connection, m: &GeoModel, drawing: &str, revision: 
         insert_feature(&tx, f)?;
         rows += 1;
     }
+    rows += write_context(&tx, m)?;
     write_run(&tx, m, drawing, revision)?;
     tx.commit()?;
     Ok(WriteStats { rows, ms: t.elapsed().as_millis(), rtree })
@@ -393,6 +448,7 @@ pub fn write_update(conn: &mut Connection, m: &GeoModel, delta: &Delta, drawing:
             rows += 1;
         }
     }
+    rows += write_context(&tx, m)?;
     write_run(&tx, m, drawing, revision)?;
     tx.commit()?;
     Ok(WriteStats { rows, ms: t.elapsed().as_millis(), rtree })
@@ -417,7 +473,7 @@ pub fn read_summary(conn: &Connection) -> Result<Value> {
     }
     Ok(json!({
         "run": run,
-        "rows": { "prims": count("geo_prim")?, "segs": count("geo_seg")?, "arcs": count("geo_arc")?, "inserts": count("geo_insert")?, "texts": count("geo_text")?, "hatches": count("geo_hatch")?, "pairs": count("geo_pair")?, "features": count("geo_feature")? },
+        "rows": { "prims": count("geo_prim")?, "segs": count("geo_seg")?, "arcs": count("geo_arc")?, "inserts": count("geo_insert")?, "texts": count("geo_text")?, "hatches": count("geo_hatch")?, "pairs": count("geo_pair")?, "features": count("geo_feature")?, "regions": count("geo_region")?, "rooms": count("geo_room")?, "hatchLinks": count("geo_hatch_link")? },
         "features": feats,
     }))
 }

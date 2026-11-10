@@ -13,6 +13,8 @@
 #![forbid(unsafe_code)]
 
 pub mod classify;
+pub mod columns;
+pub mod context;
 pub mod derive;
 pub mod extract;
 pub mod model;
@@ -38,7 +40,7 @@ pub use crate::rules::Rules;
 pub use crate::units::{UnitSource, UnitSystem, Units};
 
 /// Version of the table layout. A file with another version has its derived tables dropped and rebuilt.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -83,7 +85,14 @@ pub struct GeoModel {
     pub units: Units,
     pub rules: Rules,
     pub owners: BTreeMap<u64, Extracted>,
+    /// What the context stage made of `base`: the features the report, the tables and `apply` use.
     pub features: Vec<Feature>,
+    /// What the rules found from the geometry alone (columns, walls, doors, windows), before the context stage.
+    pub base: Vec<Feature>,
+    pub rooms: Vec<context::RoomRow>,
+    pub regions: Vec<context::RegionRow>,
+    pub hatch_links: Vec<context::HatchLink>,
+    pub context_stats: context::ContextStats,
     pub skipped: Skipped,
     pub warnings: Vec<String>,
     pub scale_check: Option<ScaleCheck>,
@@ -228,6 +237,11 @@ impl GeoModel {
             rules,
             owners,
             features: Vec::new(),
+            base: Vec::new(),
+            rooms: Vec::new(),
+            regions: Vec::new(),
+            hatch_links: Vec::new(),
+            context_stats: context::ContextStats::default(),
             skipped,
             warnings,
             scale_check: Some(check),
@@ -291,10 +305,49 @@ impl GeoModel {
             let (f, s, p) = classify::classify(&inp, &par, &mut next);
             (f, s, p, next)
         };
-        self.features = feats;
+        self.base = feats;
         self.stats = stats;
         self.next_id = next;
         self.pair_rows = pairs;
+        self.run_context();
+    }
+
+    /// The context stage over the whole sheet: regions, rooms, beams, slab, hatch links. Cheap next to extraction.
+    fn run_context(&mut self) {
+        let inp = self.ctx_input();
+        let mut next = self.next_id;
+        let out = context::apply(&self.base, &inp, &self.rules, &mut next);
+        self.next_id = next;
+        self.features = out.features;
+        self.rooms = out.rooms;
+        self.regions = out.regions;
+        self.hatch_links = out.links;
+        self.context_stats = out.stats;
+    }
+
+    fn ctx_input(&self) -> context::CtxInput {
+        use crate::context::{HatchIn, Item};
+        let mut items = Vec::new();
+        let mut hatches = Vec::new();
+        for (handle, ex) in &self.owners {
+            for s in &ex.segs {
+                items.push(Item::Seg([s.x1, s.y1, s.x2, s.y2]));
+            }
+            for p in &ex.prims {
+                if matches!(p.kind, PrimKind::Arc | PrimKind::Circle | PrimKind::Text | PrimKind::Point | PrimKind::Hatch) && p.bbox[0] <= p.bbox[2] {
+                    items.push(Item::Bbox(p.bbox));
+                }
+            }
+            for h in &ex.hatches {
+                let first = h.loops.first().filter(|l| !l.is_empty());
+                let centre = match first {
+                    Some(l) => [l.iter().map(|p| p[0]).sum::<f64>() / l.len() as f64, l.iter().map(|p| p[1]).sum::<f64>() / l.len() as f64],
+                    None => continue,
+                };
+                hatches.push(HatchIn { id: h.id, prim: h.prim, handle: *handle, centre });
+            }
+        }
+        context::CtxInput { items, hatches }
     }
 
     /// Re-classify with changed rules (no re-extraction).
@@ -421,7 +474,7 @@ impl GeoModel {
             let dirty_box = [d0[0] - reach, d0[1] - reach, d0[2] + reach, d0[3] + reach];
             let hit = |b: [f64; 4], r: [f64; 4]| b[0] <= r[2] && b[2] >= r[0] && b[1] <= r[3] && b[3] >= r[1];
             let mut r = dirty_box;
-            for f in &self.features {
+            for f in &self.base {
                 let b = f.bbox();
                 if hit(b, dirty_box) {
                     r = [r[0].min(b[0]), r[1].min(b[1]), r[2].max(b[2]), r[3].max(b[3])];
@@ -437,19 +490,15 @@ impl GeoModel {
             };
             self.next_id = next;
             let inside = |b: [f64; 4]| hit(b, dirty_box);
-            let before = self.features.len();
-            self.features.retain(|f| {
+            let before = self.base.len();
+            self.base.retain(|f| {
                 let drop = inside(f.bbox());
-                if drop {
-                    delta.dropped_features.push(f.id);
-                }
                 !drop
             });
-            stats.features_removed = before - self.features.len();
+            stats.features_removed = before - self.base.len();
             for f in feats {
                 if inside(f.bbox()) {
-                    delta.added_features.push(f.id);
-                    self.features.push(f);
+                    self.base.push(f);
                     stats.features_added += 1;
                 }
             }
@@ -469,6 +518,13 @@ impl GeoModel {
         }
         self.snapshot = d.model.clone();
         self.block_ptrs = new_ptrs;
+        let old: HashMap<u64, u64> = self.features.iter().map(|f| (f.id, feature_hash(f))).collect();
+        self.run_context();
+        let new: HashMap<u64, u64> = self.features.iter().map(|f| (f.id, feature_hash(f))).collect();
+        delta.dropped_features = old.iter().filter(|(id, h)| new.get(id) != Some(h)).map(|(id, _)| *id).collect();
+        delta.added_features = new.iter().filter(|(id, h)| old.get(id) != Some(h)).map(|(id, _)| *id).collect();
+        delta.dropped_features.sort_unstable();
+        delta.added_features.sort_unstable();
         self.sha256 = self.fingerprint();
         stats.ms = t.elapsed().as_millis();
         (stats, delta)
@@ -500,12 +556,25 @@ impl GeoModel {
             texts += ex.texts.len();
             hatches += ex.hatches.len();
         }
+        let mut region_kinds: BTreeMap<&str, usize> = BTreeMap::new();
+        for r in self.regions.iter().filter(|r| r.kind != "empty") {
+            *region_kinds.entry(r.kind.as_str()).or_default() += 1;
+        }
         json!({
             "units": { "system": self.units.system.as_str(), "unit": self.units.unit, "toMm": self.units.to_mm, "source": self.units.source, "confirmed": self.units.confirmed },
             "rulesVersion": self.rules.version,
             "rows": { "prims": prims, "segs": segs, "arcs": arcs, "inserts": ins, "texts": texts, "hatches": hatches, "pairs": self.pair_rows.len(), "features": self.features.len(), "entities": self.owners.len() },
             "features": kinds,
             "wallLengthMm": wall_len.round(),
+            "context": {
+                "regions": region_kinds,
+                "rooms": self.rooms.iter().filter(|r| r.kind == "room").count(),
+                "roomAreaM2": (self.rooms.iter().filter(|r| r.kind == "room").map(|r| r.area_mm2).sum::<f64>() / 1.0e4).round() / 100.0,
+                "slabs": self.rooms.iter().filter(|r| r.kind == "slab").count(),
+                "slabAreaM2": (self.rooms.iter().filter(|r| r.kind == "slab").map(|r| r.area_mm2).sum::<f64>() / 1.0e4).round() / 100.0,
+                "hatchLinks": self.hatch_links.len(),
+                "ms": self.context_stats.ms,
+            },
             "skipped": self.skipped.0,
             "warnings": self.warnings,
             "scaleCheck": self.scale_check,
@@ -513,6 +582,17 @@ impl GeoModel {
             "sha256": self.sha256,
         })
     }
+}
+
+/// A cheap fingerprint of everything stored for a feature, to find the rows an update changed.
+fn feature_hash(f: &Feature) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    (&f.key, &f.kind, &f.subkind, (f.confidence * 1.0e6).round() as i64, f.members.len(), f.props.to_string()).hash(&mut h);
+    for v in [f.x1, f.y1, f.x2, f.y2, f.width, f.depth, f.length] {
+        q(v).hash(&mut h);
+    }
+    h.finish()
 }
 
 fn block_ptrs(d: &Drawing) -> HashMap<String, usize> {
@@ -583,3 +663,5 @@ pub fn scale_check(owners: &BTreeMap<u64, Extracted>, rules: &Rules, current_to_
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests2;

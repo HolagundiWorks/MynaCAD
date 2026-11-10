@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use aad_doc::{Arc as DocArc, Block, Entity, EntityKind, Handle, Insert, Line, LwPolyline};
+use aad_doc::{Arc as DocArc, Block, Circle, Entity, EntityKind, Handle, Insert, Line, LwPolyline, Solid};
 use aad_geom::{PolyVertex, Vec2, Vec3};
 
 use super::*;
@@ -8,7 +8,7 @@ use super::*;
 /// A drawing builder with sequential handles.
 pub(crate) struct Draw {
     pub d: Drawing,
-    next: u64,
+    pub next: u64,
 }
 
 impl Draw {
@@ -36,6 +36,25 @@ impl Draw {
             EntityKind::Arc(DocArc { center: Vec3::new(c.0, c.1, 0.0), radius: r, start: start_deg.to_radians(), end: end_deg.to_radians() }),
         ));
         h
+    }
+    pub fn circle(&mut self, layer: &str, c: (f64, f64), r: f64) -> Handle {
+        let h = Handle(self.next);
+        self.next += 1;
+        let mut e = Entity::new(h, EntityKind::Circle(Circle { center: Vec3::new(c.0, c.1, 0.0), radius: r }));
+        e.common.layer = layer.into();
+        self.d.model.push(e);
+        h
+    }
+    /// A filled rectangle (a SOLID), which the tables keep as a hatch row.
+    pub fn solid(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> Handle {
+        let h = Handle(self.next);
+        self.next += 1;
+        let c = [Vec3::new(x0, y0, 0.0), Vec3::new(x1, y0, 0.0), Vec3::new(x0, y1, 0.0), Vec3::new(x1, y1, 0.0)];
+        self.d.model.push(Entity::new(h, EntityKind::Solid(Solid { corners: c })));
+        h
+    }
+    pub fn dash(&mut self, h: Handle) {
+        let _ = self.d.modify_entity(h, |e| e.common.linetype = "DASHED".into());
     }
     pub fn rect(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> Handle {
         let h = Handle(self.next);
@@ -85,7 +104,7 @@ pub(crate) fn room(insunits: i64, k: f64, t: f64) -> Draw {
     g
 }
 
-fn dump(m: &GeoModel) -> String {
+pub(crate) fn dump(m: &GeoModel) -> String {
     let mut rows: Vec<String> = m
         .features
         .iter()
@@ -114,7 +133,7 @@ fn walls(m: &GeoModel) -> Vec<&Feature> {
     m.features.iter().filter(|f| f.kind == "wall" && f.confidence >= m.rules.evidence.classify_min).collect()
 }
 
-fn count(m: &GeoModel, kind: &str) -> usize {
+pub(crate) fn count(m: &GeoModel, kind: &str) -> usize {
     m.features.iter().filter(|f| f.kind == kind && f.confidence >= m.rules.evidence.classify_min).count()
 }
 
@@ -333,6 +352,9 @@ fn the_tables_are_written_in_bulk_updated_incrementally_and_never_logged() {
     assert_eq!(count_of(&conn, "geo_prim") as usize, m.owners.values().map(|e| e.prims.len()).sum::<usize>());
     assert_eq!(count_of(&conn, "geo_rtree") as usize, count_of(&conn, "geo_prim") as usize);
     assert_eq!(count_of(&conn, "geo_feature") as usize, m.features.len());
+    assert!(!m.rooms.is_empty(), "the room and the slab");
+    assert_eq!(count_of(&conn, "geo_room") as usize, m.rooms.len());
+    assert_eq!(count_of(&conn, "geo_region") as usize, m.regions.len());
     let sha: String = conn.query_row("SELECT drawing_sha256 FROM geo_run", [], |r| r.get(0)).unwrap();
     assert_eq!(sha, m.sha256);
     let q1: i64 = conn.query_row("SELECT qx2 FROM geo_seg WHERE x2 = 1000 LIMIT 1", [], |r| r.get(0)).unwrap();
@@ -345,6 +367,8 @@ fn the_tables_are_written_in_bulk_updated_incrementally_and_never_logged() {
     assert_eq!(count_of(&conn, "geo_feature") as usize, m.features.len());
     assert_eq!(count_of(&conn, "geo_seg") as usize, m.owners.values().map(|e| e.segs.len()).sum::<usize>());
     assert_eq!(count_of(&conn, "geo_pair") as usize, m.pair_rows.len());
+    assert_eq!(count_of(&conn, "geo_room") as usize, m.rooms.len());
+    assert_eq!(count_of(&conn, "geo_hatch_link") as usize, m.hatch_links.len());
     assert_eq!(count_of(&conn, "geo_feature_member") as i64, m.features.iter().map(|f| f.members.len() as i64).sum::<i64>());
     // Nothing reached the change log.
     assert_eq!(count_of(&conn, "change"), 0);
