@@ -365,3 +365,18 @@ Test file: a 115.7 MB DWG with 232,212 entities.
 - Open (DWG read to scene ready): 16.8 s to about 9-10 s. Reading the DXF text now borrows sections and records instead of copying them, and a large ASCII DXF is cut at record starts and parsed on every core.
 - Edit latency: 720 ms to about 205 ms per edit. A small edit patches the scene from the changed chunks of the entity store (`rebuild_scene_delta`) and builds mesh tiles in parallel.
 - Still slow: `flatten_scene` (about 86 ms) and coarse mesh tiles (about 90 ms) per edit; move/copy of everything (about 1 s); the third-party DWG-to-DXF step (about 3 s).
+
+## 2026-11-10: plot and picture export, and a repeatable audit
+
+Measured on the 26k-entity `Working Drawing.dwg`, release build, machine at 7 % load, one process per figure (`tools/perf/audit.ps1` reads these the same way):
+
+| | Before | After |
+|---|---|---|
+| PDF export (whole `aad-cli run <file> --export x.pdf`) | 13.3 s | 3.7 s |
+| of which content stream (245 MB of text) | 4.0 s | 0.6 s |
+| of which deflate | 7.5 s | 0.75 s |
+| PNG export (2400 x 1600) | 5.2 s | 1.5 to 2.2 s |
+
+How: the content stream is deflated in independent 4 MiB chunks on all cores (each chunk ends with a full flush, the checksums are combined; native only, wasm keeps the single stream); numbers are written into the stream without allocating; PNG export builds the display list at the detail the picture can show (curves flattened to a quarter pixel, small text greeked, fine hatches tinted). The decompressed PDF content is byte for byte what it was; the two PNGs were compared by eye.
+
+The audit itself changed: `tools/perf/audit.ps1` checks the machine is quiet (and on AC power), copies the test file to a local folder, discards a warm-up run, takes N runs, reports min, median, max and spread (rerunning when the spread is above 1.3), appends every figure with the commit and machine state to `docs/qa/perf-history.jsonl`, and with `-Compare` checks medians against `docs/qa/perf-baseline.json` (warn above 1.10x, fail above 1.25x). The old "settled by CPU" open time is gone: the host now logs `first list build started`, `first list ready` and `first geometry frame` (with `AAD_PERF=1`), and the audit reads those. `aad-cli --version` prints the commit and the Myna release it was built for.

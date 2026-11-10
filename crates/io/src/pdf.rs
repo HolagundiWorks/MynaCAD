@@ -231,22 +231,51 @@ fn plot_scale(b: &Bounds2, sheet: &Sheet, fit: bool, scale: Option<f64>) -> f64 
     if s.is_finite() && s > 0.0 { s } else { 1.0 }
 }
 
-/// A number for a content stream: short, finite, no exponent.
+/// A number for a content stream: short, finite, no exponent, at most three decimals, no trailing zeros. Written straight into `out`: a heavy plot
+/// writes tens of millions of these, so this does not allocate.
 fn num(out: &mut String, v: f64) {
     let v = if v.is_finite() { v.clamp(-1.0e7, 1.0e7) } else { 0.0 };
-    let mut s = format!("{v:.3}");
-    if s.contains('.') {
-        while s.ends_with('0') {
-            s.pop();
-        }
-        if s.ends_with('.') {
-            s.pop();
+    // Thousandths, rounded; the clamp keeps this far inside u64.
+    let thousandths = (v.abs() * 1000.0).round() as u64;
+    if thousandths == 0 {
+        out.push('0');
+        return;
+    }
+    if v < 0.0 {
+        out.push('-');
+    }
+    push_u64(out, thousandths / 1000);
+    let frac = thousandths % 1000;
+    if frac != 0 {
+        out.push('.');
+        let digits = [b'0' + (frac / 100) as u8, b'0' + (frac / 10 % 10) as u8, b'0' + (frac % 10) as u8];
+        let keep = if digits[2] != b'0' {
+            3
+        } else if digits[1] != b'0' {
+            2
+        } else {
+            1
+        };
+        for d in &digits[..keep] {
+            out.push(char::from(*d));
         }
     }
-    if s == "-0" {
-        s = "0".into();
+}
+
+fn push_u64(out: &mut String, mut n: u64) {
+    let mut buf = [0u8; 20];
+    let mut i = buf.len();
+    loop {
+        i -= 1;
+        buf[i] = b'0' + (n % 10) as u8;
+        n /= 10;
+        if n == 0 {
+            break;
+        }
     }
-    out.push_str(&s);
+    for d in &buf[i..] {
+        out.push(char::from(*d));
+    }
 }
 
 fn pt(out: &mut String, p: Vec2) {
@@ -460,6 +489,108 @@ fn pdf_text(s: &str) -> String {
     out
 }
 
+/// Content bigger than this is compressed in independent chunks on several threads.
+const PARALLEL_DEFLATE_FROM: usize = 8 << 20;
+/// Size of one independently compressed chunk. Large enough that resetting the dictionary costs next to nothing.
+const DEFLATE_CHUNK: usize = 4 << 20;
+
+/// `data` as one zlib stream. A heavy plot's content stream is hundreds of megabytes, and compressing it on one thread was most of the export time, so big
+/// input is cut into chunks that are compressed at the same time. Each chunk is ended with a full flush (an empty stored block, dictionary reset), which
+/// makes the chunks join into one valid deflate stream; the checksum of the pieces is combined.
+fn zlib(data: &[u8], level: u8) -> Vec<u8> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if data.len() >= PARALLEL_DEFLATE_FROM {
+        return zlib_parallel(data, level);
+    }
+    miniz_oxide::deflate::compress_to_vec_zlib(data, level)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn zlib_parallel(data: &[u8], level: u8) -> Vec<u8> {
+    use miniz_oxide::deflate::core::{CompressorOxide, TDEFLFlush, compress_to_output, create_comp_flags_from_zip_params};
+    let chunks: Vec<&[u8]> = data.chunks(DEFLATE_CHUNK).collect();
+    let n = chunks.len();
+    let workers = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get).clamp(1, 16).min(n);
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let done: Vec<(usize, Vec<u8>, u32)> = std::thread::scope(|s| {
+        let handles: Vec<_> = (0..workers)
+            .map(|_| {
+                s.spawn(|| {
+                    let mut mine = Vec::new();
+                    loop {
+                        let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let Some(chunk) = chunks.get(i) else { break };
+                        // Raw deflate (no zlib wrapper) per chunk: window bits 0.
+                        let mut c = CompressorOxide::new(create_comp_flags_from_zip_params(i32::from(level), 0, 0));
+                        let mut out = Vec::with_capacity(chunk.len() / 6 + 64);
+                        let flush = if i + 1 == n { TDEFLFlush::Finish } else { TDEFLFlush::Full };
+                        compress_to_output(&mut c, chunk, flush, |b| {
+                            out.extend_from_slice(b);
+                            true
+                        });
+                        mine.push((i, out, adler32(chunk)));
+                    }
+                    mine
+                })
+            })
+            .collect();
+        handles.into_iter().flat_map(|h| h.join().unwrap_or_default()).collect()
+    });
+    let mut parts = done;
+    parts.sort_by_key(|(i, _, _)| *i);
+    // The two header bytes the library writes for this level.
+    let head = miniz_oxide::deflate::compress_to_vec_zlib(&[], level);
+    let mut out = Vec::with_capacity(parts.iter().map(|(_, b, _)| b.len()).sum::<usize>() + 6);
+    out.extend_from_slice(&head[..2]);
+    let mut sum = 1u32;
+    for (i, bytes, a) in &parts {
+        out.extend_from_slice(bytes);
+        sum = adler32_combine(sum, *a, chunks[*i].len());
+    }
+    out.extend_from_slice(&sum.to_be_bytes());
+    out
+}
+
+const ADLER_BASE: u32 = 65_521;
+
+/// The Adler-32 checksum of `data`.
+#[cfg(not(target_arch = "wasm32"))]
+fn adler32(data: &[u8]) -> u32 {
+    let (mut a, mut b) = (1u32, 0u32);
+    for block in data.chunks(5552) {
+        for &x in block {
+            a += u32::from(x);
+            b += a;
+        }
+        a %= ADLER_BASE;
+        b %= ADLER_BASE;
+    }
+    (b << 16) | a
+}
+
+/// The Adler-32 of two pieces joined, from the checksum of each and the length of the second.
+#[cfg(not(target_arch = "wasm32"))]
+fn adler32_combine(adler1: u32, adler2: u32, len2: usize) -> u32 {
+    let rem = (len2 % ADLER_BASE as usize) as u32;
+    let mut sum1 = adler1 & 0xffff;
+    let mut sum2 = (rem * sum1) % ADLER_BASE;
+    sum1 += (adler2 & 0xffff) + ADLER_BASE - 1;
+    sum2 += ((adler1 >> 16) & 0xffff) + ((adler2 >> 16) & 0xffff) + ADLER_BASE - rem;
+    if sum1 >= ADLER_BASE {
+        sum1 -= ADLER_BASE;
+    }
+    if sum1 >= ADLER_BASE {
+        sum1 -= ADLER_BASE;
+    }
+    if sum2 >= (ADLER_BASE << 1) {
+        sum2 -= ADLER_BASE << 1;
+    }
+    if sum2 >= ADLER_BASE {
+        sum2 -= ADLER_BASE;
+    }
+    sum1 | (sum2 << 16)
+}
+
 /// Assemble the file: header, the catalog, the page tree, the page, its content, the info
 /// dictionary, one optional-content group per layer, then the cross-reference table and trailer.
 fn assemble(media: Vec2, content: &[u8], compress: bool, title: &str, layers: &[String]) -> Vec<u8> {
@@ -494,8 +625,7 @@ fn assemble(media: Vec2, content: &[u8], compress: bool, title: &str, layers: &[
         format!("<< /Properties << {props}>> >>")
     };
     obj(&mut out, format!("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {mb}] /Resources {resources} /Contents 4 0 R >>").as_bytes());
-    let (data, filter) =
-        if compress { (miniz_oxide::deflate::compress_to_vec_zlib(content, 6), " /Filter /FlateDecode") } else { (content.to_vec(), "") };
+    let (data, filter) = if compress { (zlib(content, 6), " /Filter /FlateDecode") } else { (content.to_vec(), "") };
     let mut stream = format!("<< /Length {}{filter} >>\nstream\n", data.len()).into_bytes();
     stream.extend_from_slice(&data);
     stream.extend_from_slice(b"\nendstream");
@@ -615,5 +745,91 @@ mod tests {
         assert_eq!(doc.get_pages().len(), 2);
         assert!(merge(&[]).is_err());
         assert!(merge(&vec![vec![b'x'; 8]; 257]).is_err());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn numbers_are_short_finite_and_have_no_exponent() {
+        let s = |v: f64| {
+            let mut o = String::new();
+            num(&mut o, v);
+            o
+        };
+        assert_eq!(s(0.0), "0");
+        assert_eq!(s(-0.0), "0");
+        assert_eq!(s(-0.0004), "0");
+        assert_eq!(s(1.0), "1");
+        assert_eq!(s(1.5), "1.5");
+        assert_eq!(s(-2.25), "-2.25");
+        assert_eq!(s(0.125), "0.125");
+        assert_eq!(s(0.0006), "0.001");
+        assert_eq!(s(123456.7894), "123456.789");
+        assert_eq!(s(f64::NAN), "0");
+        assert_eq!(s(f64::INFINITY), "0");
+        assert_eq!(s(1e30), "10000000");
+        assert_eq!(s(-1e30), "-10000000");
+        assert_eq!(s(100.0), "100");
+        assert_eq!(s(0.1), "0.1");
+    }
+
+    /// A big stream is compressed in chunks on several threads; it must read back as exactly the input, with a correct zlib checksum.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_big_stream_compressed_in_chunks_reads_back_unchanged() {
+        use std::io::Write as _;
+        let mut data = Vec::new();
+        let mut x = 12345u64;
+        while data.len() < PARALLEL_DEFLATE_FROM + 3 * DEFLATE_CHUNK + 777 {
+            x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let _ = writeln!(&mut data, "{} {} m\n{} {} l", (x >> 40) % 5000, (x >> 20) % 3000, (x >> 8) % 4000, x % 2000);
+        }
+        let packed = zlib(&data, 6);
+        assert!(packed.len() < data.len() / 2, "it compresses");
+        assert_eq!(miniz_oxide::inflate::decompress_to_vec_zlib(&packed).unwrap(), data);
+        // The combined checksum equals one pass over the whole input.
+        let whole = adler32(&data);
+        assert_eq!(packed[packed.len() - 4..], whole.to_be_bytes());
+        // A small stream still takes the single-thread path.
+        let small = zlib(&data[..1000], 6);
+        assert_eq!(miniz_oxide::inflate::decompress_to_vec_zlib(&small).unwrap(), &data[..1000]);
+    }
+
+    /// Where the time of a plot goes, on a real drawing: `AAD_PROBE_FILE=<dwg or dxf> cargo test -p aad-io --release -- --ignored --nocapture where_the_plot_time_goes`.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    #[ignore = "a measurement, needs AAD_PROBE_FILE"]
+    fn where_the_plot_time_goes() {
+        use std::time::Instant;
+        let Ok(path) = std::env::var("AAD_PROBE_FILE") else { return };
+        let bytes = std::fs::read(&path).unwrap();
+        let drawing = crate::read(&bytes, &path).unwrap();
+        let o = PdfOptions::default();
+        let t = Instant::now();
+        let pr = prepare(&drawing, &Space::Model, &o).unwrap();
+        let t_prepare = t.elapsed();
+        let t = Instant::now();
+        let layers = crate::layers::index(&drawing, &pr.list);
+        let t_layers = t.elapsed();
+        let t = Instant::now();
+        let content = content_stream(&pr.list, &pr.map, &pr.clip_pt, Some(&layers));
+        let t_content = t.elapsed();
+        let t = Instant::now();
+        let packed = assemble(pr.media, content.as_bytes(), true, &pr.title, &layers.names);
+        let t_deflate = t.elapsed();
+        let t = Instant::now();
+        let plain = assemble(pr.media, content.as_bytes(), false, &pr.title, &layers.names);
+        let t_plain = t.elapsed();
+        println!(
+            "prims {} | prepare {:?} | layers {:?} | content_stream {:?} ({} bytes) | assemble+deflate {:?} ({} bytes) | assemble no compression {:?} ({} bytes)",
+            pr.list.prims.len(),
+            t_prepare,
+            t_layers,
+            t_content,
+            content.len(),
+            t_deflate,
+            packed.len(),
+            t_plain,
+            plain.len()
+        );
     }
 }

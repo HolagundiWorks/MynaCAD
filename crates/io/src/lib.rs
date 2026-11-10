@@ -213,7 +213,15 @@ pub fn png(d: &Drawing, space: &Space, width: u32, height: u32) -> Result<Vec<u8
 /// Render a space to PNG showing `window` (centred, fitted without margin), or fitted to its
 /// extents (5% margin) when `window` is `None`.
 pub fn png_framed(d: &Drawing, space: &Space, width: u32, height: u32, window: Option<Bounds2>) -> Result<Vec<u8>> {
-    let list = aad_render::build(d, space, &aad_render::Options::default());
+    // Draw at the detail the picture can show: curves flattened to a quarter of a pixel, text that is a few pixels tall as a bar and under a pixel not at
+    // all, hatches finer than a pixel as a tint. Without this a heavy drawing is triangulated at 0.001 drawing units and the picture is mostly work nobody can see.
+    let px = 1.0 / png_view(&window.unwrap_or_else(|| d.extents(space)), width, height, window).scale;
+    let opts = if px.is_finite() && px > 0.0 {
+        aad_render::Options { tolerance: px * 0.25, screen_px: px, ..aad_render::Options::default() }
+    } else {
+        aad_render::Options::default()
+    };
+    let list = aad_render::build(d, space, &opts);
     let view = png_view(&list.bounds, width, height, window);
     aad_render::raster::render_png(&list, &view, &aad_render::raster::RasterOptions::default()).ok_or_else(|| IoError::Format("render failed".into()))
 }

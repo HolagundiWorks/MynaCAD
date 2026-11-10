@@ -224,6 +224,23 @@ mod perf {
             let _ = writeln!(f, "host: {line}");
         }
     }
+    /// A named milestone with the wall-clock time (milliseconds since the Unix epoch), so a script can subtract the process start time.
+    /// Only when timing is on. The first-list and first-frame markers below are what the open-time audit reads.
+    pub fn mark(name: &str) {
+        if !on() {
+            return;
+        }
+        let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        force(&format!("marker {name} epoch_ms={ms}"));
+    }
+    /// The first frame that paints a drawing with geometry in it (once per process), when timing is on.
+    pub fn first_geometry_frame(entities: usize) {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static DONE: AtomicBool = AtomicBool::new(false);
+        if entities > 0 && on() && !DONE.swap(true, Ordering::Relaxed) {
+            mark(&format!("first geometry frame entities={entities}"));
+        }
+    }
     pub fn note(start: &Option<Instant>, line: &str) {
         let Some(t) = start else { return };
         let total = t.elapsed().as_secs_f64() * 1000.0;
@@ -2211,6 +2228,7 @@ impl Host {
         if let Some(f) = &self.frame.first {
             match f.rx.try_recv() {
                 Ok((list, scene)) => {
+                    perf::mark("first list ready");
                     if let Some(f) = self.frame.first.take()
                         && f.key.0 == list_key.0
                     {
@@ -2249,6 +2267,7 @@ impl Host {
                         let (tx, rx) = std::sync::mpsc::channel();
                         let (doc, space, opts) = (state.doc.clone(), state.space.clone(), opts.clone());
                         let doc_keep = doc.clone();
+                        perf::mark(&format!("first list build started entities={}", doc.entity_count()));
                         if std::thread::Builder::new()
                             .name("aad-first-list".into())
                             .spawn(move || {
@@ -2611,6 +2630,9 @@ impl Host {
             gpu.present(key, built, &uniform)?;
         }
         self.paint = Some(stamp);
+        if perf::start().is_some() {
+            perf::first_geometry_frame(self.session.state().map_or(0, |s| s.doc.entity_count()));
+        }
         perf::note(
             &t_all,
             &format!("redraw: mesh {t_mesh:.1}, cursor+overlay {:.1}, gpu present {:.1} ms", t_overlay - t_mesh, perf::lap(&t_all) - t_overlay),

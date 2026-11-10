@@ -605,7 +605,18 @@ fn main() -> ExitCode {
         Some("auditor") => auditor::run(&rest),
         Some("ask") => ask::run(&rest),
         Some("--version" | "-V") => {
-            println!("aad-cli {}", env!("CARGO_PKG_VERSION"));
+            let mut extra = Vec::new();
+            if !env!("MYNA_VERSION").is_empty() {
+                extra.push(format!("Myna {}", env!("MYNA_VERSION")));
+            }
+            if !env!("AAD_GIT_COMMIT").is_empty() {
+                extra.push(format!("commit {}", env!("AAD_GIT_COMMIT")));
+            }
+            if extra.is_empty() {
+                println!("aad-cli {}", env!("CARGO_PKG_VERSION"));
+            } else {
+                println!("aad-cli {} ({})", env!("CARGO_PKG_VERSION"), extra.join(", "));
+            }
             Ok(())
         }
         _ => Err(USAGE.into()),
