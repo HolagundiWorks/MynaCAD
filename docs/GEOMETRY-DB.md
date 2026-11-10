@@ -9,7 +9,7 @@ A 2D plan is lines, arcs, circles, blocks, hatches and text, each with coordinat
 ## 2. Decisions (owner, 2026-11-08)
 
 1. **Units, not a fixed thickness list.** The drawing carries the unit it was drafted in. Metric drawings use 230 mm for a full-brick wall, imperial drawings 9 in (228.6 mm). Wall types are three: **half brick** (115 mm / 4.5 in), **full brick** (230 mm / 9 in) and **cavity wall** (default overall 300 mm / 12 in = 115 leaf + 70 cavity + 115 leaf; **the 300 mm default is an assumption about local practice, not a code value**, and is an editable rule parameter). Walls are always drawn as two lines: the single-line-with-width and solid-hatch wall rules are dropped. All geometry tables are stored in millimetres whatever the drawing unit.
-2. **Storage.** All files stay local. The tables live in the project `.osp` (Tren and Falcon share this local database). Nothing from `geo_*` is synced anywhere: the tables are not written to the `change` log and no push reads them. Only Kivo syncs to the cloud, and company data reaches Kivo only through the CSV Falcon exports.
+2. **Storage.** All files stay local. The tables live in the project `.osp` (MynaCAD and MynaOps share this local database). Nothing from `geo_*` is synced anywhere: the tables are not written to the `change` log and no push reads them. Only MynaHub syncs to the cloud, and company data reaches MynaHub only through the CSV MynaOps exports.
 3. **Apply policy: review first, then approve.** Classification never moves anything. `geodb.apply` makes a preview (handle, from layer, to layer, rule, confidence); only an explicit `approve: true` runs the layer changes, as one undo step. No auto-apply.
 4. **Layers.** The standard layer set is fixed in the app and not user-configurable (section 8).
 5. **Foreign drawings.** A drawing from another CAD program is detected by origin and must go through the layer mapper before anything is applied (section 9).
@@ -25,11 +25,11 @@ A 2D plan is lines, arcs, circles, blocks, hatches and text, each with coordinat
 
 ## 4. Units and the scale check
 
-`aad_geodb::units`. The drafting unit comes from, in order: an explicit `units` argument of `geodb.build` (confirms), the drawing's own record (project key `draftingUnits`, written by Tren), `INSUNITS` (1 in, 2 ft, 4 mm, 5 cm, 6 m), and last the **scale check**. A drawing with no units is **never guessed**: the scale check proposes a unit, the run is marked `units_confirmed = 0`, a warning is returned and `geodb.apply` refuses until `geodb.build {units}` confirms it.
+`aad_geodb::units`. The drafting unit comes from, in order: an explicit `units` argument of `geodb.build` (confirms), the drawing's own record (project key `draftingUnits`, written by MynaCAD), `INSUNITS` (1 in, 2 ft, 4 mm, 5 cm, 6 m), and last the **scale check**. A drawing with no units is **never guessed**: the scale check proposes a unit, the run is marked `units_confirmed = 0`, a warning is returned and `geodb.apply` refuses until `geodb.build {units}` confirms it.
 
 Scale check: for each candidate unit (mm, in, m, cm, ft) the sampled line length (the 40,000 longest segments) is paired at that unit's wall thicknesses; the score is the share of line length that pairs up. The best score names the unit when it is clearly ahead (1.5 times the runner-up, at least 1 %); the median pair gap in millimetres is reported. A declared unit whose score is far below the best is flagged ("the drawing says in but its wall thicknesses fit mm much better").
 
-Where the unit is recorded: new drawings in Tren get `draftingUnits` (`{"system":"metric","unit":"mm"}` or inches) and the Tren stamp at creation; every save writes the stamp and, when the drawing declares its units, `draftingUnits`; saving into an `.osp` also writes `drafting_units`, `drafting_unit` and `origin` into the project `meta` table (`write_project_meta`). Imported drawings read `INSUNITS` / `MEASUREMENT`.
+Where the unit is recorded: new drawings in MynaCAD get `draftingUnits` (`{"system":"metric","unit":"mm"}` or inches) and the MynaCAD stamp at creation; every save writes the stamp and, when the drawing declares its units, `draftingUnits`; saving into an `.osp` also writes `drafting_units`, `drafting_unit` and `origin` into the project `meta` table (`write_project_meta`). Imported drawings read `INSUNITS` / `MEASUREMENT`.
 
 ## 5. Pipeline
 
@@ -122,7 +122,7 @@ Sections: `wall_types`, `cavity_parts`, `pair`, `door`, `window`, `evidence`, `c
 
 ## 9. Foreign drawings and the layer mapper
 
-`geodb.origin` (and `origin` in the `open` result, and a command-line notice on open) reports whether a drawing is **foreign**: no `trenOrigin` stamp in the drawing, and either objects on layers outside the standard set (the union of the standard, presentation, permit and VH sets plus the room and layout layers) or every object on layer `0`. `$ACADVER` and `$DWGCODEPAGE` are reported as evidence but do not decide: Tren writes `AC1032` itself. Every drawing Tren saves carries the stamp (project key `trenOrigin`, also `origin` in the `.osp` `meta`); a drawing from an older Tren is foreign until it is saved once.
+`geodb.origin` (and `origin` in the `open` result, and a command-line notice on open) reports whether a drawing is **foreign**: no `trenOrigin` stamp in the drawing, and either objects on layers outside the standard set (the union of the standard, presentation, permit and VH sets plus the room and layout layers) or every object on layer `0`. `$ACADVER` and `$DWGCODEPAGE` are reported as evidence but do not decide: MynaCAD writes `AC1032` itself. Every drawing MynaCAD saves carries the stamp (project key `trenOrigin`, also `origin` in the `.osp` `meta`); a drawing from an older MynaCAD is foreign until it is saved once.
 
 For a foreign drawing `geodb.build` still classifies (geometry does not need the layers) but returns `needsLayerMapping`, and `geodb.apply` refuses until the layer mapper has run. The mapper is the existing `layermap` command (`{map: {old: new}, create?, purge?}` moves objects, skips locked layers). This change adds `layermap {suggest: true}`, which lists candidate targets by keyword for the non-standard layers and changes nothing, and a project key `layerMapDone` that a mapping run sets. What the mapper still lacks is in the results document.
 
@@ -144,7 +144,7 @@ crates/geodb/src/
   classify.rs  wall runs, joins, caps, doors, windows (and calls columns.rs first)
   columns.rs   column rectangles (closed polylines, four lines) and circles
   context.rs   page regions, raster rooms and slab, plan / structure / other, beams, hatch links
-  origin.rs    Tren stamp and foreign-drawing detection
+  origin.rs    MynaCAD stamp and foreign-drawing detection
   store.rs     the geo_* tables in the .osp (bulk write, incremental write, rules, reviews, meta)
   lib.rs       GeoModel: build, update, reclassify, scale check, summary
 crates/engine/examples/geodb_groundtruth.rs  the ground-truth harness
@@ -155,7 +155,7 @@ crates/engine/src/cmd/geodb.rs         geodb.build / report / rules / review / o
 
 ## 12. How it is measured
 
-`cargo run --release -p aad-engine --example geodb_groundtruth -- <file> [--units u] [--keep-linetype] [--sweep] [--edit] [--tol mm] [--min-run mm] [--rule section.field=json] [--diag] [--near x y half] [--shot png n half]`: records each object's layer, sets every layer to `0` (blocks too), builds from geometry alone and scores walls, doors and windows against the recorded layers (`*WALL*`, `*DOOR*`, `*WIND*`), then optionally measures one incremental edit. Phase 2 adds columns and beams against `*COL*` / `*BEAM*` layers, the region table, the fate of the true wall objects (kept, below threshold, turned into beams) and the true and false wall objects per region. `--rule room.isolated_penalty=0.4` sets any rule field for a run. Golden files: `crates/geodb/tests/golden/` (rewrite with `GEODB_BLESS=1` after checking a change). The engine test `a_plan_drawn_with_the_wall_commands_is_recovered_from_geometry_alone` scores Tren's own plans the same way. Numbers: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md).
+`cargo run --release -p aad-engine --example geodb_groundtruth -- <file> [--units u] [--keep-linetype] [--sweep] [--edit] [--tol mm] [--min-run mm] [--rule section.field=json] [--diag] [--near x y half] [--shot png n half]`: records each object's layer, sets every layer to `0` (blocks too), builds from geometry alone and scores walls, doors and windows against the recorded layers (`*WALL*`, `*DOOR*`, `*WIND*`), then optionally measures one incremental edit. Phase 2 adds columns and beams against `*COL*` / `*BEAM*` layers, the region table, the fate of the true wall objects (kept, below threshold, turned into beams) and the true and false wall objects per region. `--rule room.isolated_penalty=0.4` sets any rule field for a run. Golden files: `crates/geodb/tests/golden/` (rewrite with `GEODB_BLESS=1` after checking a change). The engine test `a_plan_drawn_with_the_wall_commands_is_recovered_from_geometry_alone` scores MynaCAD's own plans the same way. Numbers: [GEOMETRY-DB-RESULTS.md](GEOMETRY-DB-RESULTS.md).
 
 ## 13. Phases
 

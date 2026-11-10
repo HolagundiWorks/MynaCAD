@@ -7,7 +7,7 @@ kit's README (`/HolagundiWorks/hcwCAD-KIT`). No C# source is included.
 
 ## Done
 
-| Area | Tren commands | Notes |
+| Area | MynaCAD commands | Notes |
 |---|---|---|
 | Layer sets | `hcwlayers` `{set: standard\|permit\|presentation\|both\|all}` | Creates missing layers only; unknown linetypes fall back to Continuous. Aliases: `hcw`→`standard`, `bp`→`permit`. **standard**: 36 AIA-style layers (`A-WALL`, `AN-TEXT`, …). **permit**: `BP-*` building-permit layers (names kept for AutoPlan interchange). **presentation**: `G-HEAVY`…`G-ANNO` graphic-weight layers with plot styles for `presentation.stb` |
 | Room tools | `room.relabel`, `room.log`, `room.total`, `room.audit`, `room.check`, `room.lighting` | From `hcwtools.lsp` section 11 (MRELABEL, MSCHEDULE, MTOTAL, MAUDIT, MCHECK). The three lines of a room label are paired by position, not by drawing order, so a log and a total are right whatever order the labels were drawn in. MFLOOR is the active floor of `floors`, which `room` already uses. `room.lighting` reads each declared room and reports maintained illuminance in lm/m² and lm/ft², plus that level times the room area. The table is ours (circulation, toilets, offices and stores follow published maintained levels for those uses; other rooms use one general level). It is not a certified copy of EN 12464-1, the IES Lighting Handbook, or IS 3646. The same fields are written on the room row of `bridge.export` / `takeoff.record` |
@@ -39,7 +39,7 @@ a block parameter the block name does not carry, so every riser is a source for 
 ## To do (in order)
 
 1. Drawing tools: `DBCOUNT`, `DGRID`, `AUTOLABEL`, `INCARRAY`, `RENUMBERLAYOUTS`, `ROOMTEXTFIT`, `RTAG`, and the interactive prompt sequences for `txtalign` and `txtinc`.
-2. `WinLabel` (needs dynamic block properties, which Tren does not have), `TXTSTYLE` (a style picker; Tren has the text style commands).
+2. `WinLabel` (needs dynamic block properties, which MynaCAD does not have), `TXTSTYLE` (a style picker; MynaCAD has the text style commands).
 3. Notes and fields, title block.
 4. Wall edit, join, regenerate, hatch and adopt; escalators; column table; auto-dimension; sheet set and fit.
 

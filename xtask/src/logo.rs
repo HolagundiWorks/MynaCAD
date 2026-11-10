@@ -1,6 +1,6 @@
-//! `cargo xtask logo`: draw the Tren bird and write every icon the project ships.
+//! `cargo xtask logo`: draw the MynaCAD bird and write every icon the project ships.
 //!
-//! The mark is Human Centric Works' own artwork: Tren's bird, white on a Midnight plate
+//! The mark is Human Centric Works' own artwork: MynaCAD's bird, white on a Midnight plate
 //! (`#102C80`). The curves are the same ones `o-ui` `tools/Brand` draws. A pixel is white when it
 //! falls inside the crown or the beak and outside the eye. Everything under `assets/app-icon/`
 //! is generated:
@@ -23,7 +23,7 @@ const PLATE: [f64; 3] = [16.0, 44.0, 128.0];
 const WHITE: [f64; 3] = [255.0, 255.0, 255.0];
 
 pub const SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 194 194" width="194" height="194">
-  <title>Tren</title>
+  <title>MynaCAD</title>
   <rect width="194" height="194" rx="42" fill="#102C80"/>
   <g fill="#FFFFFF">
     <path d="M16 118C12 52 70 22 124 42C158 54 172 78 154 100C126 76 80 80 30 128C16 138 12 128 16 118Z"/>
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn the_plate_is_midnight_and_the_svg_names_tren() {
         assert_eq!(PLATE, [16.0, 44.0, 128.0]);
-        assert!(SVG.contains("#102C80") && SVG.contains("<title>Tren</title>"));
+        assert!(SVG.contains("#102C80") && SVG.contains("<title>MynaCAD</title>"));
         assert!(!SVG.contains("O-Draft") && !SVG.contains("0066ff"));
     }
 

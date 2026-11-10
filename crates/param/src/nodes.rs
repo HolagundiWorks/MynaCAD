@@ -153,7 +153,7 @@ pub fn library() -> Vec<LibraryEntry> {
             node_version: 1,
             label: "Wall measurements",
             category: "Takeoff",
-            description: "Length, gross face area and gross volume from the wall geometry (not net of openings; Falcon measures the BOQ)",
+            description: "Length, gross face area and gross volume from the wall geometry (not net of openings; MynaOps measures the BOQ)",
             config: json!({}),
         },
     ]

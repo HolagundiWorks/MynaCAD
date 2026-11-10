@@ -1,6 +1,6 @@
 # Version history and revision register
 
-Tren keeps a **version history** of drawing stores (levels and sheet-set annotation) in the project file (or a sidecar `.history.osp` when the drawing is not a project), and a **revision register** in the drawing’s project data so sheets and the DXF/DWG carry issued codes even when history is missing.
+MynaCAD keeps a **version history** of drawing stores (levels and sheet-set annotation) in the project file (or a sidecar `.history.osp` when the drawing is not a project), and a **revision register** in the drawing’s project data so sheets and the DXF/DWG carry issued codes even when history is missing.
 
 ## Files
 

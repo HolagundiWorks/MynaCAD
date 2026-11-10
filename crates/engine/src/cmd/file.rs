@@ -242,7 +242,7 @@ fn finish_import(s: &mut Session, p: Prepared, name: &str, path: Option<String>)
     if let Some(st) = s.docs.get(i) {
         let o = super::geodb::origin_of(&st.doc);
         if o.foreign {
-            s.echo("This drawing was not made in Tren and its layers are not the standard set. Run LAYERMAP (suggest: true lists candidates) before classifying it.".to_string());
+            s.echo("This drawing was not made in MynaCAD and its layers are not the standard set. Run LAYERMAP (suggest: true lists candidates) before classifying it.".to_string());
         }
     }
     if report.flattened > 0 {
@@ -591,7 +591,7 @@ fn after_save(s: &mut Session, r: &mut Value, lost: &std::collections::BTreeMap<
     }
 }
 
-/// After a successful drawing save, record take-off / openings / electrical rows for Falcon.
+/// After a successful drawing save, record take-off / openings / electrical rows for MynaOps.
 /// Failure is reported and never fails the save.
 fn record_takeoff_if_any(s: &mut Session) {
     let worth = s.doc().is_ok_and(|d| {
@@ -609,7 +609,7 @@ fn record_takeoff_if_any(s: &mut Session) {
     match s.execute("takeoff.record", &serde_json::json!({ "annotate": false })) {
         Ok(v) => {
             let slot = v.get("slot").and_then(|n| n.as_u64()).unwrap_or(0);
-            s.echo(format!("Take-off recorded for Falcon (slot {slot})."));
+            s.echo(format!("Take-off recorded for MynaOps (slot {slot})."));
         }
         Err(e) => s.echo(format!("Take-off was not recorded: {e}")),
     }

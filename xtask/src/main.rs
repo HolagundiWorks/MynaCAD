@@ -35,7 +35,7 @@ commands:
                   show where test corpora live; --download fetches PngSuite into corpus/pngsuite
   stats [--exact] count tests and lines per crate (--exact: ask the test harness via `-- --list`)
   parity          recompute the AutoCAD menu-breadth checklist in docs/parity-checklist.md
-  logo            draw the Tren bird and regenerate every icon in assets/app-icon
+  logo            draw the MynaCAD bird and regenerate every icon in assets/app-icon
   ico <out.ico> <in.png>...
                   pack square PNGs (<= 256 px) into a Windows .ico (used by `logo`)
 ";

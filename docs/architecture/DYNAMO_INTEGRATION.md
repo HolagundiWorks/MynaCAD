@@ -11,14 +11,14 @@ Named pipe: `ODraft.Dynamo` (Windows only). JSON lines, one request or push per 
 
 | Method | Direction | Purpose |
 |---|---|---|
-| `ping` | Tren → Host | Liveness |
-| `evaluate` | Tren → Host | Evaluate the host graph (or `params.graph`) with the stored context |
-| `context.levels` | Tren → Host | `{ levels: [{name, elevation, height, active}] }` |
-| `context.project` | Tren → Host | `{ project: { title, owner, …, details, floors } }` |
-| `subscribe` | Tren → Host | Host pushes `evaluation` on graph edits (debounced 300 ms) |
-| `unsubscribe` | Tren → Host | Stop pushes |
-| `drawing.changed` | Tren → Host | Acknowledged; source-entity tracking is later |
-| `evaluation` | Host → Tren | Push: `{ lines, circles, arcs, inserts, titleFields, texts, dimensions, diagnostics, generation }` |
+| `ping` | MynaCAD → Host | Liveness |
+| `evaluate` | MynaCAD → Host | Evaluate the host graph (or `params.graph`) with the stored context |
+| `context.levels` | MynaCAD → Host | `{ levels: [{name, elevation, height, active}] }` |
+| `context.project` | MynaCAD → Host | `{ project: { title, owner, …, details, floors } }` |
+| `subscribe` | MynaCAD → Host | Host pushes `evaluation` on graph edits (debounced 300 ms) |
+| `unsubscribe` | MynaCAD → Host | Stop pushes |
+| `drawing.changed` | MynaCAD → Host | Acknowledged; source-entity tracking is later |
+| `evaluation` | Host → MynaCAD | Push: `{ lines, circles, arcs, inserts, titleFields, texts, dimensions, diagnostics, generation }` |
 
 Evaluate / evaluation `result` includes `arcs` (radians, CCW from +X), `inserts`
 (`blockName`, `x`, `y`, `rotation` degrees, `attributes`, optional `level`),
@@ -54,7 +54,7 @@ Non-Windows / wasm: pipe methods return a clear error (`status.available` is fal
 ## Verified
 
 - O-Dynamo: `dotnet test` on `ODraft.Graph.Tests` (15 passed), including annotation nodes.
-- Tren: `cargo test -p aad-engine --test companion` (12 passed): level commit, inserts, title fields, Electrical annotation, preview stash → ghost entities.
+- MynaCAD: `cargo test -p aad-engine --test companion` (12 passed): level commit, inserts, title fields, Electrical annotation, preview stash → ghost entities.
 - Host: `cargo test -p aad-host overlay::` includes companion ghost overlay strokes.
 
 ## Canvas ghost

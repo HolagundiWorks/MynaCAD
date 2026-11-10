@@ -209,7 +209,7 @@ const NOTICE: &str = include_str!("../../../NOTICE");
 fn about(ctx: &egui::Context, open: &mut bool) {
     let t = Tokens::get();
     let tab_id = egui::Id::new("about_tab");
-    egui::Window::new(crate::tl!("About Tren")).id(egui::Id::new("About Tren")).open(open).default_size(vec2(640.0, 420.0)).collapsible(false).show(
+    egui::Window::new(crate::tl!("About MynaCAD")).id(egui::Id::new("About MynaCAD")).open(open).default_size(vec2(640.0, 420.0)).collapsible(false).show(
         ctx,
         |ui| {
             let mut tab = ui.data_mut(|d| d.get_temp::<u8>(tab_id)).unwrap_or(0);
@@ -235,8 +235,8 @@ fn about(ctx: &egui::Context, open: &mut bool) {
                     });
                 }
                 _ => {
-                    ui.heading("Tren");
-                    ui.label("Drafting with Kivo and Falcon.");
+                    ui.heading("MynaCAD");
+                    ui.label("Drafting with MynaHub and MynaOps.");
                     ui.label(crate::tf!("Version {version}", version = env!("CARGO_PKG_VERSION")));
                     ui.add_space(6.0);
                     ui.label(crate::tl!("2D architectural drafting. Open source, written in Rust."));

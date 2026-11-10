@@ -2,7 +2,7 @@
 //!
 //! All geometry tables are stored in millimetres whatever the drawing was drafted in. The factor
 //! comes from (in order) an explicit override, the drawing's own record (`draftingUnits` project
-//! key, written by Tren), `INSUNITS`, and last the scale check. A drawing with no units at all is
+//! key, written by MynaCAD), `INSUNITS`, and last the scale check. A drawing with no units at all is
 //! never guessed: the scale check proposes a unit and the build stays unconfirmed until a person
 //! confirms it.
 
@@ -35,7 +35,7 @@ impl UnitSystem {
 pub enum UnitSource {
     /// The caller said so (`geodb.build {units}`), which also confirms it.
     Override,
-    /// Tren recorded it with the drawing (`draftingUnits`).
+    /// MynaCAD recorded it with the drawing (`draftingUnits`).
     Project,
     /// The file's `INSUNITS`.
     Insunits,
@@ -85,7 +85,7 @@ impl Units {
         Some(Units { system, unit: unit.to_string(), to_mm, source, confirmed })
     }
 
-    /// What Tren writes with a drawing: `{"system": "metric", "unit": "mm"}`.
+    /// What MynaCAD writes with a drawing: `{"system": "metric", "unit": "mm"}`.
     pub fn stamp(&self) -> Value {
         json!({ "system": self.system.as_str(), "unit": self.unit })
     }

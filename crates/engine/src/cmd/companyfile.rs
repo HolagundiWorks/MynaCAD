@@ -1,5 +1,5 @@
 //! The company file's details in the drawing. The company's own details (name, address, registrations) are kept in Studio
-//! (OSAS company file) and a project's details (name, site, client) in Studio / Kivo; a drawing's title block and schedules
+//! (OSAS company file) and a project's details (name, site, client) in Studio / MynaHub; a drawing's title block and schedules
 //! print them instead of keeping their own copies. A host that has opened the company file reads the engine call
 //! `document_context` and hands the answer to this command: the project details of the drawing (title, owner, architect,
 //! address, date, project id) are set from it, and the company's details are kept in the drawing so a title block can print
@@ -10,8 +10,8 @@
 //!
 //! `companyfile` does no file input of its own. It only reads the JSON it is given, so the engine stays free of the company
 //! file's library. `company.pack.import` / `company.pack.export` read and write an `osas-company-pack` JSON file (firm fields
-//! only). That pack is how Tren receives company details for title blocks. Tren does not open the company file and does
-//! not call Kivo or the launcher.
+//! only). That pack is how MynaCAD receives company details for title blocks. MynaCAD does not open the company file and does
+//! not call MynaHub or the launcher.
 
 use serde_json::{Map, Value, json};
 
@@ -36,7 +36,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{context?: a `document_context` answer, projects?: true, project_id?: n (read that project), refresh?: true (read the drawing's project again)} → {connected, linked, company, details, projects?, suite?}"),
         CommandSpec::new("company.pack.import", "Import Company Details", run_pack_import)
             .menu(&["Architecture", "Project", "Import Company Details"])
-            .params("{path: an osas-company-pack JSON exported from Kivo} → {company, details}. Fills title-block fields from the file. Does not open the company file or talk to Kivo."),
+            .params("{path: an osas-company-pack JSON exported from MynaHub} → {company, details}. Fills title-block fields from the file. Does not open the company file or talk to MynaHub."),
         CommandSpec::new("company.pack.export", "Export Company Details", run_pack_export)
             .params("{path} → {path, bytes}. Writes the company details already stored in this drawing."),
     ]
@@ -97,7 +97,7 @@ fn run_companyfile(s: &mut Session, p: &Value) -> Result<Value> {
     let held = company(d);
     let suite = suite_status(d);
     Ok(json!({
-        // Tren never opens the company file: details arrive as a context from the host or as an imported pack.
+        // MynaCAD never opens the company file: details arrive as a context from the host or as an imported pack.
         "connected": false,
         "linked": suite["project_linked"].as_bool().unwrap_or(false),
         "company": held,
@@ -118,10 +118,10 @@ fn run_pack_import(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let pack: Value = serde_json::from_slice(&bytes).map_err(|e| bad("company.pack.import", e.to_string()))?;
     if pack.get("format").and_then(Value::as_str) != Some(PACK_FORMAT) {
-        return Err(bad("company.pack.import", "this file is not a Kivo company pack"));
+        return Err(bad("company.pack.import", "this file is not a MynaHub company pack"));
     }
     let firm = pack.get("company").filter(|c| c.is_object()).ok_or_else(|| bad("company.pack.import", "`company` is missing"))?;
-    // Firm identity only: no project link, so Tren does not call Kivo.
+    // Firm identity only: no project link, so MynaCAD does not call MynaHub.
     let ctx = json!({ "v": 1, "prepared_on": pack.get("exported_utc").and_then(Value::as_str).unwrap_or(""), "company": firm });
     apply(s, &ctx)?;
     let d = s.doc()?;
@@ -340,7 +340,7 @@ mod tests {
     #[test]
     fn the_company_file_is_never_opened() {
         let mut s = Session::new();
-        // Older callers may still pass the live-link switches; they do nothing and Tren stays disconnected.
+        // Older callers may still pass the live-link switches; they do nothing and MynaCAD stays disconnected.
         for switches in [json!({ "open": true }), json!({ "projects": true }), json!({ "refresh": true }), json!({ "project_id": 3 })] {
             let shown = s.execute("companyfile", &switches).unwrap();
             assert_eq!(shown["connected"], false);

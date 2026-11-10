@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace Aad.WinUi;
 
-/// <summary>About Tren. The version comes from the host.</summary>
+/// <summary>About MynaCAD. The version comes from the host.</summary>
 internal static class AboutWindow
 {
     private static Window? _window;
@@ -13,16 +13,16 @@ internal static class AboutWindow
     {
         var theme = owner.Content is FrameworkElement shell ? shell.RequestedTheme : ElementTheme.Default;
         var logo = new Image { Width = Density.LogoSize, Height = Density.LogoSize, HorizontalAlignment = HorizontalAlignment.Left, Source = ShellIcon.Logo() };
-        AutomationProperties.SetName(logo, "Tren");
+        AutomationProperties.SetName(logo, "MynaCAD");
         var stack = new StackPanel { Spacing = Density.SpaceSm, Margin = Density.DialogMargin };
         stack.Children.Add(logo);
         stack.Children.Add(new TextBlock
         {
-            Text = "Tren",
+            Text = "MynaCAD",
             FontSize = Density.FontSection,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         });
-        stack.Children.Add(new TextBlock { Text = "Architectural drafting with Kivo and Falcon", FontSize = Density.FontBody });
+        stack.Children.Add(new TextBlock { Text = "Architectural drafting with MynaHub and MynaOps", FontSize = Density.FontBody });
         if (version.Length > 0)
         {
             stack.Children.Add(new TextBlock { Text = "Version " + version, FontSize = Density.FontBody });
@@ -38,7 +38,7 @@ internal static class AboutWindow
         _window?.Close();
         var window = new Window
         {
-            Title = "About Tren",
+            Title = "About MynaCAD",
             Content = new Grid { RequestedTheme = theme, Children = { stack } },
         };
         StandardWindow.Present(window, owner, WindowTemplate.Dialog);

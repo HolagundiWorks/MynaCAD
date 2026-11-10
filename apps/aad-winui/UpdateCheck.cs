@@ -71,8 +71,8 @@ internal static class UpdateCheck
             var newer = CompareVersions(latest, currentVersion) > 0;
             return new Result(true, newer, currentVersion, latest,
                 newer
-                    ? $"A newer Tren is listed: {latest} (you have {currentVersion})."
-                    : $"You have the latest listed Tren ({currentVersion}).");
+                    ? $"A newer MynaCAD is listed: {latest} (you have {currentVersion})."
+                    : $"You have the latest listed MynaCAD ({currentVersion}).");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
         {

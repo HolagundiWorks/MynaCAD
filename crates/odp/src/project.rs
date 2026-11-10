@@ -1,5 +1,5 @@
 //! The `.osp` project file (format `osp`, version 1): one SQLite file that holds everything about a project, so the same file opens
-//! as a drawing in Tren, as a take-off and a project in Falcon, and in a viewer on another device. Spec: `docs/ODP-PROJECT-FILE-AND-SYNC.md`
+//! as a drawing in MynaCAD, as a take-off and a project in MynaOps, and in a viewer on another device. Spec: `docs/ODP-PROJECT-FILE-AND-SYNC.md`
 //! (OSAS repository).
 //!
 //! The file is written in WAL mode; a writer takes an immediate transaction, so two programs can have it open and one writes while the other reads.
@@ -88,9 +88,9 @@ pub struct Markup {
     pub resolved: bool,
 }
 
-/// A structural detail drawn in Tren: one parametric RCC block placed in a drawing, with the parameters it was drawn with. Tren records
-/// these when it saves the drawing into the file; Falcon reads them and draws each one read only as the detail of its beam, column, slab or footing.
-/// The drawing is never changed from Falcon. `kind` is `beams`, `columns`, `slabs`, `footings` or `lintels` (the Falcon element pages).
+/// A structural detail drawn in MynaCAD: one parametric RCC block placed in a drawing, with the parameters it was drawn with. MynaCAD records
+/// these when it saves the drawing into the file; MynaOps reads them and draws each one read only as the detail of its beam, column, slab or footing.
+/// The drawing is never changed from MynaOps. `kind` is `beams`, `columns`, `slabs`, `footings` or `lintels` (the MynaOps element pages).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Detail {
     /// `<drawing>/<handle>`: unique in the file.
@@ -441,7 +441,7 @@ impl Edit<'_> {
         Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
-    /// Replace the Falcon project document.
+    /// Replace the MynaOps project document.
     pub fn put_project_doc(&mut self, json: &str) -> Result<()> {
         serde_json::from_str::<serde_json::Value>(json).map_err(|e| Error::Import(format!("the project is not valid JSON: {e}")))?;
         self.tx.execute("INSERT INTO project_doc (id, json) VALUES (1, ?1) ON CONFLICT(id) DO UPDATE SET json = ?1", params![json])?;

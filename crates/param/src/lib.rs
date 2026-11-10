@@ -1,9 +1,9 @@
-//! The parametric graph of Tren: typed nodes and ports, dimensions and units, a restricted
+//! The parametric graph of MynaCAD: typed nodes and ports, dimensions and units, a restricted
 //! formula language, validation with cycle detection, and incremental evaluation with a cache.
 //!
 //! This crate only computes. It reads no drawing and writes nothing: geometry it produces (such
 //! as a wall's centre line and thickness) is handed back to the host, which commits it through
-//! its own commands and undo, and take-off quantities stay with Falcon.
+//! its own commands and undo, and take-off quantities stay with MynaOps.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 

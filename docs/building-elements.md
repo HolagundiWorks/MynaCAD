@@ -2,7 +2,7 @@
 
 2D plan objects can carry a **building-element classification** (structural, finish, or shop),
 references into an open **Indian specification index**, and IFC **type names** as metadata. Rates
-and full standard text stay outside Tren (Falcon / licensed packs).
+and full standard text stay outside MynaCAD (MynaOps / licensed packs).
 
 This is not a 3D BIM modeller and does not write `.ifc` files yet.
 
@@ -31,7 +31,7 @@ Curated open index: [`assets/specs/indian-index.json`](../assets/specs/indian-in
 
 ## Groups and components (SketchUp-style)
 
-| Concept | Tren |
+| Concept | MynaCAD |
 |---|---|
 | Group | Named set of entities; optional nested `childGroups` (depth capped at 16). `group.explode` promotes one level of nesting. Nesting survives DXF via `groupNest`. |
 | Component | Block definition + INSERT, optionally classified. `component.make` / `place` / `makeunique` / `edit` (edit opens `bedit` / `refedit`). Quick Properties shows **Building kind** and **IFC type** and writes them through `properties.set` → `classify.set`. |
@@ -40,7 +40,7 @@ Curated open index: [`assets/specs/indian-index.json`](../assets/specs/indian-in
 
 When an entity (or the block of an INSERT) is classified, `bridge.export` / `takeoff.record` rows may
 carry optional fields: `ifc_type`, `building_kind`, `building_family`, `spec_refs`,
-`measurement_rule`. Falcon may ignore them until it learns them.
+`measurement_rule`. MynaOps may ignore them until it learns them.
 
 ## Not in this release
 

@@ -86,10 +86,10 @@ impl Backend for Remote {
             Ok(r) => r,
             // Resend only when the request cannot have been applied. After a sent mutation with no reply the outcome is unknown, and
             // resending could apply it twice (for example two circles from one call), so report that instead.
-            Err((_, sent)) if !sent || is_read_only(method) => self.roundtrip(&line).map_err(|(e, _)| format!("Tren at {}: {e}", self.addr))?,
+            Err((_, sent)) if !sent || is_read_only(method) => self.roundtrip(&line).map_err(|(e, _)| format!("MynaCAD at {}: {e}", self.addr))?,
             Err((e, _)) => {
                 return Err(format!(
-                    "Tren at {}: {e}; the reply was lost, so `{method}` may or may not have been applied. Inspect the drawing first",
+                    "MynaCAD at {}: {e}; the reply was lost, so `{method}` may or may not have been applied. Inspect the drawing first",
                     self.addr
                 ));
             }
@@ -101,7 +101,7 @@ impl Backend for Remote {
             let e = v.get("error").and_then(Value::as_str).unwrap_or("error");
             // A timeout says whether the request can still have run (#345).
             Err(match v.get("state").and_then(Value::as_str) {
-                Some("not-run") => format!("{e}: Tren did not start `{method}` and won't; it is safe to send again"),
+                Some("not-run") => format!("{e}: MynaCAD did not start `{method}` and won't; it is safe to send again"),
                 Some("may-have-run") => format!("{e}: `{method}` may or may not have been applied. Inspect the drawing first"),
                 _ => e.to_string(),
             })
@@ -111,7 +111,7 @@ impl Backend for Remote {
         true
     }
     fn describe(&self) -> String {
-        format!("connected to Tren at {}", self.addr)
+        format!("connected to MynaCAD at {}", self.addr)
     }
 }
 
@@ -238,7 +238,7 @@ impl Backend for Headless {
         false
     }
     fn describe(&self) -> String {
-        "headless Tren session".into()
+        "headless MynaCAD session".into()
     }
 }
 

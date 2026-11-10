@@ -59,13 +59,13 @@ pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("ui.dialog.qselect", "Quick Select...", &[], None),
     ("ui.dialog.parameters", "Parameters Manager", &["Window", "Parameters Manager"], None),
     ("ui.dialog.dsettings", "Drafting Settings...", &[], None),
-    ("ui.dialog.about", "About Tren", &["Help", "About Tren"], None),
-    ("ui.dialog.commands", "Command Reference", &["Help", "Tren Help"], Some("F1")),
+    ("ui.dialog.about", "About MynaCAD", &["Help", "About MynaCAD"], None),
+    ("ui.dialog.commands", "Command Reference", &["Help", "MynaCAD Help"], Some("F1")),
     ("ui.toggle.history", "Command History", &["Window", "Command History"], Some("F2")),
     ("ui.history.clear", "Clear Command History", &["Window", "Clear Command History"], None),
     ("ui.cmdline.lines", "Command Line History Lines", &[], None),
     ("ui.noop", "", &[], None),
-    ("ui.quit", "Quit Tren", &[], Some("Cmd+Q")),
+    ("ui.quit", "Quit MynaCAD", &[], Some("Cmd+Q")),
 ];
 
 pub fn is_ui_command(id: &str) -> bool {

@@ -1,8 +1,8 @@
-# Tren Developer Guidelines: Documentation Maintenance and Change Management
+# MynaCAD Developer Guidelines: Documentation Maintenance and Change Management
 
 **Document type:** Engineering Standard  
 **Applies to:** All developers, AI coding agents, maintainers and contributors  
-**Scope:** Entire Tren repository, including application code, architecture, commands, UI, APIs, file formats, configuration, tests, dependencies and build systems  
+**Scope:** Entire MynaCAD repository, including application code, architecture, commands, UI, APIs, file formats, configuration, tests, dependencies and build systems  
 **Status:** Adopted  
 **Canonical location:** this file (`docs/documentation-policy.md`)
 
@@ -23,7 +23,7 @@ Related canonical pages:
 
 ## 1. Purpose
 
-Tren must maintain accurate, complete and version-controlled documentation throughout its development lifecycle.
+MynaCAD must maintain accurate, complete and version-controlled documentation throughout its development lifecycle.
 
 Documentation is an integral part of software development. It must evolve whenever the implementation, architecture, supported behaviour, public interfaces or operational requirements change.
 
@@ -496,4 +496,4 @@ Documentation is part of the deliverable, not a follow-up task.
 
 Every contributor is responsible for ensuring that the repository tells the truth about its current implementation. Every material change must leave the code, tests and canonical documentation in agreement.
 
-The objective is not to maximise the volume of documentation. It is to maintain the smallest complete, accurate and verifiable body of documentation needed to understand, use, test, extend and maintain Tren.
+The objective is not to maximise the volume of documentation. It is to maintain the smallest complete, accurate and verifiable body of documentation needed to understand, use, test, extend and maintain MynaCAD.

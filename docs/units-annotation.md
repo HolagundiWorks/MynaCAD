@@ -13,7 +13,7 @@ Implemented in `crates/engine/src/annot.rs` (pure functions, no UI) and `crates/
 | `display.units` | `{units: mm\|cm\|m\|in\|ft\|ftin}` | Sets `AADDISPUNITS` and, in every dimension style, the linear factor (`DIMLFAC`), decimals, unit format and suffix. Changes dimension text only; no object changes. |
 
 - The drawing unit is read from `INSUNITS` (`annot::drawing_unit`). When it is unset or not a
-  length unit Tren knows, commands that need it fail with a message and a file import says so on the
+  length unit MynaCAD knows, commands that need it fail with a message and a file import says so on the
   command line (`import_drawing`). Nothing is guessed.
 - Feet-and-inches uses the architectural format with the drawing measured in inches.
 - Typed distances accept multi-unit suffixes: `'` / `"` (feet and inches), `mm`, `cm`, `m`. Bare

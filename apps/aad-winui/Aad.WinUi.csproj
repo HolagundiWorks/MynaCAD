@@ -5,9 +5,9 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>Aad.WinUi</RootNamespace>
     <AssemblyName>ODraft.WinUi</AssemblyName>
-    <Product>Tren</Product>
-    <AssemblyTitle>Tren</AssemblyTitle>
-    <Description>Tren: 2D drafting and take-off</Description>
+    <Product>MynaCAD</Product>
+    <AssemblyTitle>MynaCAD</AssemblyTitle>
+    <Description>MynaCAD: 2D drafting and take-off</Description>
     <Company>Human Centric Works</Company>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\..\assets\app-icon\aad.ico</ApplicationIcon>

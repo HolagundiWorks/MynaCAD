@@ -88,7 +88,7 @@ The incremental figure is for moving one end of one wall line by 10 mm and updat
 
 ## Other follow-ups
 
-- Origin detection treats a drawing from an older Tren (no stamp) as foreign until it is saved once. `$ACADVER`, `$DWGCODEPAGE` and application ids are reported but not used to decide.
+- Origin detection treats a drawing from an older MynaCAD (no stamp) as foreign until it is saved once. `$ACADVER`, `$DWGCODEPAGE` and application ids are reported but not used to decide.
 - The `.osp` `meta` keys `drafting_units`, `drafting_unit` and `origin` are written through a second SQLite connection to the project file (WAL, 5 s busy timeout); `aad-odp` itself was not changed.
 - New drawings choose their drafting units only through `new_drawing(metric)`; the project wizard's `units` and `drawingUnits` choices are not yet written to `draftingUnits`.
 

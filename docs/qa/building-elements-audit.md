@@ -17,7 +17,7 @@ checked in the code or by running a command, not taken from another document.
 | `component.make`, `place`, `makeunique`, `edit` | All registered (`cmd/component.rs`) |
 | Quick Properties shows Building kind and IFC type, writing through `properties.set` | Present (`aad-host/src/panels.rs`) |
 | Bridge and take-off rows carry `ifc_type`, `building_kind`, `building_family`, `spec_refs`, `measurement_rule` | True for the wall, opening, column, lintel, room and slab rows (`stamp_building_on_row`, 6 call sites in `bridge.rs`) |
-| No `.ifc` export from Tren | True: Tren stores IFC class names as metadata only |
+| No `.ifc` export from MynaCAD | True: MynaCAD stores IFC class names as metadata only |
 
 ## 2. building-elements.md: what is missing or has drifted
 
@@ -30,13 +30,13 @@ checked in the code or by running a command, not taken from another document.
 3. **The kind list has no services or circulation.** There is no pipe, fitting, fixture, cable, light or socket
    kind, and no stair, roof, railing or furnishing. Pipes and fittings (added 2026-11-07) therefore cannot be
    classified except as `other`.
-4. **Two taxonomies.** Finch (Finch) has 16 IFC classes in `bim/taxonomy.py`, including stair, roof, railing,
-   member, plate and furnishing, and an IFC4 exporter (`bim/ifc4.py`). Tren has 12 kinds, including footing,
-   plaster, paint, flooring and grill, which Finch lacks. Nothing keeps the two lists in step.
+4. **Two taxonomies.** MynaMod (MynaMod) has 16 IFC classes in `bim/taxonomy.py`, including stair, roof, railing,
+   member, plate and furnishing, and an IFC4 exporter (`bim/ifc4.py`). MynaCAD has 12 kinds, including footing,
+   plaster, paint, flooring and grill, which MynaMod lacks. Nothing keeps the two lists in step.
 5. **The note is silent on smart blocks and names a type that is not the plan.** "Parametric types beyond
    `osas.wall` (`osas.column`, etc.)" is listed as not in this release, but columns, beams and footings now exist
    as smart blocks (`rcc.*`, `struct.*`). `osas.wall` is still the only `param` component type.
-6. **Finch still points at ShilpiDB.** `docs/developer/bim-shilpidb.md` and `bim/shilpi_client.py`,
+6. **MynaMod still points at ShilpiDB.** `docs/developer/bim-shilpidb.md` and `bim/shilpi_client.py`,
    `bim/shilpi_ifc.py` describe the retired ShilpiDB server; the project file replaced it.
 
 ## 3. Page layouts and print blocks: what holds
@@ -44,7 +44,7 @@ checked in the code or by running a command, not taken from another document.
 | Claim | Result |
 |---|---|
 | A region of the model is named with `printblock`: a closed boundary on layer `PRINT-BLOCK`, a name, a description from the level and tab | True (`cmd/printblock.rs`) |
-| Listing a print block stores that description so Falcon can read it | True: `printblock.list` writes it into the print block book (the `Item.description` field says so) |
+| Listing a print block stores that description so MynaOps can read it | True: `printblock.list` writes it into the print block book (the `Item.description` field says so) |
 | Paper layouts are not tabs | True (status bar and tab code) |
 | Every `sheet.*` command is documented | True; all 18 are mentioned |
 | Compose Views, Master Layouts and Publisher Sets (`compose.view.*`, `master.*`, `publisher.*`) | Documented in `levels-and-sheet-sets.md`, as wildcards, and implemented (5, 5 and 6 commands) |
@@ -52,9 +52,9 @@ checked in the code or by running a command, not taken from another document.
 
 ## 4. Page layouts and print blocks: what is missing or has drifted
 
-1. **`sheets.md` has a broken paragraph.** Two lines after the print block sentence read "...so Falcon can read /
+1. **`sheets.md` has a broken paragraph.** Two lines after the print block sentence read "...so MynaOps can read /
    for the project-aware ones); the Plot window only calls them." Text between those two lines was lost, so the
-   description of Falcon's Outputs > Layout flow is cut off in the middle of a sentence.
+   description of MynaOps's Outputs > Layout flow is cut off in the middle of a sentence.
 2. **`sheets.md` says revision tables are not implemented.** Its "Not implemented" list starts "Revision tables,
    live sheet index, ..." but `revision.table` exists and `revision-history.md` documents it. The live sheet index
    and templates that carry viewports are correctly listed as not done.
@@ -67,16 +67,16 @@ checked in the code or by running a command, not taken from another document.
    document**, and `printblock.list`, `printblock.set` (rename) and `printblock.delete` are described only in the
    command text, not in `sheets.md`.
 6. **Print blocks are outside the classification and take-off model.** A print block is a named boundary; it has
-   no `BuildingElement`, and it is not carried in the take-off record. Falcon reads it from the project file
+   no `BuildingElement`, and it is not carried in the take-off record. MynaOps reads it from the project file
    directly. That is consistent, but no document says where the line is.
 
 ## 5. Suggested order
 
 1. Repair `sheets.md` (item 4.1) and correct its "Not implemented" list (4.2): both are quick, and the first one
-   hides part of the Falcon hand-off.
+   hides part of the MynaOps hand-off.
 2. Document the Page Layout Manager, General Notes and the `layout.*` and `printblock.*` commands (4.3, 4.5).
 3. Fix the `printblock.rs` module comment (4.4).
 4. Classify toolbar symbols on insert, with the default kind and IFC class in each smart block definition, and
    stamp the electrical and plumbing rows (2.1, 2.2). This is the change that makes the classification useful.
-5. Extend `BuildingKind` for services and circulation, and agree one list with Finch (2.3, 2.4).
-6. Update `building-elements.md` for smart blocks (2.5) and retire the ShilpiDB pages in Finch (2.6).
+5. Extend `BuildingKind` for services and circulation, and agree one list with MynaMod (2.3, 2.4).
+6. Update `building-elements.md` for smart blocks (2.5) and retire the ShilpiDB pages in MynaMod (2.6).

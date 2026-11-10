@@ -39,7 +39,7 @@ implemented: an annotation or plot scale indicator (the engine has no annotation
 
 ## No grid, no grid snap
 
-The drawing grid and grid snap (`GRID`, `SNAP`, `GRIDMODE`, `SNAPMODE`, `SNAPUNIT`, `GRIDUNIT`, `GRIDMAJOR`, F7, F9) were removed: Tren draws on a plain canvas and typed coordinates are never quantized. Object snap, ortho and polar tracking remain. The structural axis grid of a building (`grid.axis`) is a different feature and stays.
+The drawing grid and grid snap (`GRID`, `SNAP`, `GRIDMODE`, `SNAPMODE`, `SNAPUNIT`, `GRIDUNIT`, `GRIDMAJOR`, F7, F9) were removed: MynaCAD draws on a plain canvas and typed coordinates are never quantized. Object snap, ortho and polar tracking remain. The structural axis grid of a building (`grid.axis`) is a different feature and stays.
 
 ## Changing properties of objects
 

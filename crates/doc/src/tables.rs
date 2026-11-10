@@ -623,7 +623,7 @@ pub struct Group {
     pub description: String,
     pub selectable: bool,
     pub members: Vec<crate::Handle>,
-    /// Nested child group names (Tren nesting; depth capped in the engine). Empty on DXF-only groups.
+    /// Nested child group names (MynaCAD nesting; depth capped in the engine). Empty on DXF-only groups.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub child_groups: Vec<String>,
 }

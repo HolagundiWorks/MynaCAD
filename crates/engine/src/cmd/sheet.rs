@@ -227,7 +227,7 @@ fn ensure_title_block(s: &mut Session) -> Result<()> {
     }
     let d = s.doc_mut()?;
     let mut b = Block::new(TITLE_BLOCK);
-    b.description = "Tren title block".into();
+    b.description = "MynaCAD title block".into();
     for (layer, kind) in kinds {
         let handle = d.new_handle();
         b.entities.push(Entity { handle, common: Common { layer, ..Default::default() }, kind });

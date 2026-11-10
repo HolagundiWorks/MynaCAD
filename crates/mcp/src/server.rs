@@ -15,7 +15,7 @@ const INVALID_REQUEST: i64 = -32600;
 const METHOD_NOT_FOUND: i64 = -32601;
 const INVALID_PARAMS: i64 = -32602;
 
-const INSTRUCTIONS: &str = "Tren is a 2D CAD drafting app. Coordinates are drawing units, \
+const INSTRUCTIONS: &str = "MynaCAD is a 2D CAD drafting app. Coordinates are drawing units, \
 y up. Fastest path: command_line with typed commands, e.g. `line 0,0 10,0 10,5 c`, `circle 5,2.5 1`, \
 `rectang 0,0 4,3`, `offset 1` then pick, `zoom e`. Or execute with JSON (list_commands shows ids and params). \
 Verify with inspect_drawing / query_entities and look with render.";
@@ -104,7 +104,7 @@ impl Server {
                 Ok(json!({
                     "protocolVersion": version,
                     "capabilities": {"tools": {"listChanged": false}, "resources": {"listChanged": false}},
-                    "serverInfo": {"name": "aad", "title": "Tren", "version": env!("CARGO_PKG_VERSION")},
+                    "serverInfo": {"name": "aad", "title": "MynaCAD", "version": env!("CARGO_PKG_VERSION")},
                     "instructions": format!("{INSTRUCTIONS} Backend: {}.", self.backend.describe()),
                 }))
             }

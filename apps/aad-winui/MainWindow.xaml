@@ -3,7 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Aad.WinUi"
-    Title="Tren">
+    Title="MynaCAD">
     <Grid x:Name="ShellRoot" Language="en-US" Loaded="OnLoaded" PreviewKeyDown="OnShellKey" Background="{ThemeResource AppBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -28,7 +28,7 @@
                         Padding="{StaticResource PaddingControl}"
                         Click="OnTakeoffMode"
                         AutomationProperties.Name="Take-off mode"
-                        ToolTipService.ToolTip="Take-off mode: shows the take-off tools (walls, beams, floors, record to Falcon)" />
+                        ToolTipService.ToolTip="Take-off mode: shows the take-off tools (walls, beams, floors, record to MynaOps)" />
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -451,10 +451,10 @@
                     Spacing="{StaticResource SpaceLg}">
                     <!-- The lockup artwork has dark text: on the dark theme it sits on a light plate. -->
                     <Border HorizontalAlignment="Left" CornerRadius="{StaticResource CornerRadiusControl}" Padding="{StaticResource PaddingLg}" Background="{ThemeResource LockupPlateBrush}">
-                        <Image x:Name="WelcomeLogo" MaxWidth="{StaticResource WelcomeLogoMaxWidth}" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="Tren" />
+                        <Image x:Name="WelcomeLogo" MaxWidth="{StaticResource WelcomeLogoMaxWidth}" HorizontalAlignment="Left" Stretch="Uniform" AutomationProperties.Name="MynaCAD" />
                     </Border>
                     <TextBlock
-                        Text="Start a drawing or open the project file (.osp) shared with Falcon. Company details for title blocks come from a file exported in Kivo."
+                        Text="Start a drawing or open the project file (.osp) shared with MynaOps. Company details for title blocks come from a file exported in MynaHub."
                         TextWrapping="WrapWholeWords"
                         FontSize="{StaticResource FontSizeBody}"
                         Foreground="{ThemeResource TextPrimaryBrush}" />
@@ -558,10 +558,10 @@
         <!-- In-window splash (avoids a second top-level window fighting the command chrome). -->
         <Grid x:Name="SplashOverlay" Grid.RowSpan="6" Background="{ThemeResource SplashBackgroundBrush}" Canvas.ZIndex="1000" AutomationProperties.Name="Splash">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="{StaticResource SpaceMd}">
-                <Image x:Name="SplashLogo" Width="{StaticResource LogoSplash}" Height="{StaticResource LogoSplash}" HorizontalAlignment="Center" AutomationProperties.Name="Tren" />
-                <TextBlock Text="Tren" FontSize="{StaticResource FontSizeSplashTitle}" FontWeight="SemiBold" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Architectural drafting with Kivo and Falcon" FontSize="{StaticResource FontSizeSection}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Myna · with Kivo and Falcon" FontSize="{StaticResource FontSizeBody}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
+                <Image x:Name="SplashLogo" Width="{StaticResource LogoSplash}" Height="{StaticResource LogoSplash}" HorizontalAlignment="Center" AutomationProperties.Name="MynaCAD" />
+                <TextBlock Text="MynaCAD" FontSize="{StaticResource FontSizeSplashTitle}" FontWeight="SemiBold" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Architectural drafting with MynaHub and MynaOps" FontSize="{StaticResource FontSizeSection}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Myna · with MynaHub and MynaOps" FontSize="{StaticResource FontSizeBody}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="Open source · MIT OR Apache-2.0" FontSize="{StaticResource FontSizeBody}" Foreground="{ThemeResource SplashForegroundBrush}" HorizontalAlignment="Center" Margin="0,8,0,0" />
             </StackPanel>
         </Grid>

@@ -4,7 +4,7 @@
 //! green, columns blue, lintels magenta, rooms cyan, slabs orange) with its mark and its measure beside it, and a
 //! legend and a title line (drawing, revision, date) stand below the drawing. The work happens on a copy of the
 //! drawing, so the drawing itself is untouched. `takeoff.record` stores the PDF in the project file in chunks
-//! Annotated PDF chunks in the project file (see Falcon `OspTakeoff::ReadAnnotatedPdf`).
+//! Annotated PDF chunks in the project file (see MynaOps `OspTakeoff::ReadAnnotatedPdf`).
 
 use aad_color::Color;
 use aad_doc::{Common, Drawing, EntityKind, HAlign, Handle, Lineweight, Space, Text, VAlign};

@@ -1,4 +1,4 @@
-# Tren control protocol
+# MynaCAD control protocol
 
 On Windows the default `aad` binary starts the WinUI shell (no eframe). Pass `--control PORT`
 (or set `AAD_CONTROL_PORT`) so WinUI listens on `127.0.0.1:PORT` for JSON lines: one request

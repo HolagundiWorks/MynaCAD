@@ -1,4 +1,4 @@
-//! Where a drawing came from: Tren stamps every drawing it saves, and a drawing without the stamp
+//! Where a drawing came from: MynaCAD stamps every drawing it saves, and a drawing without the stamp
 //! (and with layers that are not the app's standard set) is foreign, so the layer mapper runs
 //! before anything is classified.
 
@@ -6,12 +6,12 @@ use aad_doc::Drawing;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-/// Project key (drawing project data and `.osp` `meta`) holding the Tren origin stamp.
+/// Project key (drawing project data and `.osp` `meta`) holding the MynaCAD origin stamp.
 pub const ORIGIN_KEY: &str = "trenOrigin";
 
 #[derive(Clone, Debug, Serialize)]
 pub struct OriginReport {
-    /// The drawing carries a Tren stamp.
+    /// The drawing carries a MynaCAD stamp.
     pub stamped: bool,
     /// No stamp and layer names that are not the standard set: run the layer mapper first.
     pub foreign: bool,
@@ -22,7 +22,7 @@ pub struct OriginReport {
     pub codepage: Option<String>,
 }
 
-/// The stamp Tren writes: application, version and the format of the stamp.
+/// The stamp MynaCAD writes (the stored value stays "Tren" so older drawings are still recognised): application, version and the format of the stamp.
 pub fn stamp_value(app_version: &str) -> Value {
     json!({ "app": "Tren", "version": app_version, "stamp": 1 })
 }
@@ -52,7 +52,7 @@ pub fn detect(d: &Drawing, standard: &[&str]) -> OriginReport {
     let nonstandard: Vec<String> = used.iter().filter(|n| !ok(n)).map(|n| n.to_string()).collect();
     let mut reasons = Vec::new();
     if !stamped {
-        reasons.push("no Tren stamp in the drawing".to_string());
+        reasons.push("no MynaCAD stamp in the drawing".to_string());
     }
     if !nonstandard.is_empty() {
         reasons.push(format!("{} layer(s) with objects are not in the standard set", nonstandard.len()));

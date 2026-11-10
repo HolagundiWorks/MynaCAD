@@ -12,7 +12,7 @@ const KIND_PDF: u8 = 9;
 const ROW_KINDS: [u8; 10] = [3, 4, 5, 6, 7, 8, 10, 11, 12, 13];
 
 impl Odp {
-    /// The take-off in record form, `(id, payload)` with `id = kind << 56 | slot << 32 | n`, the shape Tren's recorder works in: one header per
+    /// The take-off in record form, `(id, payload)` with `id = kind << 56 | slot << 32 | n`, the shape MynaCAD's recorder works in: one header per
     /// drawing slot, the rows, and each annotated PDF split into chunk records (kind 9).
     pub fn takeoff_as_records(&self) -> Result<Vec<(u64, Vec<u8>)>> {
         let mut out = Vec::new();

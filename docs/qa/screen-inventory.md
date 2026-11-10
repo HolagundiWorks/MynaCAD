@@ -1,4 +1,4 @@
-# Tren WinUI screen inventory
+# MynaCAD WinUI screen inventory
 
 Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` `CommandSpec::menu()` (via `crates/aad-host/src/chrome.rs` → host `TextMenu` JSON).
 
@@ -8,7 +8,7 @@ Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` 
 
 | ID | Surface | Type | Source file | How opened | Testing status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| main.window | Tren main shell | main | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml | Application launch (`Program.cs` → `MainWindow`) | pass | screenshots/03-main-clean-drawing1.webp |
+| main.window | MynaCAD main shell | main | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml | Application launch (`Program.cs` → `MainWindow`) | pass | screenshots/03-main-clean-drawing1.webp |
 | main.splash | Startup splash overlay | overlay | apps/aad-winui/MainWindow.xaml (SplashOverlay) | Shown at load until host/canvas ready | pass | visual 2026-10-26 (dismisses ~900ms) |
 | main.welcome | Welcome after splash | overlay | apps/aad-winui/MainWindow.xaml (WelcomeOverlay) + WelcomeBusy.cs | Empty launch (no path / not --sample): New, Open, Project Wizard, recent | unverified | code 2026-10-28 |
 | main.busy | Open/save progress | overlay | apps/aad-winui/MainWindow.xaml (BusyOverlay) + WelcomeBusy.cs | While OpenFileAsync / SaveFileAsync (and .vdb import) run | unverified | code 2026-10-28 |
@@ -82,7 +82,7 @@ Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` 
 | main.panel.project | Project settings side tab | panel | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml (ProjectTab) | Side tab; slab/beam defaults + links to project/floors forms | not_tested | — |
 | win.menu.shell.ucs | Window menu: UCS icon | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml.cs ('EnsureShellMenus') | Window ▸ UCS icon | not_tested | — |
 | help.commands | Help: Command list | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/MainWindow.xaml.cs ('EnsureHelp') | Help menu or F1 → CommandList.Show | not_tested | — |
-| help.about | Help: About Tren | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | Help menu → AboutWindow.Show | not_tested | — |
+| help.about | Help: About MynaCAD | menu | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | Help menu → AboutWindow.Show | not_tested | — |
 | win.layer-manager | Layer Properties Manager | manager | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/LayerManagerWindow.xaml | Menu `layer`/`layers`; status layers button; `OpenLayers()`; merge mode docks body in side tab | not_tested | — |
 | win.drafting | Drafting Settings | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/DraftingWindow.cs | `dsettings`/`ds`/`se`; menu/osnap shortcut menu | not_tested | — |
 | win.units | Display units and plot | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/UnitsWindow.cs | `units`/`un`; Format menu | not_tested | — |
@@ -100,7 +100,7 @@ Scope: `apps/aad-winui` (WinUI 3 shell). Engine menu paths from `crates/engine` 
 | win.quick-select | Quick Select | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/QuickSelectWindow.cs | `qselect`/`qs`/`ui.dialog.qselect` | not_tested | — |
 | win.quick-props | Quick Properties | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/QuickWindow.cs | Auto when `_qpmode` and selection quick JSON from host | not_tested | — |
 | win.commands | Commands (reference) | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/CommandList.cs | F1; Help; `ui.dialog.commands` | not_tested | — |
-| win.about | About Tren | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | `ui.dialog.about`; Help menu | not_tested | — |
+| win.about | About MynaCAD | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/AboutWindow.cs | `ui.dialog.about`; Help menu | not_tested | — |
 | win.calc | Calculator | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/CalcWindow.cs | `cal`/`calc`; Window menu | not_tested | — |
 | win.pomodoro | Pomodoro | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/PomodoroWindow.cs | Window menu | not_tested | — |
 | win.tools | Tool bar (customize) | dialog | D:/Work Development/Repos/O-DRAFT/apps/aad-winui/ToolsWindow.cs | `ui.dialog.customizetop`; tool strip gear | not_tested | — |

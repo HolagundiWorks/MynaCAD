@@ -70,7 +70,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("geodb.origin", "Drawing Origin", run_origin)
             .menu(&["Tools", "Geometry Database", "Origin and Layer Map"])
             .noundo()
-            .params("{} → {origin, suggestions: [{from, to?, objects, reason}]}; a drawing without the Tren stamp and with non-standard layers needs the layer mapper (layermap, suggest: true) first"),
+            .params("{} → {origin, suggestions: [{from, to?, objects, reason}]}; a drawing without the MynaCAD stamp and with non-standard layers needs the layer mapper (layermap, suggest: true) first"),
         CommandSpec::new("geodb.apply", "Apply Geometry Classification", run_apply)
             .menu(&["Tools", "Geometry Database", "Move to Layers"])
             .params("{approve?: bool (false: preview only), minConfidence? (default 0.6), handles?: [only these], keys?: [only these features]} → preview: {preview: [{handle, from, to, rule, confidence}], total, approved: false}; approve: {moved, skippedLocked}. One undo step; nothing moves without approve"),
@@ -168,7 +168,7 @@ pub(crate) fn stamp_for_save(d: &mut Drawing) {
     }
 }
 
-/// Record the drafting units of a new drawing (Tren creates them in a chosen system).
+/// Record the drafting units of a new drawing (MynaCAD creates them in a chosen system).
 pub(crate) fn stamp_new(d: &mut Drawing, metric: bool) {
     let u =
         if metric { units::Units::new("mm", units::UnitSource::Project, true) } else { units::Units::new("in", units::UnitSource::Project, true) };
@@ -576,7 +576,7 @@ fn run_apply(s: &mut Session, p: &Value) -> Result<Value> {
     if o.foreign {
         return Err(bad(
             CMD,
-            "this drawing did not come from Tren and its layers are not the standard set; run the layer mapper first (geodb.origin lists suggestions, layermap applies a map)",
+            "this drawing did not come from MynaCAD and its layers are not the standard set; run the layer mapper first (geodb.origin lists suggestions, layermap applies a map)",
         ));
     }
     let revision = s.state()?.revision;
@@ -642,7 +642,7 @@ mod tests {
         }
     }
 
-    /// A drawing as another program would have saved it: no Tren stamp, no recorded units.
+    /// A drawing as another program would have saved it: no MynaCAD stamp, no recorded units.
     fn unstamp(s: &mut Session) {
         let d = s.doc_mut().unwrap();
         d.project.remove(aad_geodb::origin::ORIGIN_KEY);
@@ -667,7 +667,7 @@ mod tests {
         assert_eq!(r["mode"], json!("full"));
         assert!(r["origin"]["foreign"].as_bool().unwrap(), "a new Session drawing made through `line` on layer 0 without a stamp: {r}");
         assert!(Arc::ptr_eq(&before, &s.state().unwrap().doc), "build leaves the drawing alone");
-        // Stamp it as a Tren drawing: apply may run.
+        // Stamp it as a MynaCAD drawing: apply may run.
         stamp_new(s.doc_mut().unwrap(), true);
         s.doc_mut().unwrap().header.set_i64("INSUNITS", 4);
         let r = s.execute("geodb.build", &json!({})).unwrap();
@@ -775,7 +775,7 @@ mod tests {
         assert_eq!(to("MYSTERY"), None);
     }
 
-    /// Tren's own plan: walls, doors and windows drawn by the wall commands, every layer set to 0, then classified
+    /// MynaCAD's own plan: walls, doors and windows drawn by the wall commands, every layer set to 0, then classified
     /// from geometry. The layers it had are the truth.
     #[test]
     fn a_plan_drawn_with_the_wall_commands_is_recovered_from_geometry_alone() {

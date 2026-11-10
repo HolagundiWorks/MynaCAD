@@ -32,7 +32,7 @@ internal static class SavePrompt
 
         var window = new Window
         {
-            Title = "Tren",
+            Title = "MynaCAD",
             Content = root,
         };
         var answered = false;

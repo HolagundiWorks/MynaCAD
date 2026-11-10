@@ -1,5 +1,5 @@
 //! Take-off phases: the estimation phase and running-bill phase are chosen in the drawing, stay on the dimension,
-//! and come out on the exported rows that Falcon shows in its tables.
+//! and come out on the exported rows that MynaOps shows in its tables.
 
 use aad_engine::Session;
 use serde_json::{Value, json};

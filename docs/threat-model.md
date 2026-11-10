@@ -1,4 +1,4 @@
-# Tren threat model (desktop automation and supply chain)
+# MynaCAD threat model (desktop automation and supply chain)
 
 **Status:** Implemented documentation of the current trust boundary and must-not rules.  
 **Scope:** Control channel, MCP, packaging/signing, and dependency licence hygiene.  
@@ -43,7 +43,7 @@ The model never computes geometry or silent repairs; it only proposes allow-list
 
 ## Authenticode / signing keys
 
-Tren is a desktop app. Code-signing material is used only for Windows Authenticode (and later-phase Apple notarization), not for encrypting drawings.
+MynaCAD is a desktop app. Code-signing material is used only for Windows Authenticode (and later-phase Apple notarization), not for encrypting drawings.
 
 | Mode | Where secrets live | Repo |
 |---|---|---|

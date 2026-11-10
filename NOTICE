@@ -1,12 +1,12 @@
-Tren (formerly O-Draft, formerly AAD, Accelerated Architecture Drafting)
-Copyright (c) 2026 HolagundiWorks and the Tren contributors.
+MynaCAD (formerly O-Draft, formerly AAD, Accelerated Architecture Drafting)
+Copyright (c) 2026 HolagundiWorks and the MynaCAD contributors.
 
-Tren is free and open-source software, licensed under the MIT License or the Apache License,
+MynaCAD is free and open-source software, licensed under the MIT License or the Apache License,
 Version 2.0, at your option (LICENSE-MIT, LICENSE-APACHE). Contributions are accepted under the same
 terms (CONTRIBUTING.md).
 
 Origin
-Tren began as a fork of cadcraft (https://github.com/storytold/cadcraft),
+MynaCAD began as a fork of cadcraft (https://github.com/storytold/cadcraft),
 Copyright (c) 2026 ArtCraft Team and the CADCraft contributors, which is licensed under the same
 MIT OR Apache-2.0 terms. That copyright and licence notice is kept in LICENSE-MIT. The 3D,
 parametric-constraint and mechanical-engineering parts of that project were removed in this fork.
@@ -31,7 +31,7 @@ Optional components that are not part of this repository and are added when a re
   own ATTRIBUTION.md, each under the SIL Open Font License 1.1.
 
 Assets
-Every bundled asset is original to Tren (icons, drafting font, hatch patterns and linetypes are drawn
+Every bundled asset is original to MynaCAD (icons, drafting font, hatch patterns and linetypes are drawn
 or defined in code). The per-file list is in ATTRIBUTION.md.
 
 Trademarks

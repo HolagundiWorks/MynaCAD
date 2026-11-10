@@ -1,4 +1,4 @@
-//! A project file written by the .NET side (`Office.Shared.OdpFile`, Falcon) is read by this crate: the two implementations share one format.
+//! A project file written by the .NET side (`Office.Shared.OdpFile`, MynaOps) is read by this crate: the two implementations share one format.
 
 use aad_odp::Odp;
 

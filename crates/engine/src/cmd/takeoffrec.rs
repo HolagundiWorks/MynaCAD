@@ -1,6 +1,6 @@
-//! `takeoff.record`: the take-off as records in the project file, for Falcon to read.
+//! `takeoff.record`: the take-off as records in the project file, for MynaOps to read.
 //!
-//! The record layout matches Falcon `OspTakeoff` / `.osp` `takeoff_*` tables, version 1 (revised 2026-10-19). One project file
+//! The record layout matches MynaOps `OspTakeoff` / `.osp` `takeoff_*` tables, version 1 (revised 2026-10-19). One project file
 //! holds many drawings, so every record id is `(kind << 56) | (slot << 32) | n`: the kind (1 header, 3 wall,
 //! 4 opening, 5 column, 6 lintel, 7 room, 8 slab, 9 annotated-PDF chunk), the drawing's slot and the item's
 //! number. The slot comes from the drawing id (`slot_for`), is probed past a slot another drawing holds, and is
@@ -12,7 +12,7 @@
 //! then the header again with `"state": "complete"`, then the database is saved. A reader refuses a drawing that
 //! is still `recording`.
 //!
-//! The take-off goes into the open project file (`.osp`), where Falcon reads it within seconds. `path` names another project file.
+//! The take-off goes into the open project file (`.osp`), where MynaOps reads it within seconds. `path` names another project file.
 
 use serde_json::{Map, Value, json};
 
@@ -383,7 +383,7 @@ fn levels_in_slot(sink: &mut dyn Sink, slot: u32) -> Result<std::collections::BT
 }
 
 /// Warn when another complete take-off in this database already measures the same company-file project and floor.
-/// Mirrors Falcon's import overlap warning (warn only; recording still completes).
+/// Mirrors MynaOps's import overlap warning (warn only; recording still completes).
 fn warn_record_overlap(sink: &mut dyn Sink, our_slot: u32, root: &Map<String, Value>, stamped_level: &str) -> Result<Vec<String>> {
     let Some(ours) = root.get("source").and_then(project_key_of) else {
         return Ok(Vec::new());
@@ -418,7 +418,7 @@ fn warn_record_overlap(sink: &mut dyn Sink, our_slot: u32, root: &Map<String, Va
         if seen.insert(format!("{label}|{stamped_level}")) {
             warnings.push(format!(
                 "drawing `{label}` already has take-off on `{stamped_level}` for the same company-file project; \
-                 recording this drawing too may double-count that floor (Falcon also warns at import)"
+                 recording this drawing too may double-count that floor (MynaOps also warns at import)"
             ));
         }
     }

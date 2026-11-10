@@ -1,13 +1,13 @@
 # Smart blocks and discipline block libraries
 
-Tren has two block libraries for services and structure:
+MynaCAD has two block libraries for services and structure:
 
 | Library | Where | What it is |
 |---|---|---|
-| Smart blocks | `assets/smartblocks/*.json`, built into the engine | Tren's own parametric definitions: sizes, counts and options are parameters |
+| Smart blocks | `assets/smartblocks/*.json`, built into the engine | MynaCAD's own parametric definitions: sizes, counts and options are parameters |
 | Discipline DXF blocks | `assets/blocks/<discipline>/` | 79 static CC0 symbols and details (plumbing, HVAC, electrical, structural / RCC, interior) |
 
-Smart blocks use Tren's parametric format (`osas-smartblocks` v1): one definition, many sizes
+Smart blocks use MynaCAD's parametric format (`osas-smartblocks` v1): one definition, many sizes
 and variants, with an open, documented format and engine commands.
 
 ## Commands
@@ -115,16 +115,16 @@ colours, linetypes and pen widths can be changed there and plotted by layer). Th
 
 A definition lists the layers it uses (`layers`: name, colour, linetype, lineweight in hundredths of a millimetre, description) and each item names one (`layer`);
 an item's own `color` or `linetype` still overrides its layer. Colour is therefore ByLayer, and a drawing's layer colours, linetypes and lineweights apply to a
-placed detail. Falcon reads the same table from its copy of `rcc.json` and draws each part with its layer's colour, dashes and pen width.
+placed detail. MynaOps reads the same table from its copy of `rcc.json` and draws each part with its layer's colour, dashes and pen width.
 
-### In Falcon
+### In MynaOps
 
-Falcon draws the RCC blocks too, read only. When Tren saves a drawing into a project file (`.osp`) it records every RCC block in the model, with the
+MynaOps draws the RCC blocks too, read only. When MynaCAD saves a drawing into a project file (`.osp`) it records every RCC block in the model, with the
 parameters it was placed with, in the file's `detail` table (same revision as the drawing; see [PROJECT-FILE.md](PROJECT-FILE.md)). The Beams, Columns, Slabs,
-Footings and Lintels pages of Falcon list those details, draw the chosen one, and say so when there is none. Falcon's own reader of the format
+Footings and Lintels pages of MynaOps list those details, draw the chosen one, and say so when there is none. MynaOps's own reader of the format
 (`Office.Shared.SmartBlocks`, a copy of `rcc.json`) is checked against this engine: `crates/engine/tests/rcc_parity.rs` pins the parts each block makes
-(`tests/fixtures/rcc_counts.json`), and Falcon's tests hold a copy of that file. After a block definition changes, run that test with
-`UPDATE_FIXTURES=1` and copy the file (and the new `rcc.json`) to Falcon.
+(`tests/fixtures/rcc_counts.json`), and MynaOps's tests hold a copy of that file. After a block definition changes, run that test with
+`UPDATE_FIXTURES=1` and copy the file (and the new `rcc.json`) to MynaOps.
 
 ### Windows app
 
@@ -176,7 +176,7 @@ bars and tie; the beam section adds top and bottom bar counts, stirrups and an o
 kitchen sink takes 1 to 3 bowls and an optional drainer; the dining set takes chairs per side and
 end chairs; the switch board takes switch and socket counts. Steel sections are drawn from the
 dimensions given; no section tables (ISMB, IPE, ...) are built in. Electrical symbols are generic
-shapes drawn for Tren, not artwork copied from a standard.
+shapes drawn for MynaCAD, not artwork copied from a standard.
 
 These are drafting aids. Reinforcement, sizes and clearances come from the design.
 
@@ -265,7 +265,7 @@ site's terms.
 | Manufacturer block downloads (sanitary ware, HVAC units, luminaires) | Each manufacturer's terms; usually use only, no redistribution |
 
 No openly licensed parametric block catalog was found for these disciplines at the time the
-library was built, which is why the parametric library is Tren's own.
+library was built, which is why the parametric library is MynaCAD's own.
 
 ## Performance
 

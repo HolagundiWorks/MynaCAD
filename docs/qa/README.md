@@ -1,4 +1,4 @@
-# Tren QA and performance campaign
+# MynaCAD QA and performance campaign
 
 Started: 2026-10-26. Working tree includes uncommitted UI consistency, polar tooltip,
 eTransmit removal, and dynamic door/window work on top of `2f4af48`.

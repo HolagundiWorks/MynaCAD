@@ -1,6 +1,6 @@
 # UI testing strategy
 
-How the Tren interface is tested, which tools were chosen and why, how to run it, and what is not
+How the MynaCAD interface is tested, which tools were chosen and why, how to run it, and what is not
 covered yet. Windows is the supported platform for now.
 
 ## What the interface is (inspected, not assumed)

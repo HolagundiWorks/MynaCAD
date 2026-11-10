@@ -1,6 +1,6 @@
-# Tren and AI agents (MCP)
+# MynaCAD and AI agents (MCP)
 
-Tren speaks the [Model Context Protocol](https://modelcontextprotocol.io) over stdio.
+MynaCAD speaks the [Model Context Protocol](https://modelcontextprotocol.io) over stdio.
 
 ## Start it
 
@@ -41,7 +41,7 @@ Example client configuration (Claude Code / Claude Desktop):
 | `screenshot`, `ui_inspect`, `ui_click {x, y}` | Only when connected to the app. `screenshot` is the Auditor v0 capture hook on a live Windows shell. |
 | `audit_drawing` | Auditor v0 detect-only: engine `audit` with `fix: false` (never repairs). |
 | `validate_drawing` | Auditor v0 detect-only: engine `validate` with `fix: false`. |
-| `check_command_parity` | Auditor v0: menu catalog vs registered commands (needs Tren source tree / `AAD_REPO_ROOT`). |
+| `check_command_parity` | Auditor v0: menu catalog vs registered commands (needs MynaCAD source tree / `AAD_REPO_ROOT`). |
 | `check_ui_tokens` | Auditor v0: WinUI token/template scan (same rules as `cargo xtask ui`; needs source tree). |
 | `auditor_report {checks?}` | Auditor v0: one JSON detect report. `checks` is a comma list `audit,validate,parity,ui` (default all). Screenshot capture is documented in the report only; use `screenshot` / `ui_inspect` when connected. |
 

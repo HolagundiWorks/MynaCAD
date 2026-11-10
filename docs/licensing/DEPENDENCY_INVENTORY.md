@@ -1,6 +1,6 @@
 # Dynamo dependency inventory
 
-Tren talks to **O-Dynamo** through a local pipe only. The tree here lists Rust crates and tools
+MynaCAD talks to **O-Dynamo** through a local pipe only. The tree here lists Rust crates and tools
 used by the shell and engine; it does not include Dynamo Core, LibG, ProtoGeometry, ForgeUnits, or
 Dynamo analytics packages.
 

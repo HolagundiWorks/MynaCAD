@@ -1,14 +1,14 @@
 # Component library (hosted store): proposal
 
-Status: **option B chosen by the owner, 2026-10-19. The store (`library.publish`, `library.list`) is built; the bridge from `aad-param`'s component types and the Tren merge on load (section 5) are not.** It needs the owner's decision (section 6) because it adds
-record kinds to the shared take-off store, and the kind numbers belong to the contract in the Falcon
+Status: **option B chosen by the owner, 2026-10-19. The store (`library.publish`, `library.list`) is built; the bridge from `aad-param`'s component types and the MynaCAD merge on load (section 5) are not.** It needs the owner's decision (section 6) because it adds
+record kinds to the shared take-off store, and the kind numbers belong to the contract in the MynaOps
 repository (`docs/PROJECT-FILE.md` / bridge docs: kinds 0, 2 and 10 to 255 are reserved; "adding a kind or an optional field is
 not a new version").
 
 It answers one gap in the parametric specification (section 6, milestone M3): component types, parameter
 schemas, materials and finishes are today **code** in `crates/param/src/schema.rs` (`osas.wall` schema 1, four
 materials and three finishes hard-coded). The spec wants them as reusable, versioned definitions in a hosted library that
-Tren instances reference.
+MynaCAD instances reference.
 
 ## 1. What exists
 
@@ -24,7 +24,7 @@ Tren instances reference.
 
 1. **Definitions are immutable once published.** A change is a new version; instances and graphs pin the version
    they were made with (spec 6.4). Old versions stay readable so old graphs keep their meaning.
-2. **The code stays the fallback.** The built-in definitions remain compiled in, so Tren works with no
+2. **The code stays the fallback.** The built-in definitions remain compiled in, so MynaCAD works with no
    database. A database definition with the same id and version must be identical or is reported as a conflict;
    it never silently replaces the built-in one.
 3. **Same style as the take-off records:** one UTF-8 JSON object per record, `format` and `version` in the
@@ -32,14 +32,14 @@ Tren instances reference.
 4. **Library and drawings are separate.** The take-off database holds per-drawing slots; a component library is
    shared across drawings, so it has its own namespace and, preferably, its own database file or server (section 3).
 5. **Measured facts only.** The library holds specifications and rule identifiers, never rates or costs. Rate
-   schedules are Falcon's.
+   schedules are MynaOps's.
 
 ## 3. Where it lives
 
 | Option | For | Against |
 |---|---|---|
-| A. Same shared `takeoff.vdb`, new kinds | One server to run; Falcon already reads it | Mixes a global library with per-drawing slots; a take-off reader must skip more kinds; a corrupt library write sits next to take-off data |
-| **B. A second database, `%LocalAppData%\OSAS\library\library.vdb`, served on 7422 (gateway 7423)** | Clean separation; can be versioned, backed up and shared on its own; no change to the take-off contract | One more process to start; Falcon needs to know it only if it reads definitions |
+| A. Same shared `takeoff.vdb`, new kinds | One server to run; MynaOps already reads it | Mixes a global library with per-drawing slots; a take-off reader must skip more kinds; a corrupt library write sits next to take-off data |
+| **B. A second database, `%LocalAppData%\OSAS\library\library.vdb`, served on 7422 (gateway 7423)** | Clean separation; can be versioned, backed up and shared on its own; no change to the take-off contract | One more process to start; MynaOps needs to know it only if it reads definitions |
 | C. Files in the project | Simplest | Not shared across projects; no cross-app reuse |
 
 Recommendation: **B**, with the same writer rules as the take-off database. Option A is workable if the owner prefers
@@ -93,7 +93,7 @@ its choices from the material or finish records (compatibility listed in the mat
   "applies_to": ["osas.wall"], "layers": [ { "name": "plaster", "thickness_mm": 12 } ], "spec_version": 1 }
 ```
 
-No rate, cost or waste factor. A finish names what is applied; **how much** is Falcon's measurement rule.
+No rate, cost or waste factor. A finish names what is applied; **how much** is MynaOps's measurement rule.
 
 ### Immutability
 
@@ -101,7 +101,7 @@ A record id fixes `(type, version)`. Writing a record whose id exists with diffe
 writer (it reads the existing payload first). Retiring a version sets `"deprecated": true` through a new version,
 never by editing.
 
-## 5. Tren behaviour
+## 5. MynaCAD behaviour
 
 1. **Load.** At startup and on `param.library`, read the library database if reachable; merge with the built-ins
    (built-in wins on an identical id and version; a mismatch is a warning naming both).
@@ -120,12 +120,12 @@ never by editing.
 ## 6. Decisions for the owner
 
 1. Option A, B or C for where the library lives.
-2. For option A: the kind numbers (the contract reserves 10 to 255) and whether Falcon wants to read them.
-3. Who owns material and finish definitions: Tren publishes them, or Falcon does (its rate schedules refer to
+2. For option A: the kind numbers (the contract reserves 10 to 255) and whether MynaOps wants to read them.
+3. Who owns material and finish definitions: MynaCAD publishes them, or MynaOps does (its rate schedules refer to
    them by id, so the ids must be agreed with it).
 4. Whether presets and graph templates are in the first version or later.
 5. The measurement rule identifier format: today `hcw-aqc-bridge/1#walls`. The spec's
-   `measure(component, rule, revision)` call needs a Falcon contract that does not exist yet.
+   `measure(component, rule, revision)` call needs a MynaOps contract that does not exist yet.
 
 ## 7. First build step, once decided
 
@@ -153,5 +153,5 @@ never by editing.
   hostile input, nothing written on a bad request) and unit tests in `cmd/library.rs` (validation, immutability,
   the probe). The former `shilpid` integration test was removed with ShilpiDB; library merge tests remain in `cargo test -p aad-engine --test library`.
 - Not built: serialising `aad-param`'s `component_types()` to kind 2 records (`aad-param` is not yet committed to
-  the main line), Tren reading the library on load and merging it with the built-ins, materials and finishes
-  taken from records by the component selector, and Falcon reading definitions.
+  the main line), MynaCAD reading the library on load and merging it with the built-ins, materials and finishes
+  taken from records by the component selector, and MynaOps reading definitions.

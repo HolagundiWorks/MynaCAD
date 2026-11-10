@@ -1,6 +1,6 @@
 # Developer guide and rules for coding agents
 
-Tren (2D drafting fork) is an open-source, pure-Rust 2D computer-aided drafting application for
+MynaCAD (2D drafting fork) is an open-source, pure-Rust 2D computer-aided drafting application for
 architectural and civil work. It is a Windows-only program for now: macOS, Linux and the web are later phases. Start with [README.md](README.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [docs/status.md](docs/status.md) (what exists and what is only planned).
 

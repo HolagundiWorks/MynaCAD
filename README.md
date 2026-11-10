@@ -1,6 +1,6 @@
-# Tren
+# MynaCAD
 
-Tren (formerly AAD, Accelerated Architecture Drafting) is the drafting app alongside **Kivo** (office and suite hub) and **Falcon** (quantities, estimates and billing). It is a 2D computer-aided drafting application written in Rust, aimed at architectural and civil
+MynaCAD (formerly AAD, Accelerated Architecture Drafting) is the drafting app alongside **MynaHub** (office and suite hub) and **MynaOps** (quantities, estimates and billing). It is a 2D computer-aided drafting application written in Rust, aimed at architectural and civil
 drafting. It reads and writes DXF and DWG and can be driven from scripts and agents. **Windows is
 the only supported platform for now**; macOS, Linux and the web build come in later phases (the
 code stays portable, but only Windows is built, tested and packaged). This repository is a fork of
@@ -14,11 +14,11 @@ documentation describes a feature as available unless it exists and has tests.
 
 ## The interface
 
-![Tren opens on a welcome screen with New drawing, Open drawing and Project Wizard](docs/images/draft-welcome.png)
+![MynaCAD opens on a welcome screen with New drawing, Open drawing and Project Wizard](docs/images/draft-welcome.png)
 
-**Welcome.** Tren opens here until you start or open a drawing: **New drawing**, **Open drawing...** or **Project Wizard...**. Projects are chosen in Myna; Tren opens on the one Myna locked, and recent drawings are listed underneath.
+**Welcome.** MynaCAD opens here until you start or open a drawing: **New drawing**, **Open drawing...** or **Project Wizard...**. Projects are chosen in Myna; MynaCAD opens on the one Myna locked, and recent drawings are listed underneath.
 
-![The Tren workspace: tool strip, canvas, side panels and status bar, with the parametric footing under the pointer described in Properties](docs/images/draft-workspace.png)
+![The MynaCAD workspace: tool strip, canvas, side panels and status bar, with the parametric footing under the pointer described in Properties](docs/images/draft-workspace.png)
 
 **Workspace.** From the top of the window down:
 
@@ -40,7 +40,7 @@ documentation describes a feature as available unless it exists and has tests.
 
 The Architecture bar's structural tools place **parametric reinforced concrete blocks** and the reinforcement is edited in the Properties panel, not in a dialog. They are drawn in the style of Indian structural drawings: bars coloured by diameter (corner bars red, others magenta or blue), hooked ties and cross-ties, dimensions in feet and inches (or millimetres), leaders with schedule notation (`4Y20 + 6Y16`, `Ties-Y8@6"`, `Y10@5"`), PCC and boulder soling under footings with the development length Ld to IS 456, and stirrup zones on a beam elevation (`5 nos @ 6"`, `@ 7"`).
 
-Parameters follow IS 456:2000: concrete and steel grade, exposure (Table 3), cover, bar and tie diameters and spacings. Below the parameters, Properties shows whether the member **complies** and, for each broken limit, the clause. When the drawing is saved into a project (`.osp`), the details are recorded for Falcon, which shows them on the element pages (read only). See [docs/smart-blocks.md](docs/smart-blocks.md).
+Parameters follow IS 456:2000: concrete and steel grade, exposure (Table 3), cover, bar and tie diameters and spacings. Below the parameters, Properties shows whether the member **complies** and, for each broken limit, the clause. When the drawing is saved into a project (`.osp`), the details are recorded for MynaOps, which shows them on the element pages (read only). See [docs/smart-blocks.md](docs/smart-blocks.md).
 
 ![The Blocks panel lists the drawing's blocks as thumbnails](docs/images/draft-blocks.png)
 
@@ -127,18 +127,18 @@ lengths, areas and volumes and a Pomodoro timer are floating widgets under Tools
 
 ## Local AI assistant
 
-An offline assistant can call a fixed set of validated tools (summary, flatten, audit, purge, recover, units, plot configuration). It runs a local Qwen3-1.7B model through llama.cpp and is **not part of the default build**: build with `--features assistant` (`cargo build --release -p aad --features assistant`; needs CMake, a C++ toolchain and LLVM) and put the model file in `%APPDATA%\Tren\models`. Type a request in the command bar (a leading `/`, a `/reference` such as `/layers`, or a plain sentence; see [docs/COMMAND_BAR.md](docs/COMMAND_BAR.md)), or use `aad-cli ask "request"`. A tool that changes the drawing asks first. The Windows **AI installer** bundles the runtime and model: `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/package.ps1 -Arch x64 -Assistant` (needs the model at `%APPDATA%\Tren\models\Qwen3-1.7B-Q4_K_M.gguf` or `AAD_MODEL_FILE`). Output: `dist/release/o-draft-ai-<version>-windows-x64.msi` and a portable zip. The plain installer (`package.ps1` without `-Assistant`) stays drafting-only. Both are open source (MIT OR Apache-2.0); the wizard shows `packaging/windows/EULA.rtf`. See [docs/ai-agent.md](docs/ai-agent.md).
+An offline assistant can call a fixed set of validated tools (summary, flatten, audit, purge, recover, units, plot configuration). It runs a local Qwen3-1.7B model through llama.cpp and is **not part of the default build**: build with `--features assistant` (`cargo build --release -p aad --features assistant`; needs CMake, a C++ toolchain and LLVM) and put the model file in `%APPDATA%\MynaCAD\models`. Type a request in the command bar (a leading `/`, a `/reference` such as `/layers`, or a plain sentence; see [docs/COMMAND_BAR.md](docs/COMMAND_BAR.md)), or use `aad-cli ask "request"`. A tool that changes the drawing asks first. The Windows **AI installer** bundles the runtime and model: `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/package.ps1 -Arch x64 -Assistant` (needs the model at `%APPDATA%\MynaCAD\models\Qwen3-1.7B-Q4_K_M.gguf` or `AAD_MODEL_FILE`). Output: `dist/release/o-draft-ai-<version>-windows-x64.msi` and a portable zip. The plain installer (`package.ps1` without `-Assistant`) stays drafting-only. Both are open source (MIT OR Apache-2.0); the wizard shows `packaging/windows/EULA.rtf`. See [docs/ai-agent.md](docs/ai-agent.md).
 
 ## Configuration
 
-- Fonts: Tren ships none and uses the TrueType/OpenType fonts installed on the system. SHX fonts
+- Fonts: MynaCAD ships none and uses the TrueType/OpenType fonts installed on the system. SHX fonts
   are not read; text in an SHX style is drawn with the built-in stroke font. `FONTALT` and
   `FONTFALLBACK` (or `AAD_FONTALT`, `AAD_FONTFALLBACK`) name a replacement font and the
   fonts tried first for characters a font lacks. `.` clears either.
 - Logs: the desktop app writes to standard error and to `logs/aad.log` in the settings
   directory (`~/.config/aad/` on Linux and the BSDs, `~/Library/Application Support/AAD/`
-  on macOS, `%APPDATA%\Tren\` on Windows). `AAD_CONFIG_DIR` overrides the directory and
-  `RUST_LOG` sets the levels (default `info` for Tren's crates, `warn` for the rest). Each launch
+  on macOS, `%APPDATA%\MynaCAD\` on Windows). `AAD_CONFIG_DIR` overrides the directory and
+  `RUST_LOG` sets the levels (default `info` for MynaCAD's crates, `warn` for the rest). Each launch
   rotates the previous log; the file stops growing at 16 MiB.
 - Theme: one light/dark toggle (View menu, status bar). Dark has a black drawing area, light a
   white one. There is no other colour customisation.
@@ -166,7 +166,7 @@ An offline assistant can call a fixed set of validated tools (summary, flatten, 
 | [docs/documentation-policy.md](docs/documentation-policy.md) | Documentation maintenance and change management (required for all contributors and agents) |
 | [docs/hcw-kit-port.md](docs/hcw-kit-port.md) | Architectural tools ported from hcwCAD-KIT |
 | [docs/parametric.md](docs/parametric.md) | Parametric graph engine, wall commit and take-off facts |
-| [docs/HANDOFF-O-COREOP-PARAMETRIC-TAKEOFF.md](docs/HANDOFF-O-COREOP-PARAMETRIC-TAKEOFF.md) | Hand-off to Falcon: parametric wall take-off rows |
+| [docs/HANDOFF-O-COREOP-PARAMETRIC-TAKEOFF.md](docs/HANDOFF-O-COREOP-PARAMETRIC-TAKEOFF.md) | Hand-off to MynaOps: parametric wall take-off rows |
 | [docs/projects.md](docs/projects.md), [docs/sheets.md](docs/sheets.md), [docs/widgets.md](docs/widgets.md), [docs/input-forms.md](docs/input-forms.md) | Floor projects and Xrefs, layouts and plotting, calculator and Pomodoro, input forms |
 | [docs/control-protocol.md](docs/control-protocol.md) | JSON control channel |
 | [docs/threat-model.md](docs/threat-model.md) | Loopback trust boundary, signing secrets, supply-chain must-nots |
@@ -182,7 +182,7 @@ An offline assistant can call a fixed set of validated tools (summary, flatten, 
 | [docs/UI_STANDARDS.md](docs/UI_STANDARDS.md), [docs/UI_TOKENS.md](docs/UI_TOKENS.md), [docs/WINDOW_SIZING.md](docs/WINDOW_SIZING.md), [docs/TYPOGRAPHY.md](docs/TYPOGRAPHY.md), [docs/COMPACT_CAD_UI.md](docs/COMPACT_CAD_UI.md), [docs/canvas-smoothness.md](docs/canvas-smoothness.md) | WinUI shell standards, tokens, window sizes, type, compact layout, canvas rendering plan |
 | [docs/qa/README.md](docs/qa/README.md) | Quality records: test matrix, defect ledger, regression and release readiness |
 | [docs/licensing/DEPENDENCY_INVENTORY.md](docs/licensing/DEPENDENCY_INVENTORY.md), [docs/licensing/PROPRIETARY_COMPONENT_REMOVAL.md](docs/licensing/PROPRIETARY_COMPONENT_REMOVAL.md) | Dependency licences, proprietary components not shipped |
-| [docs/architecture/suite-integration.md](docs/architecture/suite-integration.md) | How Tren connects to Kivo and Falcon (see docs/SUITE.md) |
+| [docs/architecture/suite-integration.md](docs/architecture/suite-integration.md) | How MynaCAD connects to MynaHub and MynaOps (see docs/SUITE.md) |
 | [docs/parity-checklist.md](docs/parity-checklist.md) | Generated menu-name comparison (`cargo xtask parity`) |
 | [CLAUDE.md](CLAUDE.md) | Rules for developers and coding agents |
 

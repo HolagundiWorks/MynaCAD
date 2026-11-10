@@ -251,7 +251,7 @@ Test drawing: `DEMO.dwg` (OneDrive\Documents\OSAS TEST, 1.3 MB, 9 672 entities, 
 
 ### What was already there
 
-Tren already draws on the GPU through its own engine: `aad-render` builds a display list (LOD by zoom band, view culling, tiled meshes, a worker thread for band rebuilds) and `aad-host/gpu.rs` presents it with wgpu on DirectX 12, `HighPerformance` adapter, vsync (`AAD_VSYNC=0` turns it off). So the slowness was not "no hardware acceleration" and a new graphics engine would not have fixed it. It was CPU work and data volume feeding the GPU, and UI-thread work after every change.
+MynaCAD already draws on the GPU through its own engine: `aad-render` builds a display list (LOD by zoom band, view culling, tiled meshes, a worker thread for band rebuilds) and `aad-host/gpu.rs` presents it with wgpu on DirectX 12, `HighPerformance` adapter, vsync (`AAD_VSYNC=0` turns it off). So the slowness was not "no hardware acceleration" and a new graphics engine would not have fixed it. It was CPU work and data volume feeding the GPU, and UI-thread work after every change.
 
 ### What was measured, and what was slow
 
@@ -273,7 +273,7 @@ Causes, found with `AAD_PERF=1` and `cargo run --release -p aad-host --example p
 
 ### Tools left in
 
-- `AAD_PERF=1` (set before starting Tren): ticks of the UI loop over 40 ms, with the time of each step, and host redraws over 20 ms, go to `%LOCALAPPDATA%\OSAS\odraft-perf.log`. Free when off.
+- `AAD_PERF=1` (set before starting MynaCAD): ticks of the UI loop over 40 ms, with the time of each step, and host redraws over 20 ms, go to `%LOCALAPPDATA%\OSAS\odraft-perf.log`. Free when off.
 - `cargo run --release -p aad-host --example profile_render -- <file.dwg> [cx cy height]`: display list and mesh time and size at six zoom steps, and what text and fill cost.
 
 ### Still slow
@@ -308,7 +308,7 @@ vertices at full detail (text fill, hatch lines, block references). Machine as a
   looked like a mesh cost.
 - **Still slow:** DWG parse about 1.1 s; a zoom that crosses a detail band costs 20 to 40 ms per tick, mostly the
   triangle volume of text fill (10 M+ vertices at close zoom; glyph curves are already flattened to about 0.2 px).
-  A GPU glyph atlas is the proposed fix and is not started. Falcon and the Ask bar were not profiled.
+  A GPU glyph atlas is the proposed fix and is not started. MynaOps and the Ask bar were not profiled.
 
 ## Update: editing a large drawing (2026-11-07)
 
@@ -347,7 +347,7 @@ references). Measured headlessly with the ignored probes `aad-host` `edit_latenc
 - **Still open:** the frame after a small edit is about 43 ms, of which about 32 ms is the scene rebuild and the
   flatten into one list (an incremental flatten would remove most of it); the DWG parse is still about 1.1 s; a
   zoom that crosses a detail band still costs 20 to 40 ms per tick on a worker, mostly text fill. The Ask bar and
-  Falcon were not profiled. Numbers are from the headless host, not from timing the window.
+  MynaOps were not profiled. Numbers are from the headless host, not from timing the window.
 
 ## Update: startup and idle (2026-11-08)
 

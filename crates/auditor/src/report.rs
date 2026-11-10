@@ -110,14 +110,14 @@ pub fn run_detect(session: &mut Session, repo_root: Option<&Path>, checks: Detec
         checks_map.insert("validate_drawing".into(), v);
     }
     if checks.parity {
-        let root = repo_root.ok_or("check_command_parity needs the Tren repository root")?;
+        let root = repo_root.ok_or("check_command_parity needs the MynaCAD repository root")?;
         let v = check_command_parity(root)?;
         // Parity gaps are informational for Auditor v0: menu breadth is incomplete by design.
         // Mark ok from the check but do not fail the whole report solely on missing menu items.
         checks_map.insert("check_command_parity".into(), v);
     }
     if checks.ui_tokens {
-        let root = repo_root.ok_or("check_ui_tokens needs the Tren repository root")?;
+        let root = repo_root.ok_or("check_ui_tokens needs the MynaCAD repository root")?;
         let v = check_ui_tokens(root)?;
         if !check_ok(&v) {
             failures.push("check_ui_tokens".into());

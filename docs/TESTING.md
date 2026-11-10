@@ -1,6 +1,6 @@
 # Testing strategy
 
-How Tren is tested, what each layer is for, how to run it, and how to add to it. Windows is the
+How MynaCAD is tested, what each layer is for, how to run it, and how to add to it. Windows is the
 supported platform for now.
 
 ## Run everything locally

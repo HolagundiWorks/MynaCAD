@@ -1,6 +1,6 @@
 [package]
 name = "aad-cli"
-description = "Tren command-line tool: info, convert, run scripts, export, commands, MCP server, auditor"
+description = "MynaCAD command-line tool: info, convert, run scripts, export, commands, MCP server, auditor"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

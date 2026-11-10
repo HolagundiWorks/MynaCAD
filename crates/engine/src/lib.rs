@@ -595,7 +595,7 @@ impl Session {
     pub fn new_drawing(&mut self, metric: bool) -> usize {
         self.untitled_counter += 1;
         let mut d = if metric { Drawing::new_metric() } else { Drawing::new_imperial() };
-        // A drawing made in Tren records its drafting units and carries the Tren origin stamp.
+        // A drawing made in MynaCAD records its drafting units and carries the MynaCAD origin stamp.
         cmd::geodb::stamp_new(&mut d, metric);
         let mut st = DocState::new(d, &format!("Drawing{}", self.untitled_counter), None);
         st.set_view_quiet(if metric { View { center: Vec2::new(210.0, 148.5), height: 297.0 } } else { View::default() });

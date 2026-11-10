@@ -1,10 +1,10 @@
 //! Take-off phases: the estimation phase and the running-bill phase a measured dimension belongs to.
 //!
-//! The user picks them here, in the drawing, as they measure; Falcon shows them as columns of its tables. A
+//! The user picks them here, in the drawing, as they measure; MynaOps shows them as columns of its tables. A
 //! phase is a name from a list the project keeps (`takeoff.phases`). The *current* phase is stamped on every
 //! dimension drawn or tagged afterwards, and `takeoff.phase` changes it on dimensions already measured. The
 //! phases travel on the take-off mark (`phase`, `billPhase`) and on every exported row (`phase`, `bill_phase`);
-//! Phase lists on take-off rows; Falcon may show them as columns when imported.
+//! Phase lists on take-off rows; MynaOps may show them as columns when imported.
 
 use aad_doc::{Drawing, Handle};
 use serde_json::{Value, json};

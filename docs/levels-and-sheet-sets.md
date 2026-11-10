@@ -42,7 +42,7 @@ levels read-only). Every phase is useful and testable alone, starting with level
 
 ## Compose and publish (engine)
 
-ArchiCAD separates Stories → Views → Layout Book → Publisher. Tren maps that as Levels → Compose Views → Layouts (with Masters) → Publisher Sets. The WinUI **Navigator** window (File > Publish, or Architecture > Sheets) shows the three trees and the one-button **Publish and record take-off**.
+ArchiCAD separates Stories → Views → Layout Book → Publisher. MynaCAD maps that as Levels → Compose Views → Layouts (with Masters) → Publisher Sets. The WinUI **Navigator** window (File > Publish, or Architecture > Sheets) shows the three trees and the one-button **Publish and record take-off**.
 
 | Command family | Purpose |
 |---|---|
@@ -105,7 +105,7 @@ as traces). Guides are never saved; they are recomputed on open. What the user d
 Guide maths is planned for `crates/engine/src/sectionguide.rs` (the file does not exist yet): plain 2D line/segment intersection and
 projection onto the marker line. Hostile-input rules apply: zero-length line, depth 0 or negative,
 NaN or infinite heights, more than 100 000 guide lines (capped, with a note), nested blocks bounded by
-`MAX_BLOCK_DEPTH`. Guides know only Tren walls, openings, columns and stairs (or objects carrying
+`MAX_BLOCK_DEPTH`. Guides know only MynaCAD walls, openings, columns and stairs (or objects carrying
 their attributes); plain lines give none. Roofs, sloped slabs and curved walls in elevation are
 drafted by hand.
 
@@ -183,7 +183,7 @@ the referenced level through snaps; programmatic calls never open dialogs.
 
 ## UI (WinUI shell stays thin)
 
-- **Bottom tabs:** level tabs in tab order, a `+` (`level.new`), then the level tools. Paper layouts are not tabs. A print block (`printblock`) names a region by a boundary drawn on the model, the way a block is named. Its description is the level and the tab (the sheet set, or Design) and follows those names when they are renamed. The description is stored on the print block when it is listed. The boundary determines which objects are covered. Nothing is frozen and the objects are not converted into a block. The project map, the layout, the nameplate and the sheet PDF are composed in Falcon. Right
+- **Bottom tabs:** level tabs in tab order, a `+` (`level.new`), then the level tools. Paper layouts are not tabs. A print block (`printblock`) names a region by a boundary drawn on the model, the way a block is named. Its description is the level and the tab (the sheet set, or Design) and follows those names when they are renamed. The description is stored on the print block when it is listed. The boundary determines which objects are covered. Nothing is frozen and the objects are not converted into a block. The project map, the layout, the nameplate and the sheet PDF are composed in MynaOps. Right
   click on a level: Rename, Elevation and height, Copy level, Delete, Trace over current level. A
   **Trace** flyout lists the other levels (tick, fade slider, grey/true colour, below/above, snap).
 - **Drawing tabs** sit above the drawing: Design, then each sheet set. With no sheet set, a `+` tab
@@ -471,7 +471,7 @@ Implemented and tested (`crates/engine/tests/migrate.rs`, `levels.rs`):
 Not built, and why:
 
 - **Take-off rows do not carry a level id.** The record format (`(kind << 56) | (slot <<
-  32) | n`, [PROJECT-FILE.md](PROJECT-FILE.md) / Falcon `docs/PROJECT-FILE.md`) is a contract with Falcon; giving each level
+  32) | n`, [PROJECT-FILE.md](PROJECT-FILE.md) / MynaOps `docs/PROJECT-FILE.md`) is a contract with MynaOps; giving each level
   its own slot or header changes what that program reads, so it needs agreement there first.
   Take-off acts on the store being edited, so a recording covers one level at a time.
 - The shell: the Layer manager dropdown, the new-drawing dialog's "Levels in this drawing" option

@@ -18,7 +18,7 @@ shape (layering, never-crash, everything-is-a-command, clean-room) are in [CLAUD
 | L1 | `doc` | The drawing database: header, symbol tables, blocks, model space, layouts; copy-on-write `EntityStore`; hatch pattern and linetype library (`library.rs`) |
 | L2 | `fonts` | Single-stroke drafting font, TrueType/OpenType outlines through `skrifa`, text and MTEXT layout, font fallback |
 | L2 | `render` | Display lists (linetypes, hatches, text, blocks, dimension geometry, paper-space clipping); layout viewport model-tessellation LRU; LOD flags and optional model frustum; CPU rasteriser for PNG, plot preview and tests ([PERFORMANCE.md](PERFORMANCE.md)) |
-| L3 | `io` | DXF to document mapping (`dxf_read.rs`, `dxf_write.rs`, Tren extension data in `dxf_ext.rs`), PDF plotting with the drawing layers as optional-content groups, SVG export with layer groups, PNG export including a layout at a chosen dpi, PDF page reading for `underlay.*` and `pdf.import` |
+| L3 | `io` | DXF to document mapping (`dxf_read.rs`, `dxf_write.rs`, MynaCAD extension data in `dxf_ext.rs`), PDF plotting with the drawing layers as optional-content groups, SVG export with layer groups, PNG export including a layout at a chosen dpi, PDF page reading for `underlay.*` and `pdf.import` |
 | L3 | `office` | Loads `office.dll` at run time (Windows) and reads the company file for the `companyfile` command |
 | L3 | `dwg` | DWG through a DXF bridge: the `acadrust` crate (MPL-2.0, unmodified) converts DWG and DXF bytes; native builds only. The apps run the conversion in a worker process (`isolated.rs`) so a damaged file cannot abort the program; on Windows the worker has a Job Object memory cap (`job_win.rs`) |
 | standalone | `llm` | Offline language-model runtime facade (Qwen3 prompt format, model file check). The llama.cpp backend is the off-by-default `llama` feature (`aad-host` / `aad` / `aad-cli` `--features assistant`) ([ai-agent.md](ai-agent.md)) |
@@ -86,7 +86,7 @@ DXF is the native path: `dxf` parses tags, `io::dxf_read` maps them to the docum
 `io::dxf_write` writes an R2000 (AC1015) DXF. DWG is converted to DXF in memory by `acadrust` and
 read through the same path; saving DWG writes DXF and converts it back. AAD-only data
 (associativity details, layer states, plot style tables, table flags, hatch gradients) travels in
-extension data under the application name `AAD`. Object types Tren does not model are kept
+extension data under the application name `AAD`. Object types MynaCAD does not model are kept
 as raw data when read and are not written back; saving reports them.
 
 ## Automation

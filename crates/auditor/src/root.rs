@@ -1,4 +1,4 @@
-//! Locate the Tren repository root (menu catalog + WinUI sources).
+//! Locate the MynaCAD repository root (menu catalog + WinUI sources).
 
 use std::path::{Path, PathBuf};
 
@@ -23,7 +23,7 @@ pub fn repo_root_or_err() -> Result<PathBuf, String> {
         if p.join("xtask/data/menu-catalog.txt").is_file() {
             return Ok(p);
         }
-        return Err(format!("AAD_REPO_ROOT={} is not an Tren repo root (missing xtask/data/menu-catalog.txt)", p.display()));
+        return Err(format!("AAD_REPO_ROOT={} is not an MynaCAD repo root (missing xtask/data/menu-catalog.txt)", p.display()));
     }
     if let Ok(cwd) = std::env::current_dir()
         && let Some(r) = find_repo_root(&cwd)
@@ -36,7 +36,7 @@ pub fn repo_root_or_err() -> Result<PathBuf, String> {
     {
         return Ok(r);
     }
-    Err("Tren repository root not found (set AAD_REPO_ROOT, or run from a checkout that contains xtask/data/menu-catalog.txt and apps/aad-winui)"
+    Err("MynaCAD repository root not found (set AAD_REPO_ROOT, or run from a checkout that contains xtask/data/menu-catalog.txt and apps/aad-winui)"
         .into())
 }
 

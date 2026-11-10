@@ -7,7 +7,7 @@ already has other sheets, or anything drawn on Layout1 or Layout2, is left uncha
 `landscape: true|false` (default true) and `open: true` to switch to the chosen plate. An older
 drawing that still has a single **Title plate** is migrated to Nameplate L once.
 
-Paper layouts are sheets, and they are not shown as tabs. A region of the model is named with `printblock` (a boundary, a name, and a description taken from the level and the tab). Listing a print block stores that description in the drawing so Falcon can read it. The sheet is composed in Falcon (Outputs > Layout): a project map, a layout, the print block, the nameplate, and a sheet PDF. That PDF records the sheet. It does not redraw the model. The commands are in `crates/engine/src/cmd/sheet.rs` (and `projfile.rs`
+Paper layouts are sheets, and they are not shown as tabs. A region of the model is named with `printblock` (a boundary, a name, and a description taken from the level and the tab). Listing a print block stores that description in the drawing so MynaOps can read it. The sheet is composed in MynaOps (Outputs > Layout): a project map, a layout, the print block, the nameplate, and a sheet PDF. That PDF records the sheet. It does not redraw the model. The commands are in `crates/engine/src/cmd/sheet.rs` (and `projfile.rs`
 for the project-aware ones); the Plot window only calls them. There is no separate Layout panel: it
 was removed, and a saved panel layout that still names it is read as unusable and the default panel
 arrangement is used (other preferences are kept). Sheet setup is done with the commands below.
@@ -45,7 +45,7 @@ title block works too.
 
 A saved layout is everything on the sheet except its viewports (border, title block, notes), the
 blocks they use, and the page setup. `sheet.template.save {name, scope}` keeps it in the drawing
-(`drawing`, travels with the file) or as a file for the user (`user`, in the Tren settings folder, or
+(`drawing`, travels with the file) or as a file for the user (`user`, in the MynaCAD settings folder, or
 in `folder` for a folder shared by an office). `sheet.template.apply {name, layout?, fields?}` sets
 the page up, places the objects and fills the fields. Applying again replaces what an earlier
 template put on that layout, never what you drew. A damaged template is refused and changes
