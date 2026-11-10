@@ -137,6 +137,18 @@ fn main() {
             let _ = rules.set_section(key, &serde_json::json!({ field: v }));
         }
     }
+    // `--rule section.field=value` (value is JSON), repeatable: `--rule room.isolated_penalty=0`.
+    for (i, a) in args.iter().enumerate() {
+        if a == "--rule" {
+            if let Some((path, val)) = args.get(i + 1).and_then(|v| v.split_once('=')) {
+                if let (Some((sec, field)), Ok(v)) = (path.split_once('.'), serde_json::from_str::<serde_json::Value>(val)) {
+                    if let Err(e) = rules.set_section(sec, &serde_json::json!({ field: v })) {
+                        eprintln!("rule {path}: {e}");
+                    }
+                }
+            }
+        }
+    }
     let t = Instant::now();
     let mut m = match GeoModel::build(&d, &BuildOptions { units, rules: Some(rules) }) {
         Ok(m) => m,
@@ -192,6 +204,172 @@ fn main() {
             hit,
             if fs.is_empty() { f64::NAN } else { hit as f64 * 100.0 / fs.len() as f64 }
         );
+    }
+    // Phase 2: columns, beams, rooms, regions.
+    {
+        let col_layer = |l: &str| glob("*COL*", l) && !NOT_GEOMETRY.iter().any(|k| l.to_ascii_uppercase().contains(k));
+        let beam_layer = |l: &str| glob("*BEAM*", l) && !NOT_GEOMETRY.iter().any(|k| l.to_ascii_uppercase().contains(k));
+        for (name, f) in [("column", col_layer as fn(&str) -> bool), ("beam", beam_layer)] {
+            let pred = handles_of(name);
+            let tr = truth(f, false);
+            let pr: HashSet<u64> = pred.difference(&openings).copied().collect();
+            let s = score(&pr, &tr);
+            let fs: Vec<_> = m.features.iter().filter(|x| x.kind == name && x.confidence >= min).collect();
+            println!(
+                "{name:>6} [all objects          ] truth {:>7}  predicted {:>7}  tp {:>7}  precision {:>6.1}%  recall {:>6.1}%  ({} features)",
+                tr.len(),
+                pr.len(),
+                s.tp,
+                s.p() * 100.0,
+                s.r() * 100.0,
+                fs.len()
+            );
+        }
+        let cs = &m.context_stats;
+        println!(
+            "context: {} ms; regions {} (plan {}, structure {}, other {}); rooms {}; slabs {}; beams {}; walls boosted {} penalised {} in other regions {}; hatches linked {} unlinked {}; raster cells {}",
+            cs.ms,
+            cs.regions,
+            cs.plan_regions,
+            m.regions.iter().filter(|r| r.kind == "structure").count(),
+            cs.other_regions,
+            cs.rooms,
+            cs.slabs,
+            cs.beams,
+            cs.walls_boosted,
+            cs.walls_penalised,
+            cs.walls_in_other,
+            cs.hatches_assigned,
+            cs.hatches_unassigned,
+            cs.cells
+        );
+        let room_area: f64 = m.rooms.iter().filter(|r| r.kind == "room").map(|r| r.area_mm2).sum();
+        println!(
+            "room area total {:.1} m2 in {} rooms; slab area {:.1} m2",
+            room_area / 1.0e6,
+            m.rooms.iter().filter(|r| r.kind == "room").count(),
+            m.rooms.iter().filter(|r| r.kind == "slab").map(|r| r.area_mm2).sum::<f64>() / 1.0e6
+        );
+        let mut rs: Vec<_> = m.regions.iter().filter(|r| r.kind != "empty").collect();
+        rs.sort_by(|a, b| b.wall_len_mm.total_cmp(&a.wall_len_mm));
+        for r in rs.iter().take(12) {
+            println!(
+                "  region {:>3} {:<8} score {:.2} closure {:.2} walls {:>5} ({:>8.0} mm) doors {:>3} win {:>3} cols {:>3} rooms {:>3} items {:>6} box [{:.0},{:.0},{:.0},{:.0}]",
+                r.id,
+                r.kind,
+                r.score,
+                r.closure,
+                r.walls,
+                r.wall_len_mm,
+                r.doors,
+                r.windows,
+                r.columns,
+                r.rooms,
+                r.items,
+                r.bbox[0],
+                r.bbox[1],
+                r.bbox[2],
+                r.bbox[3]
+            );
+        }
+        // Where the wall truth sits by region kind.
+        let pred_w_all: HashSet<u64> = m.base.iter().filter(|f| f.kind == "wall").flat_map(|f| f.members.iter().map(|x| x.handle)).collect();
+        // What happened to the true wall objects.
+        let tw = truth(is_wall_layer, true);
+        let in_set = |fs: &mut dyn Iterator<Item = &aad_geodb::model::Feature>| -> HashSet<u64> {
+            fs.flat_map(|f| f.members.iter().map(|x| x.handle)).collect()
+        };
+        let base_hi = in_set(&mut m.base.iter().filter(|f| f.kind == "wall" && f.confidence >= min));
+        let base_lo = in_set(&mut m.base.iter().filter(|f| f.kind == "wall" && f.confidence < min));
+        let fin_hi = in_set(&mut m.features.iter().filter(|f| f.kind == "wall" && f.confidence >= min));
+        let fin_lo = in_set(&mut m.features.iter().filter(|f| f.kind == "wall" && f.confidence < min));
+        let fin_beam = in_set(&mut m.features.iter().filter(|f| f.kind == "beam"));
+        let colm = in_set(&mut m.features.iter().filter(|f| f.kind == "column"));
+        let n = |set: &HashSet<u64>| tw.intersection(set).count();
+        println!(
+            "true wall objects {}: base wall>=min {}, base wall<min {}, final wall>=min {}, final wall<min {}, final beam {}, column {}",
+            tw.len(),
+            n(&base_hi),
+            n(&base_lo),
+            n(&fin_hi),
+            n(&fin_lo),
+            n(&fin_beam),
+            n(&colm)
+        );
+        let lost: HashSet<u64> = base_hi.difference(&fin_hi).copied().collect();
+        // Predicted wall objects by the kind of region they sit in: how many are true walls.
+        let mut by_region: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+        for f in m.features.iter().filter(|f| f.kind == "wall" && f.confidence >= min) {
+            let k = f.props.get("region").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            for x in &f.members {
+                if !is_geom(kind_of.get(&x.handle)) {
+                    continue;
+                }
+                let e = by_region.entry(k.clone()).or_default();
+                if tw.contains(&x.handle) {
+                    e.0 += 1;
+                } else {
+                    e.1 += 1;
+                }
+            }
+        }
+        println!("  predicted wall objects by region kind (true, false): {by_region:?}");
+        {
+            // Per region: true and false wall objects, and the layers of the false ones.
+            let mut per: BTreeMap<u64, (usize, BTreeMap<String, usize>)> = BTreeMap::new();
+            let rid = |p: [f64; 2]| {
+                m.regions.iter().find(|r| p[0] >= r.bbox[0] && p[0] <= r.bbox[2] && p[1] >= r.bbox[1] && p[1] <= r.bbox[3]).map(|r| r.id).unwrap_or(0)
+            };
+            for f in m.features.iter().filter(|f| f.kind == "wall" && f.confidence >= min) {
+                let id = rid([(f.x1 + f.x2) / 2.0, (f.y1 + f.y2) / 2.0]);
+                for x in &f.members {
+                    if !is_geom(kind_of.get(&x.handle)) {
+                        continue;
+                    }
+                    let e = per.entry(id).or_default();
+                    if tw.contains(&x.handle) {
+                        e.0 += 1;
+                    } else {
+                        *e.1.entry(layer_of.get(&x.handle).cloned().unwrap_or_default()).or_default() += 1;
+                    }
+                }
+            }
+            let mut v: Vec<_> = per.into_iter().collect();
+            v.sort_by_key(|(_, (t, f))| std::cmp::Reverse(f.values().sum::<usize>() + *t));
+            for (id, (t, f)) in v.iter().take(10) {
+                let mut fv: Vec<_> = f.iter().collect();
+                fv.sort_by_key(|x| std::cmp::Reverse(*x.1));
+                println!("  region {id}: true {t}, false {} {:?}", f.values().sum::<usize>(), fv.iter().take(5).collect::<Vec<_>>());
+            }
+        }
+        let mut ev: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+        for f in m.features.iter().filter(|f| f.kind == "beam") {
+            let wall_truth = f.members.iter().any(|x| tw.contains(&x.handle));
+            let beam_truth = f.members.iter().any(|x| layer_of.get(&x.handle).is_some_and(|l| glob("*BEAM*", l)));
+            let key = f.props.get("beam_evidence").map(|v| v.to_string()).unwrap_or_default();
+            let e = ev.entry(key).or_default();
+            if wall_truth {
+                e.0 += 1;
+            }
+            if beam_truth {
+                e.1 += 1;
+            }
+        }
+        for (k, (w, b)) in &ev {
+            let total = m
+                .features
+                .iter()
+                .filter(|f| f.kind == "beam" && f.props.get("beam_evidence").map(|v| v.to_string()).unwrap_or_default() == *k)
+                .count();
+            println!("  beam evidence {k}: {total} features, {w} on a true wall layer, {b} on a beam layer");
+        }
+        println!(
+            "  base>=min lost to: beam {}, below min {}, (of true walls {})",
+            lost.intersection(&fin_beam).count(),
+            lost.intersection(&fin_lo).count(),
+            n(&lost)
+        );
+        println!("wall objects before the context stage: {} (after: {})", pred_w_all.len(), pw.len());
     }
     // Where the wall truth is not found, by entity type; and where the wall predictions are wrong, by true layer.
     let truth_w = truth(is_wall_layer, false);

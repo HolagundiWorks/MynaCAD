@@ -1,7 +1,9 @@
 door.swing (1000,230)-(1000,1130) len=900 w=900 conf=1.00 members=2
-wall.full (115,230)-(115,3770) len=3540 w=230 conf=0.75 members=2
-wall.full (1900,115)-(5770,115) len=3870 w=230 conf=0.70 members=2
-wall.full (230,115)-(1000,115) len=770 w=230 conf=0.70 members=2
-wall.full (230,3885)-(5770,3885) len=5540 w=230 conf=0.75 members=6
-wall.full (5885,230)-(5885,3770) len=3540 w=230 conf=0.75 members=2
+room.closed (250,250)-(5750,3750) len=18000 w=0 conf=0.85 members=0
+slab.outer (-50,-50)-(6050,4000) len=20300 w=0 conf=0.85 members=0
+wall.full (115,230)-(115,3770) len=3540 w=230 conf=0.90 members=2
+wall.full (1900,115)-(5770,115) len=3870 w=230 conf=0.85 members=2
+wall.full (230,115)-(1000,115) len=770 w=230 conf=0.85 members=2
+wall.full (230,3885)-(5770,3885) len=5540 w=230 conf=0.90 members=6
+wall.full (5885,230)-(5885,3770) len=3540 w=230 conf=0.90 members=2
 window.lines (2000,3885)-(3200,3885) len=1200 w=1200 conf=0.80 members=3

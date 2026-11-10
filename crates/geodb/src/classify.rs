@@ -104,10 +104,26 @@ fn members_of(segs: &[SegRef], idx: &[usize], role: &str) -> Vec<Member> {
     out
 }
 
-pub fn classify(inp: &Input, par: &Params, next_id: &mut u64) -> (Vec<Feature>, ClassifyStats, Vec<PairRow>) {
+pub fn classify(inp_all: &Input, par: &Params, next_id: &mut u64) -> (Vec<Feature>, ClassifyStats, Vec<PairRow>) {
     let rules = par.rules;
     let mut stats = ClassifyStats::default();
     let mut feats: Vec<Feature> = Vec::new();
+    // Columns first: the sides of a small closed rectangle pair up like a thin wall, so their lines leave the wall candidates.
+    let owners = opening_owners(inp_all, par);
+    let cols = crate::columns::find(inp_all, par, &|p: &Prim| in_symbol_block(p, par, &owners), next_id);
+    // Only a rectangle the rules are fairly sure of leaves the wall candidates; a doubtful one may still be a short wall piece.
+    let exclude: HashSet<u64> = {
+        let sure: HashSet<u64> =
+            cols.features.iter().filter(|f| f.confidence >= rules.evidence.classify_min).flat_map(|f| f.members.iter().map(|m| m.prim)).collect();
+        cols.prims.intersection(&sure).copied().collect()
+    };
+    let filtered = Input {
+        segs: inp_all.segs.iter().filter(|s| !exclude.contains(&s.prim.id)).copied().collect(),
+        arcs: inp_all.arcs.clone(),
+        inserts: inp_all.inserts.clone(),
+    };
+    let inp = &filtered;
+    feats.extend(cols.features);
     let bands = rules.bands(par.system);
     let pp = PairParams {
         angle_tol_deg: rules.pair.angle_tol_deg,
@@ -124,7 +140,6 @@ pub fn classify(inp: &Input, par: &Params, next_id: &mut u64) -> (Vec<Feature>, 
     let mut runs = wall_runs(inp, par, &pairs, &mut feats, next_id);
     stats.runs = runs.len();
     wall_joins(par, &runs, &mut feats);
-
     let mut seg_tree_items: Vec<Boxed> = Vec::with_capacity(inp.segs.len());
     for (i, s) in inp.segs.iter().enumerate() {
         seg_tree_items.push(Boxed { idx: i, b: s.seg.bbox() });
@@ -136,7 +151,6 @@ pub fn classify(inp: &Input, par: &Params, next_id: &mut u64) -> (Vec<Feature>, 
     let mut openings: Vec<Feature> = Vec::new();
     doors_by_block(inp, par, &mut openings, next_id);
     windows_by_block(inp, par, &mut openings, next_id);
-    let owners = opening_owners(inp, par);
     doors_by_swing(inp, par, &runs, &run_tree, &feats, &seg_tree, &owners, &mut openings, next_id);
     windows_by_lines(inp, par, &runs, &run_tree, &feats, &seg_tree, &owners, &mut openings, next_id);
     dedupe(&mut openings);
@@ -329,7 +343,7 @@ fn make_run(
         width: nominal,
         depth: gap,
         length,
-        props: json!({ "measured_thickness_mm": gap, "pairs": members.len(), "ladder_pairs": ladder, "joins": [] }),
+        props: json!({ "measured_thickness_mm": gap, "pairs": members.len(), "ladder_pairs": ladder, "joins": [], "dashed": dashed * 2 > face_idx.len(), "beam_named": face_idx.iter().any(|&i| glob_any(&rules.beam.layer_patterns, &inp.segs[i].prim.layer)), "in_block": face_idx.iter().any(|&i| inp.segs[i].prim.in_block()) }),
         members: mem,
         key,
     });
