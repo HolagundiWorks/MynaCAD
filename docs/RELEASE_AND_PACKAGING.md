@@ -104,6 +104,6 @@ Findings from the test (2026-10-12):
 - `target/` is generated and may be deleted at any time ([BUILD_AND_DEVELOPMENT.md](BUILD_AND_DEVELOPMENT.md)).
 - CI artifacts (crash inputs from the mutation tests) are kept by GitHub for its default period.
 
-## MynaCAD Setup (2026-11-10)
+## MynaCAD and MynaOps Setup (2026-11-10)
 
-MynaCAD has its own installer, `MynaCAD-Setup-<version>.exe`, built from `packaging/windows/MynaCAD.iss` (Inno Setup, per user, no administrator) around the portable layout that `package.ps1` produces. It installs into `%LOCALAPPDATA%\Programs\O-Draft` (the old folder name is kept on purpose so an upgrade replaces an earlier install), adds a Start menu entry, registers the `.osp` file type (double-click opens MynaCAD) and is its own uninstaller. The MSI (`aad.wxs`) stays for per-machine installs. `installer/suite/build-all.ps1` in the MynaHub repository builds all three Myna installers.
+MynaCAD is not installed on its own: MynaCAD and MynaOps depend on each other, so one installer, `MynaOpsCAD-Setup-<version>.exe`, installs both. It is built from MynaOps's `BBSDesktop/installer/O-CoreOp.iss` (combined mode) around the portable layout that `package.ps1` produces, by `installer/suite/build-all.ps1` in the MynaHub repository. MynaCAD goes into `%LOCALAPPDATA%\Programs\O-Draft` (the old folder name is kept on purpose so an upgrade replaces an earlier install); the Setup also registers the `.osp` file type (double-click opens MynaCAD). The MSI (`aad.wxs`) stays for per-machine installs.
