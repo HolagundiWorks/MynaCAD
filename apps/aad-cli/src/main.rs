@@ -24,7 +24,9 @@ mod auditor;
 
 const USAGE: &str = "usage:
   aad-cli info FILE.dxf
-  aad-cli convert IN.dxf OUT.(dxf|dwg|svg|png|pdf) [FRAMING]
+  aad-cli convert IN.(dxf|dwg|osp) OUT.(dxf|dwg|svg|png|pdf) [FRAMING]
+  aad-cli convert IN.(dxf|dwg) OUT.osp          convert once to a native project file (OUT must not exist; prints what it did and the time of each stage)
+  aad-cli import FILE.(dxf|dwg) [--on-changed auto|reimport|keep]   open as the app does: make or reuse the working copy, print where it is
   aad-cli run [FILE | --sample | --metric] [--script TEXT] [--script-file F.scr] [--cmd 'id {json}']... [--save OUT.dxf] [--export OUT.(png|svg|pdf)] [FRAMING]
   aad-cli commands [FILTER]
   aad-cli mcp [--connect HOST:PORT]
@@ -142,41 +144,7 @@ fn install_io() {
     aad_engine::cmd::file::set_raster_reader(|bytes| {
         aad_io::raster::read_gray(bytes).map(|g| aad_engine::cmd::file::Raster { width: g.width, height: g.height, gray: g.gray })
     });
-    aad_engine::cmd::file::set_container(aad_engine::cmd::file::ContainerHooks { read: read_project_drawing, write: write_project_drawing });
-}
-
-/// The drawing inside a project file (`.osp`): its bytes and its name, which says whether it is DWG or DXF.
-fn read_project_drawing(path: &str) -> Result<(Vec<u8>, String), String> {
-    let odp = aad_odp::Odp::open(std::path::Path::new(path)).map_err(|e| format!("{path}: {e}"))?;
-    let name = odp.drawing_names().map_err(|e| format!("{path}: {e}"))?.into_iter().next().ok_or_else(|| format!("{path} holds no drawing yet"))?;
-    let drawing = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.ok_or_else(|| format!("{path}: the drawing {name} is missing"))?;
-    Ok((drawing.bytes, drawing.name))
-}
-
-/// Write the drawing into a project file, in the format of the drawing already in it, as one revision and not at all when the bytes are unchanged.
-fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_hint: Option<&str>) -> Result<usize, String> {
-    let p = std::path::Path::new(path);
-    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("Project").to_string();
-    let mut odp = if p.exists() { aad_odp::Odp::open(p) } else { aad_odp::Odp::create(p, &stem) }.map_err(|e| format!("{path}: {e}"))?;
-    let name = odp
-        .drawing_names()
-        .map_err(|e| format!("{path}: {e}"))?
-        .into_iter()
-        .next()
-        .unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
-    let bytes = aad_io::write(drawing, &name).map_err(|e| e.to_string())?;
-    let same = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.is_some_and(|d| d.sha256 == aad_odp::sha256_hex(&bytes));
-    // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for MynaOps to draw read only.
-    let details = aad_engine::structural_details(drawing, &name);
-    let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
-    if !same {
-        let ext = std::path::Path::new(&name).extension().and_then(|e| e.to_str()).unwrap_or("dxf").to_string();
-        edit.put_drawing(&name, &ext, &bytes).map_err(|e| format!("{path}: {e}"))?;
-    }
-    edit.replace_details(&name, &details).map_err(|e| format!("{path}: {e}"))?;
-    // Nothing changed: no revision.
-    edit.commit().map_err(|e| format!("{path}: {e}"))?;
-    Ok(bytes.len())
+    aad_engine::cmd::file::set_container(aad_engine::nativefile::container_hooks());
 }
 
 fn open(s: &mut Session, path: &str) -> Result<(), String> {
@@ -222,7 +190,7 @@ fn export(s: &Session, out: &str) -> Result<(), String> {
     // A project file (`.osp`) takes the drawing as a revision, with its structural details, as a save from the app does.
     if out.to_ascii_lowercase().ends_with(".osp") {
         let d = s.doc().map_err(|e| e.to_string())?;
-        let n = write_project_drawing(out, d, Some("dxf"))?;
+        let n = aad_engine::nativefile::write_project(out, d, Some("dxf"))?;
         eprintln!("wrote {out} ({n} bytes)");
         return Ok(());
     }
@@ -285,10 +253,40 @@ fn convert(args: &[String]) -> Result<(), String> {
     }
     let [i, o] = files.as_slice() else { return Err(USAGE.into()) };
     check_framed_output(framing, Some(o))?;
+    // A drawing converted to a project file: the import the app does on the first open, to a named file. The source is only read.
+    if o.to_ascii_lowercase().ends_with(".osp") && !i.to_ascii_lowercase().ends_with(".osp") {
+        let info = aad_engine::nativefile::import_to(i, o)?;
+        println!("{}", serde_json::to_string_pretty(&info).unwrap_or_default());
+        return Ok(());
+    }
     let mut s = Session::empty();
     open(&mut s, i)?;
     let window = export_window(&s, framing, None)?;
     export_framed(&s, o, window)
+}
+
+/// `import FILE [--on-changed auto|reimport|keep]`: what the app does when a DWG or DXF is opened. Prints the working copy and what was done.
+fn import(args: &[String]) -> Result<(), String> {
+    validate_options("import", args, &[OptionSpec { name: "--on-changed", takes_value: true }])?;
+    let mut file = None;
+    let mut on_changed = aad_engine::nativefile::OnChanged::Auto;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        if a == "--on-changed" {
+            let v = it.next().ok_or("--on-changed needs auto, reimport or keep")?;
+            on_changed = aad_engine::nativefile::OnChanged::parse(v).ok_or("--on-changed needs auto, reimport or keep")?;
+        } else if file.is_none() {
+            file = Some(a);
+        } else {
+            return Err(USAGE.into());
+        }
+    }
+    let file = file.ok_or_else(|| USAGE.to_string())?;
+    let opened = aad_engine::nativefile::open_for_edit(file, on_changed, &|line| eprintln!("{line}"))?;
+    let mut v = serde_json::to_value(&opened.info).unwrap_or_default();
+    v["entityCount"] = json!(opened.drawing.entity_count());
+    println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+    Ok(())
 }
 
 fn run(args: &[String]) -> Result<(), String> {
@@ -588,6 +586,7 @@ fn main() -> ExitCode {
     let r = match args.first().map(String::as_str) {
         Some("info") => validate_options("info", &rest, NO_OPTIONS).and_then(|_| rest.first().ok_or_else(|| USAGE.to_string())).and_then(|p| info(p)),
         Some("convert") => convert(&rest),
+        Some("import") => import(&rest),
         Some("run") => run(&rest),
         Some("perf") => validate_options("perf", &rest, NO_OPTIONS).and_then(|_| perf(&rest)),
         Some("sample") => validate_options("sample", &rest, NO_OPTIONS).and_then(|_| sample(&rest)),

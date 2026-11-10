@@ -25,6 +25,11 @@ miniz_oxide = "0.8"
 lopdf = { version = "0.45", default-features = false }
 # Pictures for `import` (PNG, JPEG, TIFF).
 image = { workspace = true }
+# The native drawing model kept in a project file (src/native.rs): MessagePack through serde (MIT), parts built on every core.
+rmp-serde = "1"
+# Parts are named by the SHA-256 of their bytes, so a store keeps one copy of equal parts and writes only new ones.
+sha2 = "0.10"
+rayon = { workspace = true }
 
 [dev-dependencies]
 tiny-skia = { workspace = true }

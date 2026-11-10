@@ -387,8 +387,60 @@ internal static class Native
         }
     }
 
+    /// Start reading a drawing with the choice for a DWG or DXF that changed since its working copy was made:
+    /// 0 decide (import again unless the working copy has saved edits), 1 import again, 2 open the working copy as it is.
+    public static bool OpenStartWith(IntPtr host, string path, int mode)
+    {
+        var pathPtr = Marshal.StringToCoTaskMemUTF8(path);
+        try
+        {
+            return aad_host_open_start_with(host, pathPtr, mode) == 0;
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(pathPtr);
+        }
+    }
+
     /// 0 nothing loading, 1 reading, 2 opened and fitted, -1 failed (see LastError).
     public static int OpenPoll(IntPtr host) => aad_host_open_poll(host);
+
+    /// <summary>What the open worker is doing now, one line; empty when nothing is being opened.</summary>
+    public static string OpenProgress(IntPtr host) => ReadBuffer(aad_host_open_progress, host);
+
+    /// <summary>What the last completed open did, as JSON (native, source, action, sourceChanged, message...); empty before the first.</summary>
+    public static string OpenInfo(IntPtr host) => ReadBuffer(aad_host_open_info, host);
+
+    /// <summary>
+    /// Run an application method (app.peek, autosave.status, autosave.now, recovery.list/restore/discard, backup.list/open/restore).
+    /// Returns its JSON result, or null when it failed (the reason is LastError).
+    /// </summary>
+    public static string? App(IntPtr host, string method, string parameters)
+    {
+        var methodPtr = Marshal.StringToCoTaskMemUTF8(method);
+        var paramsPtr = Marshal.StringToCoTaskMemUTF8(parameters);
+        try
+        {
+            return aad_host_app(host, methodPtr, paramsPtr) == 0 ? ReadResult(host) : null;
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(methodPtr);
+            Marshal.FreeCoTaskMem(paramsPtr);
+        }
+    }
+
+    [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    private static extern int aad_host_open_start_with(IntPtr host, IntPtr path, int mode);
+
+    [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    private static extern int aad_host_open_progress(IntPtr host, IntPtr buffer, uint length);
+
+    [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    private static extern int aad_host_open_info(IntPtr host, IntPtr buffer, uint length);
+
+    [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    private static extern int aad_host_app(IntPtr host, IntPtr method, IntPtr parameters);
 
     [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     private static extern int aad_host_open_start(IntPtr host, IntPtr path);

@@ -389,6 +389,7 @@
                     </Button>
                 </Border>
                 <TextBlock x:Name="ControlPort" Visibility="Collapsed" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Control channel" />
+                <TextBlock x:Name="SaveState" Visibility="Collapsed" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Save status" />
                 <TextBlock x:Name="Status" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Drawing status" />
             </StackPanel>
         </Grid>

@@ -60,6 +60,10 @@ internal static class ShellPrefs
         public List<string> Tools { get; set; } = new();
         public string Font { get; set; } = "engineering";
         public bool Menu { get; set; } = true;
+        /// <summary>Seconds between recovery snapshots of a drawing with unsaved changes (0 turns the timer off; 10 to 3600).</summary>
+        public int AutosaveSeconds { get; set; } = 120;
+        /// <summary>How many earlier versions of a project file a save keeps in its backups folder (0 to 50).</summary>
+        public int BackupCount { get; set; } = 5;
         public bool ToolsVisible { get; set; } = true;
         public bool Tabs { get; set; } = true;
         public bool Status { get; set; } = true;

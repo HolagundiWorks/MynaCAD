@@ -260,6 +260,7 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
                 "index": index,
                 "title": doc.title,
                 "path": doc.path,
+                "source": doc.source,
                 "dirty": doc.is_dirty(),
                 "active": index == session.active,
             })

@@ -162,6 +162,7 @@ public sealed partial class MainWindow : Window
         if (_host != IntPtr.Zero)
         {
             Native.Theme(_host, _dark);
+            ApplySaveSettings();
         }
         AppWindow.Changed += (_, args) =>
         {
@@ -239,6 +240,8 @@ public sealed partial class MainWindow : Window
             HideWelcome();
             AfterCommand();
         }
+        // A run that ended without closing its drawings left recovery snapshots: offer them now that the window is up.
+        await OfferRecoveryAsync();
     }
 
     private void ApplyAccess()
@@ -576,6 +579,11 @@ public sealed partial class MainWindow : Window
         if (id is "open" or "qsave" or "saveas")
         {
             _ = PickFile(id);
+            return;
+        }
+        if (id == "backup.restore")
+        {
+            _ = ShowBackupsAsync();
             return;
         }
         if (id == "company.pack.import")
@@ -1062,6 +1070,11 @@ public sealed partial class MainWindow : Window
         if (id is "open" or "qsave" or "saveas")
         {
             _ = PickFile(id);
+            return;
+        }
+        if (id == "backup.restore")
+        {
+            _ = ShowBackupsAsync();
             return;
         }
         if (id == "company.pack.import")
@@ -1964,18 +1977,34 @@ public sealed partial class MainWindow : Window
         ShowBusy("Opening?", string.IsNullOrEmpty(name) ? path : name);
         try
         {
-            if (!Native.OpenStart(_host, path))
+            // A DWG or DXF that changed since it was imported, with saved edits in its working copy: the user chooses.
+            var mode = await AskSourceChangedAsync(path);
+            if (mode < 0)
+            {
+                return false;
+            }
+            if (!Native.OpenStartWith(_host, path, mode))
             {
                 return false;
             }
             int state;
+            var shown = "";
             while ((state = Native.OpenPoll(_host)) == 1)
             {
+                // The stage of the worker (checking, converting to the native format, writing the working copy).
+                var stage = Native.OpenProgress(_host);
+                if (stage.Length > 0 && stage != shown)
+                {
+                    shown = stage;
+                    BusyDetail.Text = stage;
+                    Status.Text = stage;
+                }
                 await Task.Delay(30);
             }
             if (state == 2)
             {
                 RememberDrawing(path);
+                ShowOpenInfo();
             }
             return state == 2;
         }
@@ -5845,6 +5874,11 @@ public sealed partial class MainWindow : Window
                 RefreshChrome();
                 perf?.Mark("chrome");
             }
+            // About once a second: "Saved 14:32", "Autosaved 14:35" or the reason a save failed.
+            if (_ticks % 32 == 0)
+            {
+                UpdateSaveState();
+            }
             // Every ~4 ticks so hover rollover updates Properties / Layer / Blocks promptly.
             if (_ticks % 4 == 0)
             {
@@ -6296,9 +6330,9 @@ public sealed partial class MainWindow : Window
         _documents.Clear();
         _documents.AddRange(state.Documents);
         var active = _documents.FirstOrDefault(doc => doc.Active);
-        Title = active == null || active.Title.Length == 0 ? "MynaCAD" : "MynaCAD \u2014 " + active.Title;
+        Title = active == null || active.Title.Length == 0 ? "MynaCAD" : "MynaCAD \u2014 " + active.Title + (active.Dirty ? " *" : "");
         PublishActiveProject(ActiveDrawingPath(active));
-        var key = string.Join("\n", _documents.Select(doc => doc.Index + ":" + doc.Title + ":" + doc.Dirty + ":" + doc.Active));
+        var key = string.Join("\n", _documents.Select(doc => doc.Index + ":" + doc.Title + ":" + doc.Source + ":" + doc.Dirty + ":" + doc.Active));
         if (key == _docKey)
         {
             return;
@@ -6309,7 +6343,9 @@ public sealed partial class MainWindow : Window
         foreach (var doc in _documents.ToList())
         {
             var drawing = doc;
-            var title = drawing.Dirty ? drawing.Title + " *" : drawing.Title;
+            // A working copy says where it came from: "plan.osp (from plan.dwg)"; the star marks unsaved changes.
+            var from = string.IsNullOrEmpty(drawing.Source) ? "" : " (from " + System.IO.Path.GetFileName(drawing.Source) + ")";
+            var title = drawing.Title + from + (drawing.Dirty ? " *" : "");
             var current = drawing.Active;
             var tab = new Button
             {
@@ -7341,6 +7377,8 @@ public sealed partial class MainWindow : Window
         public string Title { get; set; } = "";
         /// <summary>The saved file behind the drawing, as the engine knows it (also set for files opened by the control channel).</summary>
         public string? Path { get; set; }
+        /// <summary>The DWG or DXF the drawing was imported from, when its file is a working copy.</summary>
+        public string? Source { get; set; }
         public bool Dirty { get; set; }
         public bool Active { get; set; }
     }

@@ -8,6 +8,8 @@ mod dxf_read;
 mod dxf_write;
 mod layers;
 mod levels_file;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native;
 pub mod pdf;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pdfread;

@@ -11,6 +11,8 @@
 pub mod annot;
 pub mod assoc;
 pub mod audit;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod backup;
 pub mod calc;
 pub mod cmd;
 pub mod dyninput;
@@ -20,11 +22,15 @@ pub mod forms;
 pub mod grips;
 mod guard;
 pub mod is456;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod nativefile;
 pub mod pointmod;
 pub mod pomodoro;
 pub mod projectplan;
 pub mod prompt;
 mod protect;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod recovery;
 pub mod revision;
 pub mod sample;
 pub mod select;
@@ -121,6 +127,8 @@ pub struct DocState {
     pub selection: Vec<Handle>,
     pub previous_selection: Vec<Handle>,
     pub path: Option<String>,
+    /// The DWG or DXF this drawing was imported from, when its file is a working copy (see `nativefile`). Only shown; never written to.
+    pub source: Option<String>,
     pub title: String,
     pub saved: Arc<Drawing>,
     pub revision: u64,
@@ -145,6 +153,7 @@ impl DocState {
             selection: Vec::new(),
             previous_selection: Vec::new(),
             path,
+            source: None,
             title: title.into(),
             revision: 1,
             space: Space::Model,

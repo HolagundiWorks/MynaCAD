@@ -26,6 +26,10 @@ log = { workspace = true }
 # R-tree spatial index for picking, window selection and object snaps (MIT OR Apache-2.0).
 rstar = { version = "0.12", default-features = false }
 
+# The native drawing model of a project file (`aad_io::native`). DXF and DWG still reach the engine only through the host's hooks.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+aad-io = { workspace = true }
+
 [dev-dependencies]
 aad-io = { workspace = true }
 criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }

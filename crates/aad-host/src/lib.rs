@@ -545,8 +545,12 @@ pub struct Host {
     /// The last panels JSON with the state it was built for. The side tabs ask for it about eight times a second, and building it
     /// scans every block reference in the drawing, so an unchanged drawing, selection and hover reuse the text.
     panels_cache: std::sync::Mutex<Option<(String, String)>>,
-    /// A drawing being read on a worker thread: its path and the channel the result arrives on.
-    loading: Option<(String, std::sync::mpsc::Receiver<Result<aad_engine::cmd::file::Prepared, String>>)>,
+    /// A drawing being read on a worker thread: the path asked for and the channel the result arrives on.
+    loading: Option<(String, std::sync::mpsc::Receiver<Result<OpenedDoc, String>>)>,
+    /// What the open worker is doing now, one line for the status bar.
+    open_progress: Arc<std::sync::Mutex<String>>,
+    /// What the last completed open did, as JSON ([`aad_engine::nativefile::OpenInfo`]); empty before the first one.
+    open_info: String,
     /// A drawing being written on a worker thread.
     saving: Option<(Arc<aad_engine::cmd::file::SaveJob>, std::sync::mpsc::Receiver<Result<usize, String>>)>,
     /// A plot being built on a worker thread.
@@ -557,6 +561,14 @@ pub struct Host {
     control_io: Option<(control::Job, ControlIoKind)>,
     /// Wheel zoom easing; advanced on [`Host::pump`] / present.
     zoom_anim: Option<ZoomAnim>,
+}
+
+/// A drawing read by the open worker: flattened and ready, with the project file it is edited in.
+struct OpenedDoc {
+    prepared: aad_engine::cmd::file::Prepared,
+    /// The file the document is tied to: the project file itself, or the working copy of a DWG or DXF.
+    path: String,
+    info: aad_engine::nativefile::OpenInfo,
 }
 
 /// Which file job a deferred control reply is waiting on.
@@ -574,7 +586,7 @@ fn install_formats() {
         write: |drawing, name| aad_io::write(drawing, name).map_err(|e| e.to_string()),
         plot: Some(|drawing, space, opts| aad_io::plot(drawing, space, opts).map_err(|e| e.to_string())),
     });
-    aad_engine::cmd::file::set_container(aad_engine::cmd::file::ContainerHooks { read: read_project_drawing, write: write_project_drawing });
+    aad_engine::cmd::file::set_container(aad_engine::nativefile::container_hooks());
     aad_engine::cmd::file::set_pdf_reader(|bytes, page| aad_io::pdfread::read_page(bytes, page).map_err(|e| e.to_string()));
     aad_engine::cmd::file::set_pdf_merge(|parts| aad_io::pdf::merge(parts).map_err(|e| e.to_string()));
     aad_engine::cmd::file::set_raster_reader(|bytes| {
@@ -583,42 +595,6 @@ fn install_formats() {
     if let Some(worker) = dwg_worker() {
         let _ = aad_dwg::isolated::enable_with(worker);
     }
-}
-
-/// The drawing inside a project file (`.osp`): its bytes and its name, which says whether it is DWG or DXF.
-fn read_project_drawing(path: &str) -> Result<(Vec<u8>, String), String> {
-    let odp = aad_odp::Odp::open(std::path::Path::new(path)).map_err(|e| format!("{path}: {e}"))?;
-    let name = odp.drawing_names().map_err(|e| format!("{path}: {e}"))?.into_iter().next().ok_or_else(|| format!("{path} holds no drawing yet"))?;
-    let drawing = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.ok_or_else(|| format!("{path}: the drawing {name} is missing"))?;
-    Ok((drawing.bytes, drawing.name))
-}
-
-/// Write the drawing into a project file, in the format of the drawing already in it (a new file takes the format of the file the drawing came from, DXF
-/// if it came from nowhere). It is written in place, as one revision, and not
-/// at all when the bytes are the ones already stored, so a save that changed nothing does not make other programs reload.
-fn write_project_drawing(path: &str, drawing: &aad_engine::doc::Drawing, format_hint: Option<&str>) -> Result<usize, String> {
-    let p = std::path::Path::new(path);
-    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("Project").to_string();
-    let mut odp = if p.exists() { aad_odp::Odp::open(p) } else { aad_odp::Odp::create(p, &stem) }.map_err(|e| format!("{path}: {e}"))?;
-    let name = odp
-        .drawing_names()
-        .map_err(|e| format!("{path}: {e}"))?
-        .into_iter()
-        .next()
-        .unwrap_or_else(|| format!("{stem}.{}", format_hint.unwrap_or("dxf")));
-    let bytes = aad_io::write(drawing, &name).map_err(|e| e.to_string())?;
-    let same = odp.drawing(&name).map_err(|e| format!("{path}: {e}"))?.is_some_and(|d| d.sha256 == aad_odp::sha256_hex(&bytes));
-    // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for MynaOps to draw read only.
-    let details = aad_engine::structural_details(drawing, &name);
-    let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
-    if !same {
-        let ext = std::path::Path::new(&name).extension().and_then(|e| e.to_str()).unwrap_or("dxf").to_string();
-        edit.put_drawing(&name, &ext, &bytes).map_err(|e| format!("{path}: {e}"))?;
-    }
-    edit.replace_details(&name, &details).map_err(|e| format!("{path}: {e}"))?;
-    // Nothing changed: no revision, so a save that changed nothing does not make other programs reload.
-    edit.commit().map_err(|e| format!("{path}: {e}"))?;
-    Ok(bytes.len())
 }
 
 fn dwg_worker() -> Option<std::path::PathBuf> {
@@ -713,6 +689,8 @@ impl Host {
             quit_requested: false,
             panels_cache: std::sync::Mutex::new(None),
             loading: None,
+            open_progress: Arc::new(std::sync::Mutex::new(String::new())),
+            open_info: String::new(),
             saving: None,
             plotting: None,
             frame: FrameCache::default(),
@@ -724,6 +702,12 @@ impl Host {
     /// Start reading a drawing file on a worker thread. The window stays responsive; the shell
     /// calls [`Host::open_poll`] until it reports the result.
     pub fn open_start(&mut self, path: &str) -> Result<(), String> {
+        self.open_start_with(path, aad_engine::nativefile::OnChanged::Auto)
+    }
+
+    /// [`Host::open_start`] with the choice for a source that changed since its working copy was made. A project file opens as it is; a DWG
+    /// or DXF is converted once into its working copy (a project file) on the worker and edited there, so the original is never written.
+    pub fn open_start_with(&mut self, path: &str, on_changed: aad_engine::nativefile::OnChanged) -> Result<(), String> {
         if self.loading.is_some() {
             return Err("a drawing is already being opened".into());
         }
@@ -732,16 +716,43 @@ impl Host {
         }
         let (tx, rx) = std::sync::mpsc::channel();
         let owned = path.to_string();
+        let progress = self.open_progress.clone();
+        if let Ok(mut line) = progress.lock() {
+            line.clear();
+        }
         std::thread::Builder::new()
             .name("aad-open".into())
             .spawn(move || {
-                let read = std::panic::catch_unwind(|| aad_engine::cmd::file::read_drawing_file(&owned))
-                    .unwrap_or_else(|_| Err("internal error while reading the file".into()));
+                let say = |line: &str| {
+                    if let Ok(mut slot) = progress.lock() {
+                        *slot = line.to_string();
+                    }
+                };
+                let read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let opened = aad_engine::nativefile::open_for_edit(&owned, on_changed, &say)?;
+                    say("Preparing the drawing");
+                    Ok(OpenedDoc { prepared: aad_engine::cmd::file::prepare(opened.drawing), path: opened.path, info: opened.info })
+                }))
+                .unwrap_or_else(|_| Err("internal error while reading the file".into()));
                 let _ = tx.send(read);
             })
             .map_err(|e| e.to_string())?;
         self.loading = Some((path.to_string(), rx));
         Ok(())
+    }
+
+    /// What the open worker is doing now (one line; empty when nothing is being opened).
+    pub fn open_progress(&self) -> String {
+        if self.loading.is_none() {
+            return String::new();
+        }
+        self.open_progress.lock().map(|line| line.clone()).unwrap_or_default()
+    }
+
+    /// What the last completed open did, as JSON: the working copy, the source, whether it was converted or reused, whether the source has
+    /// changed, the time of each stage and one line for the status bar. Empty before the first open.
+    pub fn open_info(&self) -> &str {
+        &self.open_info
     }
 
     /// `Ok(0)` nothing is loading, `Ok(1)` still reading, `Ok(2)` the drawing is open and fitted.
@@ -756,9 +767,20 @@ impl Host {
             Err(TryRecvError::Empty) => return Ok(1),
             Err(TryRecvError::Disconnected) => Err("the file reader stopped".into()),
         };
-        let path = path.clone();
+        let _ = path;
         self.loading = None;
-        let imported = read.and_then(|d| aad_engine::cmd::file::finish_open(&mut self.session, d, &path).map_err(|e| e.to_string()));
+        let imported = read.and_then(|opened| {
+            let OpenedDoc { prepared, path, info } = opened;
+            let index = aad_engine::cmd::file::finish_open(&mut self.session, prepared, &path).map_err(|e| e.to_string())?;
+            if let Some(state) = self.session.docs.get_mut(index) {
+                state.source = info.source.clone();
+            }
+            if !info.message.is_empty() {
+                self.session.echo(info.message.clone());
+            }
+            self.open_info = serde_json::to_string(&info).unwrap_or_default();
+            Ok(index)
+        });
         match imported {
             Ok(_) => {
                 self.fit_view();
@@ -1317,7 +1339,12 @@ impl Host {
                     let _ = job.reply.send(json_err("missing path"));
                     return None;
                 };
-                if let Err(e) = self.open_start(path) {
+                let Some(on_changed) = aad_engine::nativefile::OnChanged::parse(job.params.get("onChanged").and_then(Value::as_str).unwrap_or(""))
+                else {
+                    let _ = job.reply.send(json_err("`onChanged` is auto, reimport or keep"));
+                    return None;
+                };
+                if let Err(e) = self.open_start_with(path, on_changed) {
                     let _ = job.reply.send(json_err(e));
                     return None;
                 }
@@ -1350,7 +1377,11 @@ impl Host {
             Ok(1) => {}
             Ok(2) => {
                 if let Some((job, _)) = self.control_io.take() {
-                    let _ = job.reply.send(json_ok(Value::Null));
+                    let result = match kind {
+                        ControlIoKind::Open => serde_json::from_str(&self.open_info).unwrap_or(Value::Null),
+                        ControlIoKind::Save => Value::Null,
+                    };
+                    let _ = job.reply.send(json_ok(result));
                 }
             }
             Ok(_) => {
@@ -1433,13 +1464,16 @@ impl Host {
                 let Some(path) = params.get("path").and_then(Value::as_str) else {
                     return json_err("missing path");
                 };
-                if let Err(e) = self.open_start(path) {
+                let Some(on_changed) = aad_engine::nativefile::OnChanged::parse(text("onChanged")) else {
+                    return json_err("`onChanged` is auto, reimport or keep");
+                };
+                if let Err(e) = self.open_start_with(path, on_changed) {
                     return json_err(e);
                 }
                 loop {
                     match self.open_poll() {
                         Ok(1) => std::thread::sleep(std::time::Duration::from_millis(5)),
-                        Ok(2) => return json_ok(Value::Null),
+                        Ok(2) => return json_ok(serde_json::from_str(&self.open_info).unwrap_or(Value::Null)),
                         Ok(_) => return json_err("open ended unexpectedly"),
                         Err(e) => return json_err(e),
                     }
@@ -3711,21 +3745,40 @@ mod tests {
 
     #[test]
     fn app_open_save_and_quit_work_on_the_control_channel() {
-        let path = std::env::temp_dir().join(format!("aad-host-app-open-{}.dxf", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+        let dir = std::env::temp_dir().join(format!("aad-host-app-open-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("plan.dxf");
         let mut host = Host::create(false);
         host.execute("line", &json!({ "points": [[0.0, 0.0], [3.0, 0.0]] })).unwrap();
         host.execute("saveas", &json!({ "path": path.to_string_lossy() })).unwrap();
+        let source = std::fs::read(&path).unwrap();
         let mut opened = Host::create(false);
         let open = opened.control_one("app.open", &json!({ "path": path.to_string_lossy() }));
         assert_eq!(open["ok"], true, "{open}");
         assert!(opened.stats().entities >= 1);
+        // A DXF is edited in its working copy, a project file beside it; the reply and the chrome say which file that is and where it came from.
+        let native = dir.join("plan.osp");
+        assert_eq!(open["result"]["action"], "imported", "{open}");
+        assert_eq!(open["result"]["native"], native.to_string_lossy().as_ref());
+        assert!(native.is_file());
         // The shell publishes the open file to the other suite apps from the chrome state, whoever opened it.
         let chrome: serde_json::Value = serde_json::from_str(&opened.chrome_json()).unwrap();
         let active = chrome["documents"].as_array().unwrap().iter().find(|d| d["active"] == true).unwrap();
-        assert_eq!(active["path"], path.to_string_lossy().as_ref(), "{chrome}");
+        assert_eq!(active["path"], native.to_string_lossy().as_ref(), "{chrome}");
+        assert_eq!(active["source"], path.to_string_lossy().as_ref(), "{chrome}");
+        assert_eq!(active["title"], "plan.osp");
+        opened.execute("circle", &json!({ "center": [1.0, 1.0], "radius": 1.0 })).unwrap();
         let save = opened.control_one("app.save", &json!({}));
         assert_eq!(save["ok"], true, "{save}");
+        assert_eq!(std::fs::read(&path).unwrap(), source, "saving writes the working copy, never the source");
+        // The next open of the same DXF reads the saved working copy from its native model.
+        let mut again = Host::create(false);
+        let open = again.control_one("app.open", &json!({ "path": path.to_string_lossy() }));
+        assert_eq!((&open["result"]["action"], &open["result"]["fromNative"]), (&json!("reused"), &json!(true)), "{open}");
+        assert_eq!(again.stats().entities, opened.stats().entities);
+        assert_eq!(again.control_one("app.open", &json!({ "path": path.to_string_lossy(), "onChanged": "sometimes" }))["ok"], false);
+        assert!(again.open_progress().is_empty());
         let missing = opened.control_one("app.open", &json!({}));
         assert_eq!(missing["ok"], false);
         assert!(missing["error"].as_str().unwrap_or("").contains("missing path"));
@@ -3733,7 +3786,7 @@ mod tests {
         assert_eq!(quit["ok"], true, "{quit}");
         let chrome: serde_json::Value = serde_json::from_str(&opened.chrome_json()).unwrap();
         assert_eq!(chrome["quit"], true);
-        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

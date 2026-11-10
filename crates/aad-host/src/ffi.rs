@@ -639,6 +639,51 @@ pub unsafe extern "C" fn aad_host_open_start(host: *mut Host, path: *const c_cha
     })
 }
 
+/// [`aad_host_open_start`] with the choice for a DWG or DXF whose working copy is older than the file: `mode` 0 decides by itself (convert
+/// again when the working copy holds no saved edits, otherwise open the working copy and report the change), 1 converts again (the working
+/// copy as it was is kept as a backup), 2 opens the working copy as it is.
+///
+/// # Safety
+/// `host` is live. `path` is null-terminated UTF-8, at most 1 MiB.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aad_host_open_start_with(host: *mut Host, path: *const c_char, mode: i32) -> i32 {
+    call(host, |host| {
+        let path = read_text(path)?;
+        let on_changed = match mode {
+            1 => aad_engine::nativefile::OnChanged::Reimport,
+            2 => aad_engine::nativefile::OnChanged::Keep,
+            _ => aad_engine::nativefile::OnChanged::Auto,
+        };
+        host.open_start_with(&path, on_changed)
+    })
+}
+
+/// What the open worker is doing now, one line (empty when nothing is being opened). `buf` receives UTF-8 without a terminator. Returns the
+/// byte length, or a negative length when `buf` is too small.
+///
+/// # Safety
+/// `host` is live. `buf` is writable for `len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aad_host_open_progress(host: *mut Host, buf: *mut u8, len: u32) -> i32 {
+    let Some(host) = (unsafe { host.as_ref() }) else {
+        return 0;
+    };
+    copy_bytes(host.open_progress().as_bytes(), buf, len)
+}
+
+/// What the last completed open did, as JSON: `native` (the project file being edited), `source` (the DWG or DXF it was imported from),
+/// `action`, `location`, `sourceChanged`, `edited`, `backup`, `ms` and `message`. Empty before the first open.
+///
+/// # Safety
+/// `host` is live. `buf` is writable for `len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aad_host_open_info(host: *mut Host, buf: *mut u8, len: u32) -> i32 {
+    let Some(host) = (unsafe { host.as_ref() }) else {
+        return 0;
+    };
+    copy_bytes(host.open_info().as_bytes(), buf, len)
+}
+
 /// `0` nothing is loading, `1` still reading, `2` the drawing is open and fitted, `-1` the open
 /// failed (the message is in the host error).
 ///

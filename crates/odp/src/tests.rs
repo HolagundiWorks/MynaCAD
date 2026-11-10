@@ -248,3 +248,125 @@ fn details_are_replaced_as_a_set_and_an_unchanged_set_is_no_revision() {
     drop(odp);
     assert_eq!(Odp::open(&path).unwrap().details().unwrap().len(), 2);
 }
+
+fn put_native(e: &mut Edit<'_>, drawing: &str, sha: &str, parts: &[(&[u8], usize)]) -> NativeWrite {
+    let hashes: Vec<String> = parts.iter().map(|(bytes, _)| sha256_hex(bytes)).collect();
+    let refs: Vec<NativePart<'_>> =
+        parts.iter().zip(&hashes).map(|((bytes, entities), hash)| NativePart { hash, bytes, entities: *entities }).collect();
+    e.put_native(drawing, sha, 1, &refs).unwrap()
+}
+
+#[test]
+fn the_native_model_is_kept_by_content_and_is_not_a_revision() {
+    let (_d, path) = temp();
+    let mut odp = Odp::create(&path, "House").unwrap();
+    let mut e = odp.edit().unwrap();
+    e.put_drawing("house.dxf", "dxf", b"0\nEOF\n").unwrap();
+    assert_eq!(e.commit().unwrap(), 1);
+    assert!(odp.native_stamp().unwrap().is_none());
+    let sha = odp.drawing_sha256("house.dxf").unwrap().unwrap();
+    assert_eq!(sha, sha256_hex(b"0\nEOF\n"));
+
+    let parts: Vec<Vec<u8>> = (0..5u8).map(|i| vec![i; 1000 + i as usize]).collect();
+    let refs: Vec<(&[u8], usize)> = parts.iter().map(|p| (p.as_slice(), 10)).collect();
+    let mut e = odp.edit().unwrap();
+    let w = put_native(&mut e, "house.dxf", &sha, &refs);
+    assert_eq!((w.parts, w.written), (5, 5));
+    assert_eq!(e.commit().unwrap(), 1, "the native model alone is not a revision");
+    assert_eq!(odp.revision().unwrap(), 1);
+    assert!(odp.changes_since(1).unwrap().is_empty(), "and it is not in the change log");
+    let stamp = odp.native_stamp().unwrap().unwrap();
+    assert_eq!(
+        (stamp.format, stamp.drawing.as_str(), stamp.drawing_sha256.as_str(), stamp.parts, stamp.entities),
+        (1, "house.dxf", sha.as_str(), 5, 50)
+    );
+    assert_eq!(odp.native_parts("house.dxf").unwrap(), parts);
+
+    // One part changes, one is dropped: only the changed bytes are written, and bytes nothing refers to any more are removed.
+    let mut next = parts.clone();
+    next[2] = vec![9; 77];
+    next.pop();
+    let refs: Vec<(&[u8], usize)> = next.iter().map(|p| (p.as_slice(), 10)).collect();
+    let mut e = odp.edit().unwrap();
+    let w = put_native(&mut e, "house.dxf", &sha, &refs);
+    assert_eq!((w.parts, w.written, w.bytes_written), (4, 1, 77));
+    e.commit().unwrap();
+    drop(odp);
+    let odp = Odp::open(&path).unwrap();
+    assert_eq!(odp.native_parts("house.dxf").unwrap(), next);
+    let blobs: i64 = odp.conn.query_row("SELECT COUNT(*) FROM native_blob", [], |r| r.get(0)).unwrap();
+    assert_eq!(blobs, 4);
+    // Two equal parts share their bytes.
+    let mut odp = odp;
+    let same = [(&b"abc"[..], 1usize), (&b"abc"[..], 1usize)];
+    let mut e = odp.edit().unwrap();
+    assert_eq!(put_native(&mut e, "house.dxf", &sha, &same).written, 1);
+    e.commit().unwrap();
+    assert_eq!(odp.native_parts("house.dxf").unwrap(), [b"abc".to_vec(), b"abc".to_vec()]);
+}
+
+#[test]
+fn a_native_model_with_missing_bytes_is_an_error() {
+    let (_d, path) = temp();
+    let mut odp = Odp::create(&path, "House").unwrap();
+    let mut e = odp.edit().unwrap();
+    put_native(&mut e, "house.dxf", "x", &[(&b"one"[..], 1), (&b"two"[..], 1)]);
+    e.commit().unwrap();
+    odp.conn.execute("DELETE FROM native_blob WHERE hash = ?1", params![sha256_hex(b"two")]).unwrap();
+    assert!(odp.native_parts("house.dxf").is_err());
+    odp.conn.execute("DELETE FROM native_part WHERE seq = 0", []).unwrap();
+    assert!(odp.native_parts("house.dxf").is_err(), "a gap in the sequence");
+}
+
+#[test]
+fn local_meta_is_committed_without_a_revision_and_cannot_touch_the_file_facts() {
+    let (_d, path) = temp();
+    let mut odp = Odp::create(&path, "House").unwrap();
+    odp.set_local_meta(&[("source.path", "C:/a.dwg"), ("source.size", "12")]).unwrap();
+    assert_eq!(odp.revision().unwrap(), 0);
+    assert_eq!(odp.meta_get("source.path").unwrap().as_deref(), Some("C:/a.dwg"));
+    odp.set_local_meta(&[("source.size", "13")]).unwrap();
+    assert_eq!(odp.meta_get("source.size").unwrap().as_deref(), Some("13"));
+    assert_eq!(odp.meta_get("nothing").unwrap(), None);
+    for key in ["revision", "format", "version", "project_id", "name", "created"] {
+        assert!(odp.set_local_meta(&[(key, "x")]).is_err(), "{key}");
+    }
+    assert_eq!(odp.meta().unwrap().name, "House");
+}
+
+#[test]
+fn a_copy_is_a_whole_project_file_and_never_replaces_one() {
+    let (dir, path) = temp();
+    let mut odp = Odp::create(&path, "House").unwrap();
+    let mut e = odp.edit().unwrap();
+    e.put_drawing("house.dxf", "dxf", &vec![7u8; 300_000]).unwrap();
+    e.put_takeoff_row(&row(1, 3, 1)).unwrap();
+    e.commit().unwrap();
+    let copy = dir.path().join("copy.osp");
+    odp.copy_to(&copy).unwrap();
+    assert!(odp.copy_to(&copy).is_err(), "an existing file is not overwritten");
+    let c = Odp::open(&copy).unwrap();
+    assert_eq!(c.meta().unwrap(), odp.meta().unwrap());
+    assert_eq!(c.drawing("house.dxf").unwrap().unwrap().bytes.len(), 300_000);
+    assert_eq!(c.takeoff_rows(1).unwrap().len(), 1);
+}
+
+#[test]
+fn a_bulk_file_reads_like_any_other_once_finished() {
+    let (_d, path) = temp();
+    let mut odp = Odp::create_bulk(&path, "House").unwrap();
+    let mut e = odp.edit().unwrap();
+    e.put_drawing("house.dwg", "dwg", &vec![3u8; 2_000_000]).unwrap();
+    put_native(&mut e, "house.dwg", "h", &[(&b"part"[..], 4)]);
+    e.commit().unwrap();
+    odp.finish_bulk(&path).unwrap();
+    assert!(!std::path::Path::new(&format!("{}-wal", path.display())).exists());
+    let mut odp = Odp::open(&path).unwrap();
+    assert_eq!(odp.revision().unwrap(), 1);
+    assert_eq!(odp.drawing("house.dwg").unwrap().unwrap().bytes.len(), 2_000_000);
+    let mode: String = odp.conn.query_row("PRAGMA journal_mode", [], |r| r.get(0)).unwrap();
+    assert_eq!(mode.to_ascii_lowercase(), "wal");
+    let mut e = odp.edit().unwrap();
+    e.put_takeoff_row(&row(1, 3, 1)).unwrap();
+    assert_eq!(e.commit().unwrap(), 2);
+}

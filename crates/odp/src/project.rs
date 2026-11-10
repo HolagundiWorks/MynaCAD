@@ -118,6 +118,11 @@ pub struct Asset {
     pub bytes: Vec<u8>,
 }
 
+/// The time now as UTC text (`2026-10-30T07:16:41Z`), the form every timestamp in the file has.
+pub fn now_utc() -> String {
+    time::now_rfc3339()
+}
+
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
@@ -150,7 +155,46 @@ CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, created TEXT NOT NUL
 CREATE TABLE IF NOT EXISTS change (revision INTEGER NOT NULL, tbl TEXT NOT NULL, key TEXT NOT NULL, op TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS change_revision ON change (revision);
 CREATE TABLE IF NOT EXISTS history_record (id INTEGER PRIMARY KEY, payload BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS native_blob (id INTEGER PRIMARY KEY, hash TEXT NOT NULL UNIQUE, bytes BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS native_part (
+    drawing TEXT NOT NULL, seq INTEGER NOT NULL, hash TEXT NOT NULL, entities INTEGER NOT NULL, PRIMARY KEY (drawing, seq)
+) WITHOUT ROWID;
 ";
+
+/// The `meta` keys that describe the file itself. [`Odp::set_local_meta`] never writes them.
+const CORE_META: &[&str] = &["format", "version", "project_id", "name", "created", "revision"];
+
+/// What a file says about its native model (see [`Edit::put_native`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeStamp {
+    /// The encoding of the parts (the writer's `aad_io::native::FORMAT_VERSION`).
+    pub format: u32,
+    /// The drawing the model belongs to.
+    pub drawing: String,
+    /// The SHA-256 of the `drawing` row the model was made from. A reader uses the model only while the row still has this hash, so a drawing
+    /// replaced by another program (or by an older MynaCAD) is read from its own bytes.
+    pub drawing_sha256: String,
+    pub parts: usize,
+    pub entities: usize,
+}
+
+/// One part of a native model handed to [`Edit::put_native`].
+#[derive(Clone, Copy, Debug)]
+pub struct NativePart<'a> {
+    /// The name the bytes are kept under: the SHA-256 of `bytes` as lower-case hex (the encoder computes it once).
+    pub hash: &'a str,
+    pub bytes: &'a [u8],
+    pub entities: usize,
+}
+
+/// What [`Edit::put_native`] did.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NativeWrite {
+    pub parts: usize,
+    /// Parts whose bytes were not in the file yet.
+    pub written: usize,
+    pub bytes_written: usize,
+}
 
 fn read_details(conn: &Connection) -> Result<Vec<Detail>> {
     let mut st = conn.prepare("SELECT id, drawing, handle, kind, block, params, layer, label FROM detail ORDER BY id")?;
@@ -184,16 +228,42 @@ pub struct Edit<'a> {
     tx: Transaction<'a>,
     revision: i64,
     changed: bool,
+    /// Data local to this computer was written (the native model, local `meta` keys): committed, but not a revision.
+    local: bool,
 }
 
 impl Odp {
     /// Create a new project file (it must not exist).
     pub fn create(path: &Path, name: &str) -> Result<Odp> {
+        Self::create_with(path, name, false)
+    }
+
+    /// Create a new project file that nobody else can see yet (a temporary name), for writing a lot at once: no journal and no flushes while it is
+    /// filled, so a large drawing is written once instead of twice. The file is not safe against a crash until [`Odp::finish_bulk`] has returned;
+    /// the caller renames it into place only after that.
+    pub fn create_bulk(path: &Path, name: &str) -> Result<Odp> {
+        Self::create_with(path, name, true)
+    }
+
+    /// End a [`Odp::create_bulk`]: switch the file to the normal write-ahead mode, close it and flush it to the disk.
+    pub fn finish_bulk(self, path: &Path) -> Result<()> {
+        Self::tune(&self.conn)?;
+        self.conn.close().map_err(|(_, e)| Error::Sqlite(e))?;
+        std::fs::OpenOptions::new().read(true).write(true).open(path)?.sync_all()?;
+        Ok(())
+    }
+
+    fn create_with(path: &Path, name: &str, bulk: bool) -> Result<Odp> {
         if path.exists() {
             return Err(Error::NotAProject(format!("{} already exists", path.display())));
         }
         let conn = Connection::open(path)?;
-        Self::tune(&conn)?;
+        if bulk {
+            conn.pragma_update(None, "journal_mode", "OFF")?;
+            conn.pragma_update(None, "synchronous", "OFF")?;
+        } else {
+            Self::tune(&conn)?;
+        }
         conn.execute_batch(SCHEMA)?;
         let now = time::now_rfc3339();
         let project_id = {
@@ -250,6 +320,77 @@ impl Odp {
         Ok(Meta { project_id: get("project_id")?, name: get("name")?, created: get("created")?, revision: get("revision")?.parse().unwrap_or(0) })
     }
 
+    /// A `meta` value by key (`None` when the key is absent).
+    pub fn meta_get(&self, key: &str) -> Result<Option<String>> {
+        self.meta_value(key)
+    }
+
+    /// Write a `meta` value that is local to this computer (where a drawing was imported from, when it was saved). It is not a revision and is not
+    /// in the change log, so sync never sends it. The keys that describe the file itself cannot be written this way.
+    pub fn set_local_meta(&mut self, pairs: &[(&str, &str)]) -> Result<()> {
+        let mut edit = self.edit()?;
+        for (k, v) in pairs {
+            edit.set_local_meta(k, v)?;
+        }
+        edit.commit().map(|_| ())
+    }
+
+    /// The stored hash of a drawing, without reading its bytes.
+    pub fn drawing_sha256(&self, name: &str) -> Result<Option<String>> {
+        Ok(self.conn.query_row("SELECT sha256 FROM drawing WHERE name = ?1", params![name], |r| r.get(0)).optional()?)
+    }
+
+    /// The stamp of the native model in the file, if it has one.
+    pub fn native_stamp(&self) -> Result<Option<NativeStamp>> {
+        let (Some(format), Some(drawing), Some(sha)) =
+            (self.meta_value("native.format")?, self.meta_value("native.drawing")?, self.meta_value("native.drawing_sha256")?)
+        else {
+            return Ok(None);
+        };
+        let Ok(format) = format.parse::<u32>() else { return Ok(None) };
+        let (parts, entities): (i64, i64) =
+            self.conn.query_row("SELECT COUNT(*), COALESCE(SUM(entities), 0) FROM native_part WHERE drawing = ?1", params![drawing], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })?;
+        if parts <= 0 {
+            return Ok(None);
+        }
+        Ok(Some(NativeStamp { format, drawing, drawing_sha256: sha, parts: parts.max(0) as usize, entities: entities.max(0) as usize }))
+    }
+
+    /// The parts of the native model of `drawing`, in order. A part whose bytes are missing is an error: the caller reads the drawing's own bytes.
+    pub fn native_parts(&self, drawing: &str) -> Result<Vec<Vec<u8>>> {
+        let mut st = self
+            .conn
+            .prepare("SELECT p.seq, b.bytes FROM native_part p LEFT JOIN native_blob b ON b.hash = p.hash WHERE p.drawing = ?1 ORDER BY p.seq")?;
+        let rows = st.query_map(params![drawing], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Option<Vec<u8>>>(1)?)))?;
+        let mut out = Vec::new();
+        for (expect, row) in rows.enumerate() {
+            let (seq, bytes) = row?;
+            if seq != expect as i64 {
+                return Err(Error::Import(format!("the native model is incomplete (part {expect} is missing)")));
+            }
+            out.push(bytes.ok_or_else(|| Error::Import(format!("the native model is incomplete (part {seq} has no bytes)")))?);
+        }
+        Ok(out)
+    }
+
+    /// Copy the whole file, as it is now, to `to` (which must not exist), safely while it is open here or elsewhere: SQLite's `VACUUM INTO` reads
+    /// one consistent state and writes a compact file. The copy is complete or absent; the caller renames it into place.
+    pub fn copy_to(&self, to: &Path) -> Result<()> {
+        if to.exists() {
+            return Err(Error::NotAProject(format!("{} already exists", to.display())));
+        }
+        self.conn.execute("VACUUM INTO ?1", params![to.to_string_lossy().as_ref()])?;
+        Ok(())
+    }
+
+    /// Move the write-ahead log into the main file and make it durable, so the `.osp` alone holds everything (before it is copied or renamed).
+    pub fn checkpoint(&self) -> Result<()> {
+        self.conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))?;
+        Ok(())
+    }
+
     /// The revision now (cheap: a reader polls this to learn that something changed).
     pub fn revision(&self) -> Result<i64> {
         Ok(self.meta_value("revision")?.and_then(|v| v.parse().ok()).unwrap_or(0))
@@ -259,7 +400,7 @@ impl Odp {
     pub fn edit(&mut self) -> Result<Edit<'_>> {
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let revision: i64 = tx.query_row("SELECT value FROM meta WHERE key = 'revision'", [], |r| r.get::<_, String>(0))?.parse().unwrap_or(0);
-        Ok(Edit { tx, revision: revision + 1, changed: false })
+        Ok(Edit { tx, revision: revision + 1, changed: false, local: false })
     }
 
     // ---- reads ----
@@ -495,10 +636,55 @@ impl Edit<'_> {
         Ok(())
     }
 
-    /// Make the changes one revision. A group with no change leaves the revision as it was.
+    /// See [`Odp::set_local_meta`].
+    pub fn set_local_meta(&mut self, key: &str, value: &str) -> Result<()> {
+        if CORE_META.contains(&key) {
+            return Err(Error::Import(format!("`{key}` is not a local meta key")));
+        }
+        self.tx.execute("INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2", params![key, value])?;
+        self.local = true;
+        Ok(())
+    }
+
+    /// The stored hash of a drawing as this group of changes sees it.
+    pub fn drawing_sha256(&self, name: &str) -> Result<Option<String>> {
+        Ok(self.tx.query_row("SELECT sha256 FROM drawing WHERE name = ?1", params![name], |r| r.get(0)).optional()?)
+    }
+
+    /// Store the native model of `drawing`: MynaCAD's own encoding of the drawing, read back without parsing DXF or DWG. `parts` are the encoded
+    /// pieces with their entity counts, in order; `drawing_sha256` is the hash of the `drawing` row they were made from. Parts are kept by content
+    /// hash, so a save writes only the parts an edit changed. The model is local, derived data: it is not a revision and is not in the change log.
+    pub fn put_native(&mut self, drawing: &str, drawing_sha256: &str, format: u32, parts: &[NativePart<'_>]) -> Result<NativeWrite> {
+        let mut done = NativeWrite { parts: parts.len(), ..NativeWrite::default() };
+        self.tx.execute("DELETE FROM native_part", [])?;
+        {
+            let mut has = self.tx.prepare("SELECT 1 FROM native_blob WHERE hash = ?1")?;
+            let mut blob = self.tx.prepare("INSERT INTO native_blob (hash, bytes) VALUES (?1, ?2)")?;
+            let mut part = self.tx.prepare("INSERT INTO native_part (drawing, seq, hash, entities) VALUES (?1, ?2, ?3, ?4)")?;
+            for (seq, p) in parts.iter().enumerate() {
+                if has.query_row(params![p.hash], |_| Ok(())).optional()?.is_none() {
+                    blob.execute(params![p.hash, p.bytes])?;
+                    done.written += 1;
+                    done.bytes_written = done.bytes_written.saturating_add(p.bytes.len());
+                }
+                part.execute(params![drawing, seq as i64, p.hash, p.entities as i64])?;
+            }
+        }
+        self.tx.execute("DELETE FROM native_blob WHERE hash NOT IN (SELECT hash FROM native_part)", [])?;
+        self.set_local_meta("native.format", &format.to_string())?;
+        self.set_local_meta("native.drawing", drawing)?;
+        self.set_local_meta("native.drawing_sha256", drawing_sha256)?;
+        Ok(done)
+    }
+
+    /// Make the changes one revision. A group with no change leaves the revision as it was; local data alone is committed without a revision.
     pub fn commit(self) -> Result<i64> {
         if !self.changed {
-            self.tx.rollback()?;
+            if self.local {
+                self.tx.commit()?;
+            } else {
+                self.tx.rollback()?;
+            }
             return Ok(self.revision - 1);
         }
         self.tx.execute("UPDATE meta SET value = ?1 WHERE key = 'revision'", params![self.revision.to_string()])?;

@@ -26,8 +26,8 @@ static IO: OnceLock<IoHooks> = OnceLock::new();
 /// Project files (`.osp`): one file that holds the drawing and the take-off. The host installs the reader and writer (it links `aad-odp`); a drawing opened
 /// from one stays tied to the project file, so saving writes the drawing back into it in one revision and take-off recording goes into it too.
 pub struct ContainerHooks {
-    /// The drawing inside the project file: its bytes and its name (the name says DWG or DXF).
-    pub read: fn(&str) -> std::result::Result<(Vec<u8>, String), String>,
+    /// The drawing inside the project file (from its native model, or parsed from the DXF or DWG bytes it stores).
+    pub read: fn(&str) -> std::result::Result<Drawing, String>,
     /// Write the drawing into the project file; returns the byte count of the drawing written. The last argument is the format of the file the drawing was
     /// opened from (`dwg` or `dxf`), used only when the project file holds no drawing yet, so a DWG saved as a new project stays a DWG.
     pub write: fn(&str, &Drawing, Option<&str>) -> std::result::Result<usize, String>,
@@ -55,10 +55,8 @@ fn format_hint(path: Option<&str>) -> Option<String> {
 }
 
 fn read_container(path: &str) -> std::result::Result<Drawing, String> {
-    let hooks = io().ok_or_else(|| "file formats are not available in this build".to_string())?;
     let c = container().ok_or_else(|| "project files (.osp) are not available in this build".to_string())?;
-    let (bytes, name) = (c.read)(path)?;
-    (hooks.read)(&bytes, &name)
+    (c.read)(path)
 }
 
 pub fn set_io(h: IoHooks) {
@@ -328,8 +326,20 @@ fn run_closeall(s: &mut Session, _p: &Value) -> Result<Value> {
     ok()
 }
 
+/// Whether writing `path` is an export: the drawing lives in a project file (`.osp`) and `path` is a DXF or DWG. The file is written, and the
+/// drawing stays in its project file with its unsaved changes, so Save keeps writing the native file and the export is a copy.
+fn is_export(s: &Session, path: &str) -> bool {
+    is_drawing_file(path) && !is_container(path) && s.state().is_ok_and(|st| st.path.as_deref().is_some_and(is_container))
+}
+
+fn export_note(s: &mut Session, path: &str) {
+    let home = s.state().ok().and_then(|st| st.path.clone()).unwrap_or_default();
+    s.echo(format!("Exported a copy to {path}. The drawing is still edited in {home}."));
+}
+
 pub(crate) fn save_to(s: &mut Session, path: &str) -> Result<usize> {
     let hooks = io().ok_or_else(|| bad("save", "file formats are not available in this build"))?;
+    let export = is_export(s, path);
     if let Ok(d) = s.doc_mut() {
         super::takeoff::sync_meta(d);
         super::geodb::stamp_for_save(d);
@@ -359,6 +369,16 @@ pub(crate) fn save_to(s: &mut Session, path: &str) -> Result<usize> {
         return Ok(n);
     }
     let bytes = (hooks.write)(&super::xref::without_overlays(s.doc()?), path).map_err(|e| bad("save", e))?;
+    if export {
+        s.state()?;
+        store(path, &bytes)?;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Err(e) = crate::revision::record(path, &bytes, s.doc().map(|d| d.entity_count()).unwrap_or(0)) {
+            s.echo(format!("Drawing revision not recorded: {e}"));
+        }
+        export_note(s, path);
+        return Ok(bytes.len());
+    }
     let n = commit_save(s, path, &bytes, store)?;
     #[cfg(not(target_arch = "wasm32"))]
     if is_drawing_file(path) {
@@ -514,6 +534,20 @@ pub struct SaveJob {
     /// The format of the file the drawing was opened from, for a first save into a project file.
     format_hint: Option<String>,
     lost: std::collections::BTreeMap<String, usize>,
+    /// A DXF or DWG written from a drawing that lives in a project file: a copy, the drawing stays where it is.
+    export: bool,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl SaveJob {
+    /// The file being written.
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+    /// See [`SaveJob`]'s `export`.
+    pub fn is_export(&self) -> bool {
+        self.export
+    }
 }
 
 /// Plan a save to `path`, or to the drawing's own file when `path` is `None`.
@@ -531,9 +565,10 @@ pub fn begin_save(s: &mut Session, path: Option<&str>) -> Result<SaveJob> {
     if let Ok(d) = s.doc_mut() {
         super::takeoff::sync_meta(d);
     }
+    let export = is_export(s, &path);
     let state = s.state()?;
     let format_hint = format_hint(state.path.as_deref());
-    Ok(SaveJob { doc: state.doc.clone(), index: s.active, lost: not_saved(&state.doc), path, format_hint })
+    Ok(SaveJob { doc: state.doc.clone(), index: s.active, lost: not_saved(&state.doc), path, format_hint, export })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -558,6 +593,13 @@ impl SaveJob {
 /// Mark the drawing saved under the job's path and report what the file could not keep.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn finish_save(s: &mut Session, job: &SaveJob, bytes: usize) -> Result<Value> {
+    if job.export {
+        export_note(s, &job.path);
+        let mut r = saved(&job.path, bytes);
+        r["exported"] = json!(true);
+        report_not_saved(s, &mut r, &job.lost);
+        return Ok(r);
+    }
     if is_drawing_file(&job.path) || is_container(&job.path) {
         let st = s.docs.get_mut(job.index).ok_or_else(|| bad("save", "the drawing was closed while it was being saved"))?;
         st.saved = job.doc.clone();
