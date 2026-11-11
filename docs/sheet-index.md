@@ -1,7 +1,6 @@
 # Structured sheet set: sheet index, revisions and issue sets
 
-Status: design (stage 1). The sections marked **built** are listed in [status.md](status.md) only
-after their tests pass; until then read everything here as planned. Related: the Compose and
+Status: engine commands and the WinUI **Sheet index** window are built; see "Verification" at the end for what was run. Planned items are marked as such. Related: the Compose and
 publish section of [levels-and-sheet-sets.md](levels-and-sheet-sets.md) (Compose Views, Master
 Layouts, Publisher Sets), [sheets.md](sheets.md) (title block, `sheet.index`),
 [revision-history.md](revision-history.md) (project revision register), [plot-styles.md](plot-styles.md).
@@ -28,7 +27,7 @@ SheetIndex {
   scheme:      { pattern, width, step, disciplines: [{code, name, start}] },
   sheets:      [Sheet]            // order = index order inside each discipline; disciplines keep scheme order
   issues:      [Issue],
-  tables:      { layoutName: [handle hex] }   // objects a drawn table owns, so a redraw replaces them
+  tables:      { "kind\layout": [handle hex] }   // objects a drawn table owns, so a redraw replaces them
 }
 Sheet {
   id (never reused), number, discipline, title, layout (layout name; "" until built),
@@ -67,7 +66,7 @@ manual number outside the sequence are reported and nothing changes.
 ### Revision
 
 A revision belongs to a sheet (`rev` code, date, description, by, optional issue name). The sheet's
-**current revision** is the last non-void entry and fills the `REV` title-block field. The
+**current revision** is the last entry and fills the `REV` title-block field. The
 **revision schedule** is the flat list over all sheets, newest first. The existing project-wide
 register (`revision.issue`, key `revisions`) is unchanged and stays the place for clouds and the
 per-drawing revision table; sheet revisions are separate commands (`sheet.revision.*`) because
@@ -79,7 +78,7 @@ per-drawing revision table; sheet revisions are separate commands (`sheet.revisi
 discipline, or an explicit list), and **freezes** them: it records number, title, layout, current
 revision and status per sheet, stamps each with a sheet revision for that issue (unless `stamp:false`),
 and sets their status to `issued`. The frozen list never changes afterwards, so a later renumber or
-title edit does not rewrite history. It also creates a Publisher Set named `Issue <name>` with those
+title edit does not rewrite history. It also creates a Publisher Set named `Issue <name>` (only for sheets that have a layout) with those
 layouts in index order. `issue.list` shows them. Deleting a sheet that is in an issue is allowed; the
 frozen row keeps its number and shows `layout missing` when published.
 
@@ -114,6 +113,10 @@ existing `write_fields` path, so any block with those tags works and tags a bloc
 project details through `sheet.titleblock` as before. The standard `AAD-TITLEBLOCK` has the nine
 original tags only; a title block with the extra tags is a later, separate piece (planned).
 
+The layout name is fixed when the layout is made (`<number> <title>`); a later renumber or title
+change updates the title block and the record, not the layout name, because publisher sets and
+issues refer to layouts by name.
+
 ## Publishing
 
 `sheetindex.publish {issue | discipline | sheets, format?, singleFile?, folder?, takeoff?}` resolves
@@ -142,7 +145,7 @@ change the drawing's project data and layouts.
 
 ## Interface (WinUI)
 
-The Navigator gets a **Sheet Index** tree (disciplines, sheets as `A-101  Ground Floor Plan  1:100  Rev B`),
+`apps/aad-winui/SheetIndexWindow.cs` (menu Architecture > Sheets > Sheet Index, or the commands `sheet.list`, `sheet.new`, `sheetindex.build`, `sheetindex.publish`, `issue.create`) is a window with a **Sheet Index** tree (disciplines, sheets as `A-101  Ground Floor Plan  1:100  Rev B`),
 buttons Add / Renumber / Move up / Move down / Edit fields / Build from levels / Draw table, an
 Issue list with New Issue, and a Publish dialog choosing an issue, a discipline or the whole index,
 PDF or DWG, one file or many. It calls the commands above only.
@@ -151,3 +154,17 @@ PDF or DWG, one file or many. It calls the commands above only.
 
 No proprietary title blocks or numbering standards are copied; the scheme is ours and editable. No
 automatic revision clouds (see `revision.clouds`). No live fields in the drawn table.
+
+## Verification
+
+Run: `cargo test -p aad-engine --test sheet_index --test sheet_index_publish` (14 + 2 tests: numbering,
+renumber/move, build from levels and compose views and a master, missing views, title-block fill,
+revisions, issues frozen across renumbering, drawn table and redraw, key round trip and undo, damaged
+stored data, about 50 hostile parameter cases, the 1000-sheet cap, publish by issue and by discipline
+with fake plot and DWG hooks); `dotnet build` of `Aad.WinUi.csproj` (0 warnings).
+Not run: the WinUI window was compiled but not opened, so tree drag-to-reorder, the buttons and the
+publish dialog were not clicked; real PDF and DWG output through this path was not produced (the tests
+use fake writers); `sheetindex.build` was not tried on a large drawing.
+Planned: a title block with CHECKED, APPROVED, DISCIPLINE, STATUS and ISSUE attributes; section and
+elevation sources once view spaces exist (`view_sources` in `sheetindex.rs` is the single hook);
+renaming a layout when its sheet is renumbered; deleting an issue set.

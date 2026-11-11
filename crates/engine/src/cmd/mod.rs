@@ -66,6 +66,7 @@ mod scriptcmd;
 mod selectmore;
 mod settings;
 mod sheet;
+pub(crate) mod sheetindex;
 pub(crate) mod sheetset;
 pub mod sheetstd;
 pub mod smartblock;
@@ -284,6 +285,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(aicards::specs());
         v.extend(levels::specs());
         v.extend(sheetset::specs());
+        v.extend(sheetindex::specs());
         v.extend(sheetstd::specs());
         v.extend(wizard::specs());
         v.extend(exchange::specs());
