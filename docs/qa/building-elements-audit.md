@@ -30,13 +30,13 @@ checked in the code or by running a command, not taken from another document.
 3. **The kind list has no services or circulation.** There is no pipe, fitting, fixture, cable, light or socket
    kind, and no stair, roof, railing or furnishing. Pipes and fittings (added 2026-11-07) therefore cannot be
    classified except as `other`.
-4. **Two taxonomies.** MynaMod (MynaMod) has 16 IFC classes in `bim/taxonomy.py`, including stair, roof, railing,
+4. **Two taxonomies.** Myna3D (Myna3D) has 16 IFC classes in `bim/taxonomy.py`, including stair, roof, railing,
    member, plate and furnishing, and an IFC4 exporter (`bim/ifc4.py`). MynaCAD has 12 kinds, including footing,
-   plaster, paint, flooring and grill, which MynaMod lacks. Nothing keeps the two lists in step.
+   plaster, paint, flooring and grill, which Myna3D lacks. Nothing keeps the two lists in step.
 5. **The note is silent on smart blocks and names a type that is not the plan.** "Parametric types beyond
    `osas.wall` (`osas.column`, etc.)" is listed as not in this release, but columns, beams and footings now exist
    as smart blocks (`rcc.*`, `struct.*`). `osas.wall` is still the only `param` component type.
-6. **MynaMod still points at ShilpiDB.** `docs/developer/bim-shilpidb.md` and `bim/shilpi_client.py`,
+6. **Myna3D still points at ShilpiDB.** `docs/developer/bim-shilpidb.md` and `bim/shilpi_client.py`,
    `bim/shilpi_ifc.py` describe the retired ShilpiDB server; the project file replaced it.
 
 ## 3. Page layouts and print blocks: what holds
@@ -78,5 +78,5 @@ checked in the code or by running a command, not taken from another document.
 3. Fix the `printblock.rs` module comment (4.4).
 4. Classify toolbar symbols on insert, with the default kind and IFC class in each smart block definition, and
    stamp the electrical and plumbing rows (2.1, 2.2). This is the change that makes the classification useful.
-5. Extend `BuildingKind` for services and circulation, and agree one list with MynaMod (2.3, 2.4).
-6. Update `building-elements.md` for smart blocks (2.5) and retire the ShilpiDB pages in MynaMod (2.6).
+5. Extend `BuildingKind` for services and circulation, and agree one list with Myna3D (2.3, 2.4).
+6. Update `building-elements.md` for smart blocks (2.5) and retire the ShilpiDB pages in Myna3D (2.6).

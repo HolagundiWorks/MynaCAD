@@ -3,7 +3,7 @@
 **Canonical copy:** MynaHub `docs/BRANDING.md`. MynaOps and MynaCAD keep an identical copy; **O-UI** (`o-ui`) holds the artwork, the colour files and the tool that draws them.
 **Names and terms:** [SUITE.md](SUITE.md). **Written 2026-11-01.**
 
-The idea: **one family name, Myna, and a use-case word for each app** (MynaHub, MynaCAD, MynaOps, MynaMod; decided 2026-11-10 after the user survey). Marks: the three-circle suite mark in each app's colour. The **orb** is the **AI agent's** mark and wears all four colours; it appears inside MynaOps and MynaCAD, where the agent works. **Myna** is the suite's name; since 2026-11-11 there is no app called Myna (the launcher was removed).
+The idea: **one family name, Myna, and a use-case word for each app** (MynaHub, MynaCAD, MynaOps, Myna3D; decided 2026-11-10 after the user survey). Marks: the three-circle suite mark in each app's colour. The **orb** is the **AI agent's** mark and wears all four colours; it appears inside MynaOps and MynaCAD, where the agent works. **Myna** is the suite's name; since 2026-11-11 there is no app called Myna (the launcher was removed).
 
 ## 1. The palette
 
@@ -13,7 +13,7 @@ From the suite's palette card. These four are the only brand colours.
 |---|---|---|---|---|
 | **Midnight** | `#102C80` | 16, 44, 128 | 88, 66, 0, 50 | **MynaCAD** |
 | **Ember** | `#B83E16` | 184, 62, 22 | 0, 66, 88, 28 | **MynaHub** |
-| **Grove** | `#166040` | 22, 96, 64 | 77, 0, 33, 62 | **MynaMod** (planned) |
+| **Grove** | `#166040` | 22, 96, 64 | 77, 0, 33, 62 | **Myna3D** (planned) |
 | **Dusk** | `#5630A0` | 86, 48, 160 | 46, 70, 0, 37 | **MynaOps** |
 
 Suite ink (text): **Midnight** `#102C80` on light surfaces; white `#FFFFFF` on dark. Supporting: Midnight soft `#3E56A0`; hover and pressed shades of each accent are in `o-ui` `Themes/SuiteAccent.*.xaml`; coloured *text* on white uses `SuiteAccentText` (per-app derivatives at ≥ 4.5 : 1 on white).
@@ -26,7 +26,7 @@ All four Light Conditions accents are dark enough for **white** text and glyphs.
 |---|---|---|
 | White on Midnight | 12.2 : 1 | text and glyph on MynaCAD's tile and dark surfaces |
 | White on Dusk | 9.1 : 1 | text and glyph on MynaOps's tile |
-| White on Grove | 7.6 : 1 | text and glyph on MynaMod's tile |
+| White on Grove | 7.6 : 1 | text and glyph on Myna3D's tile |
 | White on Ember | 5.6 : 1 | text and glyph on MynaHub's tile (AA ✓) |
 
 ### Themes (2026-11-10)
@@ -41,7 +41,7 @@ Every app has two themes, **pure white** and **pure black**, and the person choo
 |---|---|
 | MynaHub | Ember |
 | MynaCAD | Midnight |
-| MynaMod | Grove |
+| Myna3D | Grove |
 | MynaOps | Dusk |
 | the AI agent (in MynaOps and MynaCAD) | the orb (all four colours) |
 
@@ -53,7 +53,7 @@ Rules
 
 ### Files
 
-`o-ui/brand/<app>/` for `studio` (MynaHub), `draft` (MynaCAD), `form` (MynaMod), `coreop` (MynaOps), and `launcher` (the retired launcher; kept as artwork only): `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: MynaHub `native/Adms.Desktop/Assets` (its mark and the marks of the apps it opens; `myna.ico` was removed with the launcher), MynaOps `BBSDesktop/BBSApp/Assets`, MynaCAD `assets/app-icon`, MynaMod `scripts/startup/bl_app_templates_system/oform`.
+`o-ui/brand/<app>/` for `studio` (MynaHub), `draft` (MynaCAD), `form` (Myna3D), `coreop` (MynaOps), and `launcher` (the retired launcher; kept as artwork only): `mark.svg`, `mark.png` (1024), `mark-256.png`, `app.ico`, `lockup.png`, and `tiles/` (the Windows tile and store sizes). `brand/brand-sheet.png` is the one-page card. Redraw everything with `dotnet run --project tools/Brand -- brand` in `o-ui`. Apps copy what they need: MynaHub `native/Adms.Desktop/Assets` (its mark and the marks of the apps it opens; `myna.ico` was removed with the launcher), MynaOps `BBSDesktop/BBSApp/Assets`, MynaCAD `assets/app-icon`, Myna3D `scripts/startup/bl_app_templates_system/oform`.
 
 ## 3. The AI agent
 
@@ -75,13 +75,13 @@ The company file uses a plain icon, not the orb.
 
 | Use | Typeface | Source and licence |
 |---|---|---|
-| **The names of the apps and the suite** (MynaHub, MynaOps, MynaCAD, MynaMod, in tiles, headers, lockups) | **Apfel Grotezk** | Collletttivo, free (SIL Open Font Licence). Chosen on 2026-11-01 as the free grotesk; it replaces the commercial Studio Grotesk (demo personal-use only), which can be swapped in later by changing one constant in `O.Ui.SuiteFonts` |
+| **The names of the apps and the suite** (MynaHub, MynaOps, MynaCAD, Myna3D, in tiles, headers, lockups) | **Apfel Grotezk** | Collletttivo, free (SIL Open Font Licence). Chosen on 2026-11-01 as the free grotesk; it replaces the commercial Studio Grotesk (demo personal-use only), which can be swapped in later by changing one constant in `O.Ui.SuiteFonts` |
 | **Display text** (page and section titles, large numbers) | **Mazius Display** | Collletttivo, free (SIL Open Font Licence). Written "Maius Display" in the brief; taken to be this font |
 | Body text and controls | Segoe UI Variable | the Windows system font |
 
 The files (`ApfelGrotezk-Regular/Mittel/Fett.otf`, `MaziusDisplay-Regular/Bold.otf`, with their licence texts) are bundled in `o-ui` `O.Ui/Assets/Fonts` and copied beside every app that references O.Ui; `O.Ui.SuiteFonts.Names` and `.Display` load them from `Assets\Fonts`, else an installed font of the same name, else the fallbacks (Segoe UI Variable Display, Sitka Display). The brand sheet is drawn in Segoe UI.
 
-Rules: the user-visible names are MynaHub, MynaOps, MynaCAD and MynaMod (and Myna for the suite as a whole), spelled exactly that way, in the Names font; never in capitals; never AQC, AOS, AAD, ShilpiDB or OSAS in user text. Install folders and ticket ids keep the earlier names.
+Rules: the user-visible names are MynaHub, MynaOps, MynaCAD and Myna3D (and Myna for the suite as a whole), spelled exactly that way, in the Names font; never in capitals; never AQC, AOS, AAD, ShilpiDB or OSAS in user text. Install folders and ticket ids keep the earlier names.
 
 ## 5. Using the colours in the apps
 
@@ -99,9 +99,9 @@ Rules: the user-visible names are MynaHub, MynaOps, MynaCAD and MynaMod (and Myn
 | Accent colour files per app (`SuiteAccent.Orange / Mirage / Sea / Sand`, values updated to Light Conditions) | done |
 | `SuiteFonts` (Names, Display with fallbacks), `SuiteApp.Form` | done; the font files are not added |
 | AI orb — four-colour sphere from the design file (`o-ui/brand/ai/ai-orb.html`) | done |
-| Myna launcher: marks in tiles, MynaMod tile, Ember accent, animated AI orb | removed with the launcher (2026-11-11) |
+| Myna launcher: marks in tiles, Myna3D tile, Ember accent, animated AI orb | removed with the launcher (2026-11-11) |
 | MynaHub: marks and `app.ico` | done; its own pages take Ember from `SuiteAccent.Orange` automatically |
 | MynaOps: Dusk accent, tiles and `app.ico` | done |
 | MynaCAD: app icon files (`assets/app-icon`) | done; window chrome on the Midnight accent (2026-11-02) |
-| MynaMod | the mark and the colour exist; the app does not |
+| Myna3D | the mark and the colour exist; the app does not |
 | Windows installer and shortcut icons from the new `.ico` | follow the next installer build |
