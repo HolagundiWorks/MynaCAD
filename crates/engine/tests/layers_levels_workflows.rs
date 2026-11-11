@@ -100,6 +100,16 @@ fn a_drawing_without_levels_can_send_geometry_to_a_new_level() {
 }
 
 #[test]
+fn a_missing_level_in_a_drawing_without_levels_says_how_to_create_one() {
+    let mut s = Session::new();
+    let h = line_on(&mut s, "A-WALL", 0.0);
+    let e = s.execute("level.moveto", &json!({ "level": "Ground", "handles": [h] })).unwrap_err().to_string();
+    assert!(e.contains("no level"), "{e}");
+    assert!(e.contains("create: true"), "the message should name the fix, not end in an empty list: {e}");
+    assert!(!e.trim_end().ends_with("the levels are"), "{e}");
+}
+
+#[test]
 fn geometry_can_be_sent_from_a_level_that_is_not_active() {
     let mut s = Session::new();
     let h = line_on(&mut s, "A-WALL", 0.0);

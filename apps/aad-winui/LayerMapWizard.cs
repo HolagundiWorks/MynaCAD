@@ -149,7 +149,10 @@ internal static class LayerMapWizard
         var review = DialogLayout.Action("Review", primary: true);
         var apply = DialogLayout.Action("Apply", primary: true);
         var back = DialogLayout.Action("Back");
+        // A XAML element has one parent: each page needs its own Cancel button (adding one button to both action
+        // rows threw when the wizard opened and took the shell down).
         var cancel = DialogLayout.Action("Cancel");
+        var cancelReview = DialogLayout.Action("Cancel");
         var keepAll = DialogLayout.Action("Keep my layers");
         var purge = new CheckBox { Content = "Remove the layers left empty (their names stay on record)", IsChecked = true };
         Density.Name(purge, "Remove the layers left empty");
@@ -168,7 +171,7 @@ internal static class LayerMapWizard
         check.Children.Add(DialogLayout.Heading("Review the changes"));
         check.Children.Add(reviewList);
         check.Children.Add(purge);
-        check.Children.Add(DialogLayout.ActionRow(apply, back, cancel));
+        check.Children.Add(DialogLayout.ActionRow(apply, back, cancelReview));
 
         var page = new Grid { RequestedTheme = theme };
         page.Children.Add(pick);
@@ -257,6 +260,7 @@ internal static class LayerMapWizard
             window.Close();
         };
         cancel.Click += (_, _) => window.Close();
+        cancelReview.Click += (_, _) => window.Close();
         return window;
     }
 }
