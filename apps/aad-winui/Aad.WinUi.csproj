@@ -39,7 +39,7 @@
     <ProjectReference Include="$(_ODraftGraphProj)" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\o-ui\O.Ui\O.Ui.csproj" />
+    <ProjectReference Include="..\..\..\MynaUI\O.Ui\O.Ui.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />

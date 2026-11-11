@@ -1,6 +1,6 @@
 # Myna suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`MynaOps`) and MynaCAD (`MynaCAD`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11. The checkout folders were renamed on 2026-11-11: `O-DRAFT-main` to `MynaCAD`, `O-COREOP` to `MynaOps`, `O-STUDIO` to `MynaHub` (the git remotes keep their old names; the sibling folders `MynaHub`, `MynaOps`, `MynaCAD`, `o-ui` must stay beside each other).
+**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`MynaOps`) and MynaCAD (`MynaCAD`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11. The checkout folders were renamed on 2026-11-11: `O-DRAFT-main` to `MynaCAD`, `O-COREOP` to `MynaOps`, `O-STUDIO` to `MynaHub`, `o-ui` to `MynaUI` (the git remotes keep their old names; the sibling folders `MynaHub`, `MynaOps`, `MynaCAD`, `MynaUI` must stay beside each other).
 
 ## 0. What changed on 2026-11-11 (owner decisions)
 
@@ -21,8 +21,10 @@
 | **MynaHub** | Office and projects; **suite hub**: company file, sign-in, users, roles, approvals and revisions, Import from MynaOps (CSV); the one app synced to the cloud (Neon). No AI | Ember `#B83E16` | `MynaHub` | `O-Studio.exe`, `aos`, `AOSENC1`, `office-core`, `office.dll` |
 | **MynaOps** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling; **hosts the AI agent** for itself and MynaCAD; **project database manager** | Dusk `#5630A0` | `MynaOps` | `O-CoreOp.exe`, `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
 | **MynaCAD** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools; a client of the AI agent | Midnight `#102C80` | `MynaCAD` | `ODraft.WinUi.exe`, `aad-*` crates, `aad-host.dll`, `aad-winui` |
-| **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
-| **Myna3D**, **O-Dynamo** | Planned, not built | Myna3D: Grove `#166040` | `Myna3D` (folder; was `O-Form`), `O-Dynamo` | |
+| **MynaUI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `MynaUI`; **Hcw.Ui / hcw-ui retired**) | | `MynaUI` | `O.Ui` |
+| **Myna3D** | Planned, not built | Grove `#166040` | `Myna3D` (folder; was `O-Form`) | |
+
+The former **O-Dynamo** companion (a Dynamo fork) is not part of the suite: MynaCAD builds and runs without it. Its optional hook (the `ODRAFT_GRAPH` build flag when a sibling `O-Dynamo` folder exists, and the `ODraft.Dynamo` pipe behind `companion.*`) stays in MynaCAD, inactive. Its GitHub repository was left as it is.
 
 **Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `ai\auth.token`, `ai\host.json`, `ai\host.log`). MynaHub starts MynaOps, MynaCAD and Myna3D by path and passes **nothing** in their environment (no company, no ticket, no project, no AI settings). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (MynaHub).
 
@@ -170,15 +172,15 @@ Saving: MynaCAD writes the drawing back into the `.osp` only when its bytes chan
 | MynaCAD UI, commands, performance | MynaCAD `docs/UI_UX.md`, `docs/PERFORMANCE.md` |
 | MynaOps shell, model, take-off | MynaOps `docs/WINUI-SHELL.md`, `docs/LOCAL-MODEL.md`, `docs/PROJECT-FILE.md` |
 | Neon sync | MynaHub `docs/CLOUD-NEON.md` |
-| Shared WinUI chrome | O-UI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |
+| Shared WinUI chrome | MynaUI (`O.Ui`) — `SuiteBottomStatusBar`, `SuiteAskBar`, theme tokens |
 | ShilpiDB → `.osp` migration (historical) | Each app repo `docs/MIGRATION-OSP.md` — do not use **ShilpiDB** in new user text |
 | Installers | **Two installers:** `MynaHub-Setup-<version>.exe` (MynaHub; removes the Myna launcher of a 1.7.x install) and `MynaOpsCAD-Setup-<version>.exe` (MynaOps and MynaCAD together, because they depend on each other; bundles the llama runtime; optional model download task). Build with MynaHub `installer/suite/build-all.ps1`, see `installer/suite/README.md`. Per-app: MynaHub `docs/packaging.md`, MynaOps `docs/PACKAGING.md`, MynaCAD `docs/RELEASE_AND_PACKAGING.md` |
 | Testing | MynaHub `docs/testing/README.md` (plans for every app, the connected apps, bug process and log) |
-| Brand (palette, the mark, the AI agent orb, type) | MynaHub `docs/BRANDING.md`; artwork and colour files in `o-ui` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
+| Brand (palette, the mark, the AI agent orb, type) | MynaHub `docs/BRANDING.md`; artwork and colour files in `MynaUI` (`brand/`, `Themes/SuiteAccent.*.xaml`) |
 
 ## 7. Conventions
 
-- **App names (user-visible):** MynaHub, MynaOps, MynaCAD, Myna3D, and O-UI. Spell exactly. Myna3D is planned. **Myna** alone is the suite's name, never an app (the launcher that was called Myna was removed on 2026-11-11). Do not use the earlier names O-Studio, O-CoreOp, O-Draft, O-Form, Kivo, Tren, Falcon or Finch in menus, dialogs, or user-facing sentences. Those names remain ticket ids, install folders, and executable names.
+- **App names (user-visible):** MynaHub, MynaOps, MynaCAD, Myna3D, and MynaUI. Spell exactly. Myna3D is planned. **Myna** alone is the suite's name, never an app (the launcher that was called Myna was removed on 2026-11-11). Do not use the earlier names O-Studio, O-CoreOp, O-Draft, O-Form, Kivo, Tren, Falcon or Finch in menus, dialogs, or user-facing sentences. Those names remain ticket ids, install folders, and executable names.
 - **Suite hub:** say **MynaHub**. Do not say OSAS or "the OSAS suite" in user text.
 - **AI:** say **the AI agent** (the model is **Olmo 3 7B**). It runs in **MynaOps**; MynaCAD uses it; MynaHub has none.
 - **Never in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, **OSAS** as a product name, **OSAS.exe**, "the launcher", "AI Core". Legacy exe names (`AQCCore.exe`, `aad-host.dll`) belong in migration or identifier columns only.

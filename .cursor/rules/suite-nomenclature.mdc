@@ -11,4 +11,4 @@ alwaysApply: true
 - **Files:** company file = `.osas`; project file = `.osp`. **Take-off** is hyphenated in user text.
 - **Assistant:** say **the AI agent** (model **Olmo 3 7B**) on loopback `:8742`. **MynaOps** hosts it (its window, or headless `O-CoreOp.exe --ai-host` that MynaCAD starts); **MynaCAD** is a client; **MynaHub has no AI**.
 - **Not in user text:** AQC, AOS, AAD, AADT, ShilpiDB, Tulu, OSAS as a product name, OSAS.exe, and the old app names O-Studio, O-CoreOp, O-Draft, O-Form. Wire constants stay: `%LOCALAPPDATA%\O-Studio\`, `OSTUDIO_*` env vars, ticket ids `O-Studio` / `O-CoreOp` / `O-Draft` / `O-Form`, install folders and executable names, format ids `osp` and `studio-active-project` — see `docs/SUITE.md` and `Office.Shared.SuiteWire`.
-- **O-UI:** shared WinUI library in repo **`o-ui`**, assembly **`O.Ui`** (`Hcw.Ui` / hcw-ui retired). Not a user-visible app name.
+- **MynaUI:** shared WinUI library in repo **`MynaUI`**, assembly **`O.Ui`** (`Hcw.Ui` / hcw-ui retired). Not a user-visible app name.

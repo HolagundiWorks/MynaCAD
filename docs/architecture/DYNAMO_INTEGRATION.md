@@ -1,6 +1,7 @@
 # Dynamo companion integration
 
 Parametric wall take-off graphs use `aad-param` (`param.*`); see [parametric.md](../parametric.md).
+> **Status (2026-11-11):** O-Dynamo is no longer part of the suite. This page describes the optional pipe hook that stays in MynaCAD, inactive; see [SUITE.md](../SUITE.md).
 Graph evaluation for companion drafting uses a separate **O-Dynamo** host (`ODynamo.Host`) over a
 local named pipe.
 Enhancement roadmap: [dynamo-enhancement-plan.md](../dynamo-enhancement-plan.md).
