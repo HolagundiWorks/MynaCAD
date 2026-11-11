@@ -33,6 +33,7 @@ mod protect;
 pub mod recovery;
 pub mod revision;
 pub mod sample;
+pub mod sectionguide;
 pub mod select;
 pub mod snap;
 pub mod spatial;

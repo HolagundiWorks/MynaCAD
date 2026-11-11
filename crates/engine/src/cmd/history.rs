@@ -251,6 +251,11 @@ fn resolve_scope(d: &Drawing, p: &Value) -> Result<(Value, Vec<StoreRef>)> {
         "current" | "" => match d.target() {
             Some(EditTarget::Sheet(s, l)) => Ok((json!({"type": "sheet", "sheetSet": s.0, "level": l.0}), vec![StoreRef::Sheet(s, l)])),
             Some(EditTarget::Level(l)) => Ok((json!({"type": "level", "level": l.0}), vec![StoreRef::Level(l)])),
+            // Milestones do not cover sections and elevations yet: a view saves the level it sits on.
+            Some(EditTarget::View(_)) => {
+                let l = d.active_level.unwrap_or(LevelId(0));
+                Ok((json!({"type": "level", "level": l.0}), vec![StoreRef::Level(l)]))
+            }
             None => Ok((json!({"type": "level", "level": 0}), vec![StoreRef::Level(LevelId(0))])),
         },
         other => Err(bad("history.save", format!("scope must be current, level, sheet or project, not `{other}`"))),

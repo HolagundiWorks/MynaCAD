@@ -28,6 +28,8 @@ pub enum EditTarget {
     Level(LevelId),
     /// A sheet set's annotation on a level.
     Sheet(SheetSetId, LevelId),
+    /// A section or elevation's own objects.
+    View(crate::SpaceId),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -131,6 +133,9 @@ impl Drawing {
     /// Whose objects are in `model` now (`None` while the drawing has no explicit levels).
     pub fn target(&self) -> Option<EditTarget> {
         let level = self.active_level?;
+        if let Some(v) = self.active_view {
+            return Some(EditTarget::View(v));
+        }
         Some(match self.active_sheet {
             Some(s) => EditTarget::Sheet(s, level),
             None => EditTarget::Level(level),
@@ -156,15 +161,23 @@ impl Drawing {
         match t {
             EditTarget::Level(id) => self.levels.iter_mut().find(|l| l.id == id).map(|l| &mut l.entities),
             EditTarget::Sheet(set, level) => self.sheet_sets.iter_mut().find(|s| s.id == set).map(|s| s.annotations.entry(level).or_default()),
+            EditTarget::View(id) => self.view_spaces.iter_mut().find(|v| v.rec.id == id).map(|v| &mut v.entities),
         }
     }
 
     /// Make `to` the store being edited: the current store goes back to its slot and the new one
     /// becomes `model`.
     pub fn switch_target(&mut self, to: EditTarget) -> Result<()> {
-        let (set, level) = match to {
-            EditTarget::Level(l) => (None, l),
-            EditTarget::Sheet(s, l) => (Some(s), l),
+        // A view keeps the active level (the one to return to); it never has a sheet view.
+        let (set, level, view) = match to {
+            EditTarget::Level(l) => (None, l, None),
+            EditTarget::Sheet(s, l) => (Some(s), l, None),
+            EditTarget::View(v) => {
+                if self.view_space(v).is_none() {
+                    return Err(invalid("no such view"));
+                }
+                (None, self.active_level.ok_or_else(|| invalid("the drawing has no explicit levels yet"))?, Some(v))
+            }
         };
         if self.level(level).is_none() {
             return Err(invalid("no such level"));
@@ -188,6 +201,7 @@ impl Drawing {
         self.model = self.slot_mut(to).map(std::mem::take).unwrap_or_default();
         self.active_level = Some(level);
         self.active_sheet = set;
+        self.active_view = view;
         Ok(())
     }
 

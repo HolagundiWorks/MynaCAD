@@ -239,7 +239,8 @@ fn run_activate(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("level.activate", "close the block editor first"));
     }
     show_model_tab(s)?;
-    if s.doc()?.active_level != Some(id) {
+    // A section or elevation tab counts as another place: choosing the level leaves it.
+    if s.doc()?.active_level != Some(id) || s.doc()?.active_view.is_some() {
         s.doc_mut()?.switch_level(id)?;
         s.set_selection(Vec::new());
         // The floor selector follows the level when the level is one of the project's floors.

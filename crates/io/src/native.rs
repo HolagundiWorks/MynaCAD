@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use aad_doc::{
     Block, ComposeView, DimStyle, Drawing, Entity, EntityStore, Group, Header, Layer, LayerState, Layout, Level, LevelId, Linetype, MLeaderStyle,
-    MasterLayout, NamedView, PlotStyleTable, PublisherSet, SheetSet, SheetSetId, TableStyle, TextStyle, Trace, Ucs,
+    MasterLayout, NamedView, PlotStyleTable, PublisherSet, SheetSet, SheetSetId, TableStyle, TextStyle, Trace, Ucs, ViewRecord, ViewSpace,
 };
 use aad_geom::Vec2;
 use rayon::prelude::*;
@@ -134,6 +134,9 @@ struct HeadOut<'a> {
     sheet_sets: Vec<SheetOut<'a>>,
     active_sheet: Option<SheetSetId>,
     sheet_seed: u32,
+    /// Sections and elevations (additive: older files have none); view `n` owns the store `view:<id>`.
+    view_spaces: Vec<&'a ViewRecord>,
+    active_view: Option<aad_doc::SpaceId>,
     /// Layout records in order; layout `n` owns the store `layout:<n>`.
     layouts: &'a [Layout],
     views: &'a [NamedView],
@@ -176,6 +179,10 @@ struct HeadIn {
     active_sheet: Option<SheetSetId>,
     #[serde(default)]
     sheet_seed: u32,
+    #[serde(default)]
+    view_spaces: Vec<ViewRecord>,
+    #[serde(default)]
+    active_view: Option<aad_doc::SpaceId>,
     #[serde(default)]
     layouts: Vec<Layout>,
     #[serde(default)]
@@ -281,6 +288,9 @@ fn side_stores(d: &Drawing) -> Vec<(String, &EntityStore)> {
         for (level, store) in &s.annotations {
             out.push((format!("sheet:{}:{}", s.id.0, level.0), store));
         }
+    }
+    for v in &d.view_spaces {
+        out.push((format!("view:{}", v.rec.id.0), &v.entities));
     }
     out
 }
@@ -425,6 +435,8 @@ fn head_of(d: &Drawing) -> HeadOut<'_> {
             .collect(),
         active_sheet: d.active_sheet,
         sheet_seed: d.sheet_seed,
+        view_spaces: d.view_spaces.iter().map(|v| &v.rec).collect(),
+        active_view: d.active_view,
         layouts: &d.layouts,
         views: &d.views,
         ucss: &d.ucss,
@@ -469,6 +481,11 @@ pub fn decode<B: AsRef<[u8]> + Sync>(parts: &[B]) -> Result<Drawing> {
     d.level_seed = head.level_seed;
     d.active_sheet = head.active_sheet;
     d.sheet_seed = head.sheet_seed;
+    d.active_view = head.active_view;
+    if head.view_spaces.len() > aad_doc::MAX_VIEW_SPACES || head.view_spaces.iter().any(|v| !v.is_valid()) {
+        return Err(err("native model: a section or elevation record is not valid"));
+    }
+    d.view_spaces = head.view_spaces.into_iter().map(|rec| ViewSpace { rec, entities: EntityStore::new() }).collect();
     d.layouts = head.layouts;
     d.views = head.views;
     d.ucss = head.ucss;
@@ -538,6 +555,13 @@ pub fn decode<B: AsRef<[u8]> + Sync>(parts: &[B]) -> Result<Drawing> {
                     .find(|s| s.id.0 == set)
                     .and_then(|s| s.annotations.get_mut(&LevelId(level)))
                     .ok_or_else(|| err("native model: entities for a sheet set that is not in the file"))?
+            } else if let Some(id) = key.strip_prefix("view:").and_then(|v| v.parse::<u32>().ok()) {
+                &mut d
+                    .view_spaces
+                    .iter_mut()
+                    .find(|v| v.rec.id.0 == id)
+                    .ok_or_else(|| err("native model: entities for a view that is not in the file"))?
+                    .entities
             } else {
                 return Err(err(format!("native model: unknown store `{key}`")));
             };
@@ -623,6 +647,36 @@ mod tests {
         let back = decode(&parts.iter().map(|p| p.bytes.as_slice()).collect::<Vec<_>>()).unwrap();
         assert_eq!(back, d);
         assert_eq!(back.sheet_sets.first().unwrap().annotations.len(), 2);
+    }
+
+    #[test]
+    fn views_keep_their_records_and_stores_and_the_active_view() {
+        let mut d = sample();
+        d.materialize_levels("Ground", 0.0, 3000.0).unwrap();
+        let g = d.active_level.unwrap();
+        let v = d
+            .add_view_space(
+                aad_doc::ViewKind::Elevation,
+                "North",
+                g,
+                (Vec2::new(0.0, 0.0), Vec2::new(8000.0, 0.0)),
+                aad_doc::ViewLook::Right,
+                4000.0,
+                Some(Handle(77)),
+            )
+            .unwrap();
+        d.enter_view_space(v).unwrap();
+        d.model.push(line(8001, 4.0));
+        let parts = encode(&d).unwrap();
+        let back = decode(&parts.iter().map(|p| p.bytes.as_slice()).collect::<Vec<_>>()).unwrap();
+        assert_eq!(back, d);
+        assert_eq!(back.active_view, Some(v));
+        assert_eq!(back.view_spaces.first().unwrap().rec.marker, Some(Handle(77)));
+        // A damaged record is refused, not half-loaded.
+        let mut bad = d.clone();
+        bad.view_spaces[0].rec.depth = f64::NAN;
+        let parts = encode(&bad).unwrap();
+        assert!(decode(&parts.iter().map(|p| p.bytes.as_slice()).collect::<Vec<_>>()).is_err());
     }
 
     #[test]

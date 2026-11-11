@@ -17,6 +17,7 @@ mod plotstyle;
 mod sheetset;
 mod store;
 mod tables;
+mod viewspace;
 
 use std::collections::BTreeMap;
 
@@ -32,6 +33,7 @@ pub use plotstyle::*;
 pub use sheetset::*;
 pub use store::EntityStore;
 pub use tables::*;
+pub use viewspace::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DocError {
@@ -79,6 +81,10 @@ pub struct Drawing {
     pub active_sheet: Option<SheetSetId>,
     /// Last sheet-set id handed out (ids are never reused).
     pub sheet_seed: u32,
+    /// Sections and elevations (view spaces); ids share `level_seed`.
+    pub view_spaces: Vec<ViewSpace>,
+    /// The view space being edited; `None` unless a section or elevation tab is active.
+    pub active_view: Option<SpaceId>,
     pub layouts: Vec<Layout>,
     pub views: Vec<NamedView>,
     pub ucss: Vec<Ucs>,
@@ -145,6 +151,8 @@ impl Drawing {
             sheet_sets: Vec::new(),
             active_sheet: None,
             sheet_seed: 0,
+            view_spaces: Vec::new(),
+            active_view: None,
             layouts: vec![Layout::new("Layout1", 1), Layout::new("Layout2", 2)],
             views: Vec::new(),
             ucss: Vec::new(),

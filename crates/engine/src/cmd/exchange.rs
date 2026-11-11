@@ -37,6 +37,8 @@ pub(super) fn plain(d: &Drawing, store: EntityStore) -> Drawing {
     w.model = store;
     w.levels.clear();
     w.active_level = None;
+    w.view_spaces.clear();
+    w.active_view = None;
     w.sheet_sets.clear();
     w.active_sheet = None;
     w.layouts.clear();
