@@ -108,6 +108,11 @@
                         <Button x:Name="LevelsButton" Click="OnLevelsWindow" AutomationProperties.Name="Levels: names, elevations and heights" ToolTipService.ToolTip="Levels: names, elevations and heights" Style="{StaticResource IconButtonStyle}">
                             <local:DrawnIcon Kind="gear" />
                         </Button>
+                        <Rectangle x:Name="ViewTabsSeparator" Width="1" Fill="{ThemeResource BorderDefaultBrush}" Margin="{StaticResource PaddingMd}" Visibility="Collapsed" />
+                        <StackPanel x:Name="ViewTabs" Orientation="Horizontal" Spacing="{StaticResource SpaceXs}" AutomationProperties.Name="Section and elevation tabs" />
+                        <Button x:Name="AddViewButton" Click="OnAddView" AutomationProperties.Name="New section or elevation" ToolTipService.ToolTip="New section or elevation" Style="{StaticResource IconButtonStyle}">
+                            <local:DrawnIcon Kind="plus" />
+                        </Button>
                         <TextBlock x:Name="LevelHint" VerticalAlignment="Center" Margin="{StaticResource PaddingMd}" FontSize="{StaticResource FontSizeCaption}" Opacity="0.7" AutomationProperties.Name="Level mode" />
                     </StackPanel>
                 </ScrollViewer>
