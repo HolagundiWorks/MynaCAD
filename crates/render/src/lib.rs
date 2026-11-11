@@ -36,7 +36,7 @@ pub use glyph_mesh::{GlyphFillKey, MAX_GLYPH_MESH_ENTRIES, filled_tris, glyph_me
 pub use hatch::{MAX_HATCH_PATTERN_ENTRIES, hatch_pattern_cache_clear, hatch_pattern_cache_len, pattern_lines};
 pub use paper::{PAPER_SIZES, PaperSize, Sheet, paper_size, sheet};
 pub use scene::{EntInfo, Scene, SceneTile, build_scene, build_scene_if_viable, flatten_scene, rebuild_scene, scene_tile_edge, scene_tiling_viable};
-pub use trace::{build_with_traces, stylize_trace};
+pub use trace::{build_with_guides, build_with_traces, stylize_trace};
 
 /// Handle carried by model-space geometry drawn inside a paper-space viewport (it belongs to no
 /// single paper-space entity, so selection highlighting never matches it).

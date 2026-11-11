@@ -218,6 +218,7 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
     let mut layouts = vec!["Model".to_string()];
     let mut levels: Vec<serde_json::Value> = Vec::new();
     let mut sheet_sets: Vec<serde_json::Value> = Vec::new();
+    let mut views: Vec<serde_json::Value> = Vec::new();
     if let Ok(state) = session.state() {
         // Level tabs (empty while the drawing has one implicit level). `traced` marks a level
         // that is shown under or over the one being edited.
@@ -283,6 +284,23 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
             .take(aad_engine::doc::MAX_SHEET_SETS)
             .map(|s| serde_json::json!({ "id": s.id.0, "name": s.name, "active": state.doc.active_sheet == Some(s.id), "layerPrefix": s.layer_prefix, "layers": s.layers, "blocks": s.blocks }))
             .collect();
+        // Sections and elevations: the second tab group, between the levels and the layouts.
+        views = state
+            .doc
+            .view_spaces
+            .iter()
+            .take(aad_engine::doc::MAX_VIEW_SPACES)
+            .map(|v| {
+                serde_json::json!({
+                    "id": v.rec.id.0,
+                    "name": v.rec.name,
+                    "kind": v.rec.kind.label(),
+                    "active": state.doc.active_view == Some(v.rec.id),
+                    "level": v.rec.level.0,
+                    "hasMarker": v.rec.marker.is_some(),
+                })
+            })
+            .collect();
     }
     let cursor = cursor.filter(|point| point.is_finite());
     serde_json::json!({
@@ -292,6 +310,7 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
         "layouts": layouts,
         "levels": levels,
         "sheetSets": sheet_sets,
+        "views": views,
         "designMode": session.state().map(|s| s.doc.active_sheet.is_none()).unwrap_or(true),
         "documents": documents,
         "layer": layer,

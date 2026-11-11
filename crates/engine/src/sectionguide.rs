@@ -153,6 +153,9 @@ fn attr(i: &Insert, tag: &str) -> Option<f64> {
 
 /// Part of a segment with 0 <= depth <= `max` (depth is the second coordinate), as projected points.
 fn clip_band(a: (f64, f64), b: (f64, f64), max: f64) -> Option<((f64, f64), (f64, f64))> {
+    if ![a.0, a.1, b.0, b.1, max].iter().all(|v| v.is_finite()) {
+        return None;
+    }
     let (mut t0, mut t1) = (0.0f64, 1.0f64);
     let dz = b.1 - a.1;
     for (p, q) in [(a.1, dz), (max - a.1, -dz)] {
@@ -368,8 +371,63 @@ fn elevation_level(
     }
 }
 
-/// Convert a guide back to plan coordinates is not defined (a guide is a projection); view
-/// coordinates are what the view space draws in.
+/// The guides as transient line objects (never inserted into the drawing) for drawing and snapping.
+/// Layer `0`, handle 0.
+pub fn guide_entities(g: &Guides) -> Vec<Entity> {
+    g.lines.iter().map(|l| Entity::new(aad_doc::Handle(0), EntityKind::Line(aad_doc::Line { a: l.a.to3(0.0), b: l.b.to3(0.0) }))).collect()
+}
+
+type CacheEntry = (u64, std::sync::Arc<Vec<Entity>>, Vec<aad_doc::EntityStore>);
+static CACHE: std::sync::Mutex<Option<CacheEntry>> = std::sync::Mutex::new(None);
+
+/// What the guides of `rec` depend on: the record, the covered levels (elevation, height and the
+/// identity and size of their stores) and the drawing unit. The stores are returned so the cache
+/// can keep them alive (an identity cannot be reused while the entry lives).
+fn fingerprint(d: &Drawing, rec: &ViewRecord) -> (u64, Vec<aad_doc::EntityStore>) {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    rec.id.hash(&mut h);
+    (rec.kind as u8).hash(&mut h);
+    (rec.look as u8).hash(&mut h);
+    for v in [rec.line.0.x, rec.line.0.y, rec.line.1.x, rec.line.1.y, rec.depth, metres_per_unit(d)] {
+        v.to_bits().hash(&mut h);
+    }
+    rec.covers.hash(&mut h);
+    let mut kept = Vec::new();
+    for l in d.levels.iter().filter(|l| rec.covers.as_ref().is_none_or(|c| c.contains(&l.id))) {
+        l.id.hash(&mut h);
+        l.elevation.to_bits().hash(&mut h);
+        l.height.to_bits().hash(&mut h);
+        if let Some(st) = d.level_store(l.id) {
+            st.len().hash(&mut h);
+            for (id, _) in st.chunk_slices() {
+                id.hash(&mut h);
+            }
+            kept.push(st.clone());
+        }
+    }
+    (h.finish(), kept)
+}
+
+/// The guides of the view being edited as drawable, snappable line objects; empty when no view
+/// is open. Recomputed only when the record or a covered level changed (the stores are compared
+/// by identity, the same rule as level traces), so a pan or a snap query costs one hash.
+pub fn active_guides(d: &Drawing) -> std::sync::Arc<Vec<Entity>> {
+    let Some(v) = d.active_view_ref() else { return std::sync::Arc::new(Vec::new()) };
+    let (key, kept) = fingerprint(d, &v.rec);
+    if let Ok(c) = CACHE.lock()
+        && let Some((k, ents, _)) = c.as_ref()
+        && *k == key
+    {
+        return ents.clone();
+    }
+    let ents = std::sync::Arc::new(guide_entities(&compute(d, &v.rec)));
+    if let Ok(mut c) = CACHE.lock() {
+        *c = Some((key, ents.clone(), kept));
+    }
+    ents
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -494,6 +552,40 @@ mod tests {
         let g = compute(&d, &rec(ViewKind::Section, 100.0));
         assert!(g.lines.len() <= MAX_GUIDES);
         assert!(g.lines.iter().filter(|l| l.kind == GuideKind::Wall).count() > 1000, "within the line");
+    }
+
+    #[test]
+    fn active_guides_are_cached_until_a_covered_level_changes() {
+        let mut d = two_floor_drawing();
+        wall(&mut d, Vec2::new(4000.0, -3000.0), Vec2::new(4000.0, 3000.0));
+        let g = d.levels[0].id;
+        let id = d.add_view_space(ViewKind::Section, "S", g, (Vec2::new(0.0, 0.0), Vec2::new(10_000.0, 0.0)), ViewLook::Left, 5000.0, None).unwrap();
+        assert!(active_guides(&d).is_empty(), "no view open, no guides");
+        d.enter_view_space(id).unwrap();
+        let a = active_guides(&d);
+        assert!(!a.is_empty());
+        assert!(std::sync::Arc::ptr_eq(&a, &active_guides(&d)), "unchanged: the same list");
+        // Drafting in the view does not touch a covered level.
+        d.model.push(Entity::new(aad_doc::Handle(900), EntityKind::Line(aad_doc::Line { a: Vec3::new(0.0, 0.0, 0.0), b: Vec3::new(1.0, 1.0, 0.0) })));
+        assert!(std::sync::Arc::ptr_eq(&a, &active_guides(&d)));
+        // Changing a level's elevation recomputes.
+        d.levels[1].elevation += 10.0;
+        assert!(!std::sync::Arc::ptr_eq(&a, &active_guides(&d)));
+    }
+
+    #[test]
+    fn guides_are_drawn_faded_under_the_view_and_are_never_selectable() {
+        let mut d = two_floor_drawing();
+        wall(&mut d, Vec2::new(4000.0, -3000.0), Vec2::new(4000.0, 3000.0));
+        let g = d.levels[0].id;
+        let id = d.add_view_space(ViewKind::Section, "S", g, (Vec2::new(0.0, 0.0), Vec2::new(10_000.0, 0.0)), ViewLook::Left, 5000.0, None).unwrap();
+        d.enter_view_space(id).unwrap();
+        let guides = active_guides(&d);
+        let opts = aad_render::Options::default();
+        let plain = aad_render::build(&d, &aad_doc::Space::Model, &opts);
+        let with = aad_render::build_with_guides(&d, &opts, aad_color::Rgb(0, 0, 0), &guides);
+        assert!(with.prims.len() > plain.prims.len());
+        assert!(with.prims.iter().all(|p| p.handle == aad_render::VIEWPORT_CONTENT), "only guides here: none can be picked");
     }
 
     #[test]

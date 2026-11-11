@@ -253,7 +253,7 @@ impl FrameCache {
 /// Whether model space is drawn with other stores around it: traces of the level being edited,
 /// or the level shown for reference in a sheet view.
 fn has_traces(doc: &Drawing) -> bool {
-    doc.active_sheet.is_some() || doc.active_level_ref().is_some_and(|l| !l.traces.is_empty())
+    doc.active_sheet.is_some() || doc.active_view.is_some() || doc.active_level_ref().is_some_and(|l| !l.traces.is_empty())
 }
 
 /// Opt-in timing for the host: with `AAD_PERF=1` a redraw that takes over 20 ms is appended to `%LOCALAPPDATA%\OSAS\odraft-perf.log` with the time of each step.
@@ -327,7 +327,8 @@ fn not_saved_list(result: &Value) -> String {
 /// Like [`build_list`], also returning a Phase C [`aad_render::Scene`] when model-space tiling applies.
 fn build_list_and_scene(doc: &Drawing, space: &Space, opts: &aad_render::Options, background: Rgb) -> (DisplayList, Option<aad_render::Scene>) {
     if matches!(space, Space::Model) && has_traces(doc) {
-        return (aad_render::build_with_traces(doc, opts, background), None);
+        let guides = aad_engine::sectionguide::active_guides(doc);
+        return (aad_render::build_with_guides(doc, opts, background, &guides), None);
     }
     if matches!(space, Space::Model)
         && let Some(scene) = aad_render::build_scene_if_viable(doc, opts)
@@ -3468,6 +3469,39 @@ mod tests {
         host.execute("level.trace", &json!({ "remove": "Ground" })).unwrap();
         host.mesh().unwrap();
         assert_eq!(traced(&host), Some(0));
+    }
+
+    #[test]
+    fn the_status_bar_data_lists_section_and_elevation_tabs_and_the_open_view_draws_guides() {
+        let mut host = Host::create(false);
+        let views = |h: &Host| -> Vec<Value> {
+            let v: Value = serde_json::from_str(&crate::chrome::chrome_json(&h.session, None, "")).unwrap();
+            v["views"].as_array().cloned().unwrap_or_default()
+        };
+        assert!(views(&host).is_empty());
+        host.execute("drawing.units", &json!({ "units": "mm", "mode": "metadata" })).unwrap();
+        host.execute("wall.draw", &json!({ "points": [[4115.0, -3000.0], [4115.0, 3000.0]], "thickness": 230.0 })).unwrap();
+        host.execute("level.new", &json!({ "name": "First", "first": "Ground", "elevation": 3150.0, "height": 3000.0 })).unwrap();
+        host.execute("level.set", &json!({ "level": "Ground", "height": 3000.0 })).unwrap();
+        host.execute("section.new", &json!({ "p1": [0.0, 0.0], "p2": [10000.0, 0.0], "depth": 5000.0 })).unwrap();
+        host.execute("elevation.new", &json!({ "at": [4000.0, -6000.0], "angle": 90.0 })).unwrap();
+        let tabs = views(&host);
+        assert_eq!(
+            tabs.iter().map(|t| (t["name"].as_str().unwrap(), t["kind"].as_str().unwrap())).collect::<Vec<_>>(),
+            [("Section A-A", "section"), ("Elevation A", "elevation")]
+        );
+        assert!(tabs.iter().all(|t| t["active"] == false));
+        // The plan has the wall; the open section has nothing drafted, yet draws its guides.
+        host.mesh().unwrap();
+        let plan = host.frame.list.as_ref().map(|l| l.prims.len()).unwrap_or(0);
+        host.execute("view.activate", &json!({ "view": "Section A-A" })).unwrap();
+        host.mesh().unwrap();
+        assert_eq!(views(&host).iter().filter(|t| t["active"] == true).count(), 1);
+        let open = host.frame.list.as_ref().map(|l| l.prims.len()).unwrap_or(0);
+        assert!(open > 0, "the guides are drawn in an empty view (plan had {plan})");
+        host.execute("level.activate", &json!({ "level": "Ground" })).unwrap();
+        host.mesh().unwrap();
+        assert!(views(&host).iter().all(|t| t["active"] == false));
     }
 
     #[test]

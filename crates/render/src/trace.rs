@@ -70,14 +70,40 @@ fn reference_list(d: &Drawing, opts: &Options, background: Rgb) -> Option<Displa
     Some(list)
 }
 
+/// How faded the projection guides of a section or elevation are (percent).
+pub const GUIDE_FADE: u8 = 55;
+
 /// Model space of the edit target with what is shown around it: Below traces, the level shown
 /// for reference (in a sheet view), the edit target, Above traces. A drawing without levels, or
 /// a level without traces or sheet view, gives exactly [`build`].
 pub fn build_with_traces(d: &Drawing, opts: &Options, background: Rgb) -> DisplayList {
+    build_with_guides(d, opts, background, &[])
+}
+
+/// Like [`build_with_traces`], also drawing `guides` (transient read-only line objects such as the
+/// projection guides of a section) and, while a section or elevation is open, the other view
+/// spaces it traces, all faded under the edit target. They carry [`VIEWPORT_CONTENT`] as their
+/// handle, so they are never selected.
+pub fn build_with_guides(d: &Drawing, opts: &Options, background: Rgb, guides: &[aad_doc::Entity]) -> DisplayList {
     let main = build(d, &Space::Model, opts);
     let reference = reference_list(d, opts, background);
-    let traces = d.active_level_ref().map(|l| l.traces.as_slice()).unwrap_or(&[]);
-    if reference.is_none() && traces.is_empty() {
+    let traces: &[Trace] = if d.active_view.is_some() { &[] } else { d.active_level_ref().map(|l| l.traces.as_slice()).unwrap_or(&[]) };
+    let mut under: Vec<DisplayList> = Vec::new();
+    if let Some(v) = d.active_view_ref() {
+        for id in &v.rec.traces {
+            if let Some(store) = d.view_store(*id) {
+                let mut l = build_entities(d, store.iter().map(|e| e.as_ref()).filter(|e| d.is_visible(e)), opts);
+                stylize_trace(&mut l, 60, false, background);
+                under.push(l);
+            }
+        }
+    }
+    if !guides.is_empty() {
+        let mut l = build_entities(d, guides.iter(), opts);
+        stylize_trace(&mut l, GUIDE_FADE, false, background);
+        under.push(l);
+    }
+    if reference.is_none() && traces.is_empty() && under.is_empty() {
         return main;
     }
     let (mut below, mut above) = (Vec::new(), Vec::new());
@@ -87,7 +113,7 @@ pub fn build_with_traces(d: &Drawing, opts: &Options, background: Rgb) -> Displa
         }
     }
     let mut out = DisplayList::default();
-    for l in below {
+    for l in under.into_iter().chain(below) {
         append(&mut out, l);
     }
     if let Some(r) = reference {

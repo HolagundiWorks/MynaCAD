@@ -271,3 +271,24 @@ fn levelmarks_and_traces_between_views() {
     let t = s.execute("view.trace", &json!({"view": "Section A-A"})).unwrap();
     assert!(t["traces"].as_array().unwrap().is_empty(), "deleting a view removes traces of it");
 }
+
+#[test]
+fn guides_snap_in_an_open_view_but_cannot_be_picked_and_are_not_saved() {
+    use aad_engine::doc::Space;
+    use aad_engine::geom::Vec2;
+    use aad_engine::snap::{mode, osnap};
+    let mut s = project();
+    section(&mut s);
+    // Not open yet: the plan's wall faces are not on offer in model space of Ground at the view's coordinates.
+    s.execute("view.activate", &json!({"view": "Section A-A"})).unwrap();
+    // The cut wall face is a vertical guide at x = 4000 from 0 to 3000: its top end is a snap point.
+    let hit = osnap(s.doc().unwrap(), &Space::Model, Vec2::new(10005.0, 3003.0), 20.0, mode::END, None, false);
+    assert_eq!(hit.map(|h| h.point), Some(Vec2::new(10000.0, 3000.0)), "the end of the top-of-storey guide");
+    assert!(aad_engine::select::pick(s.doc().unwrap(), &Space::Model, Vec2::new(4000.0, 1500.0), 20.0).is_none(), "guides are not selectable");
+    assert_eq!(s.doc().unwrap().model.len(), 0, "and are not objects of the view");
+    let bytes = aad_io::write(s.doc().unwrap(), "g.dxf").unwrap();
+    assert_eq!(aad_io::read(&bytes, "g.dxf").unwrap().entity_count(), s.doc().unwrap().entity_count(), "never saved");
+    s.execute("level.activate", &json!({"level": "Ground"})).unwrap();
+    let off = osnap(s.doc().unwrap(), &Space::Model, Vec2::new(10005.0, 3003.0), 20.0, mode::END, None, false);
+    assert_ne!(off.map(|h| h.point), Some(Vec2::new(10000.0, 3000.0)), "off again once the view is left");
+}
