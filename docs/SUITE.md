@@ -1,6 +1,6 @@
 # Myna suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`O-COREOP`) and MynaCAD (`O-DRAFT-main`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11.
+**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`O-COREOP`) and MynaCAD (`MynaCAD`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11. The MynaCAD checkout folder was renamed from `O-DRAFT-main` to `MynaCAD` on 2026-11-11 (the git remote keeps its old name; sibling folders `O-STUDIO`, `O-COREOP`, `o-ui` must stay beside it).
 
 ## 0. What changed on 2026-11-11 (owner decisions)
 
@@ -20,7 +20,7 @@
 |---|---|---|---|---|
 | **MynaHub** | Office and projects; **suite hub**: company file, sign-in, users, roles, approvals and revisions, Import from MynaOps (CSV); the one app synced to the cloud (Neon). No AI | Ember `#B83E16` | `O-STUDIO` | `O-Studio.exe`, `aos`, `AOSENC1`, `office-core`, `office.dll` |
 | **MynaOps** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling; **hosts the AI agent** for itself and MynaCAD; **project database manager** | Dusk `#5630A0` | `O-COREOP` | `O-CoreOp.exe`, `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
-| **MynaCAD** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools; a client of the AI agent | Midnight `#102C80` | `O-DRAFT-main` | `ODraft.WinUi.exe`, `aad-*` crates, `aad-host.dll`, `aad-winui` |
+| **MynaCAD** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools; a client of the AI agent | Midnight `#102C80` | `MynaCAD` | `ODraft.WinUi.exe`, `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **O-UI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `o-ui`; **Hcw.Ui / hcw-ui retired**) | | `o-ui` | `O.Ui` |
 | **MynaMod**, **O-Dynamo** | Planned, not built | MynaMod: Grove `#166040` | `O-Form`, `O-Dynamo` | |
 
