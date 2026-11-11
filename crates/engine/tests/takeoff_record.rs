@@ -602,3 +602,76 @@ fn multi_floor_drawing_warns_when_level_is_not_passed() {
     }
     cleanup(&path);
 }
+
+/// The rows of one kind in a project file's take-off.
+fn rows_of(path: &std::path::Path, k: u64) -> Vec<Value> {
+    read(path).into_iter().filter(|(id, _)| kind(*id) == k).map(|(_, (p, _))| p).collect()
+}
+
+#[test]
+fn a_drawing_without_levels_writes_no_level_ids() {
+    let mut s = session("mm");
+    scene(&mut s);
+    assert!(!s.doc().unwrap().has_levels());
+    let path = temp("nolevelids");
+    record(&mut s, &path);
+    let db = read(&path);
+    let header = &db.get(&header_id(&db)).unwrap().0;
+    assert_eq!(header["levels"][0]["name"], "Ground");
+    assert!(header["levels"][0].get("id").is_none() && header["levels"][0].get("elevation_mm").is_none(), "{header}");
+    for k in [3, 4, 5, 6, 7, 8] {
+        for row in rows_of(&path, k) {
+            assert!(row.get("level_id").is_none(), "kind {k}: {row}");
+            assert_eq!(row["level"], "Ground", "the name stays on every row: {row}");
+        }
+    }
+    cleanup(&path);
+}
+
+#[test]
+fn named_levels_give_every_row_a_level_id_and_the_header_lists_the_levels() {
+    let mut s = session("mm");
+    scene(&mut s);
+    let made = s.execute("level.new", &json!({"name": "First", "elevation": 3.15, "height": 3.0, "first": "Ground"})).unwrap();
+    let first_id = made["id"].as_u64().unwrap();
+    let ground_id = made["levels"].as_array().unwrap().iter().find(|l| l["name"] == "Ground").unwrap()["id"].as_u64().unwrap();
+    assert_ne!(first_id, ground_id);
+
+    // Active level (Ground): every row carries its id.
+    let path = temp("levelids");
+    record(&mut s, &path);
+    let db = read(&path);
+    let header = &db.get(&header_id(&db)).unwrap().0;
+    let levels = header["levels"].as_array().unwrap();
+    let ground = levels.iter().find(|l| l["name"] == "Ground").unwrap();
+    let first = levels.iter().find(|l| l["name"] == "First").unwrap();
+    assert_eq!(ground["id"], json!(ground_id));
+    assert_eq!(ground["height_mm"].as_f64(), Some(3150.0), "the existing floor-to-floor `height_mm` keeps its meaning");
+    assert_eq!(ground["slab_thickness_mm"].as_f64(), Some(150.0), "the existing floor fields are kept");
+    assert_eq!((first["id"].as_u64(), first["elevation_mm"].as_f64(), first["height_mm"].as_f64()), (Some(first_id), Some(3150.0), Some(3000.0)));
+    let mut seen = 0;
+    for k in [3, 4, 5, 6, 7, 8] {
+        for row in rows_of(&path, k) {
+            assert_eq!(row["level"], "Ground", "{row}");
+            assert_eq!(row["level_id"], json!(ground_id), "kind {k}: {row}");
+            seen += 1;
+        }
+    }
+    assert!(seen >= 6, "walls, openings, column, lintel, room and slab were checked: {seen}");
+
+    // A stamped `level` that is another named level gets that level's id; a name no level has gets none.
+    let again = temp("levelids-first");
+    s.execute("takeoff.record", &json!({"path": again.to_string_lossy(), "annotate": false, "level": "First"})).unwrap();
+    for row in rows_of(&again, 3) {
+        assert_eq!((row["level"].as_str(), row["level_id"].as_u64()), (Some("First"), Some(first_id)), "{row}");
+    }
+    let unknown = temp("levelids-unknown");
+    s.execute("takeoff.record", &json!({"path": unknown.to_string_lossy(), "annotate": false, "level": "Terrace"})).unwrap();
+    for row in rows_of(&unknown, 3) {
+        assert_eq!(row["level"], "Terrace");
+        assert!(row.get("level_id").is_none(), "{row}");
+    }
+    cleanup(&path);
+    cleanup(&again);
+    cleanup(&unknown);
+}

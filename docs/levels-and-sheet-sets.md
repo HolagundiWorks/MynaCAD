@@ -4,7 +4,7 @@
 above the drawing, a Trace settings form, and a Navigator for Compose Views, Master Layouts and Publisher Sets
 (see "WinUI shell status" and "Compose and publish").** The annotation tool strip, a viewport Level /
 Sheet set / Traces editor, a Show-for dropdown in the Layer manager, the new-drawing option, the
-take-off level ids and the egui tabs are not built. Only what the "Phase N status" sections list is
+egui tabs are not built. Only what the "Phase N status" sections list is
 implemented and tested.
 Sections and elevations (Phase 6) are a design only and are not built: see "Sections and elevations".
 
@@ -268,7 +268,7 @@ rendering work). Each phase ends with `cargo xtask ci` and its named tests, and 
 | 2. Traces and level tabs | `level.trace`, trace rendering and cache, snaps, bottom level tabs and Trace flyout, `chrome_json` data | Three 25 000-object traces keep pans cached; a tab switch rebuilds no unchanged mesh |
 | 3. Sheet sets | `SheetSet`, per-level annotation stores, `sheetset.*`, `protect.rs` reference locking, annotation layer prefixes, drawing tabs above the drawing, annotation tool strip | In a sheet view a level object edit is refused naming the level; annotation of two sets on one level does not collide; presets create their spaces |
 | 4. Layouts and exchange | `Viewport.level/sheet_set/traces`, `viewport.set`, layout tessellation per store, `AAD_VP` data, Export for exchange | One layout holds the Electrical and Plumbing First-floor plans side by side and round-trips |
-| 5. Migration and polish (engine done; take-off ids, shell UI and egui not) | `level.import/export`, `project.merge`, take-off level ids, layer "Show for" filter, shortcuts, new-drawing and `project.setup` flow, egui tabs, memory load test (20 levels) | A floor project merges into one file in one undo step; docs and status complete |
+| 5. Migration and polish (engine done; shell UI and egui not) | `level.import/export`, `project.merge`, take-off level ids, layer "Show for" filter, shortcuts, new-drawing and `project.setup` flow, egui tabs, memory load test (20 levels) | A floor project merges into one file in one undo step; docs and status complete |
 | 6. Sections and elevations (planned, not built) | View spaces, linked markers, `section.*` / `view.*` commands, projection guides (`sectionguide.rs`), view tab group, per-space annotation, `ODRAFT$VIEW$` round-trip | See [Done when](#done-when) above |
 
 ## Phase 1 status: done, with the limits below
@@ -589,3 +589,7 @@ dragging (`level.set order` exists); the rail cannot create or rename sheet sets
   preselected). Verified: engine test `a_layer_map_puts_a_files_objects_on_standard_layers_and_the_plan_suggests_them`,
   host test `the_layers_panel_can_list_only_the_layers_used_on_the_active_level`; the shell window and
   the Blocks-panel smart-block list compile but were not clicked through.
+
+## Take-off level ids (engine implemented)
+
+`bridge.export` and `takeoff.record` stamp `level_id` (the level's stable id) on every row whose `level` names one of the drawing's named levels, and add `id` and `elevation_mm` to each entry of the header `levels` list (levels with no project floor of that name are appended). A drawing without named levels writes neither, so existing files and readers are unchanged. The take-off still measures the active level only; record another level with `level`. Optional and additive: no version bump. Contract: MynaOps `docs/bridge/LEVEL-IDS.md`. Tests: `crates/engine/tests/takeoff_record.rs` (`a_drawing_without_levels_writes_no_level_ids`, `named_levels_give_every_row_a_level_id_and_the_header_lists_the_levels`). Not built: recording all levels in one run, WinUI level picker for the take-off.
