@@ -6,7 +6,7 @@ above the drawing, a Trace settings form, and a Navigator for Compose Views, Mas
 Sheet set / Traces editor, a Show-for dropdown in the Layer manager, the new-drawing option, the
 take-off level ids and the egui tabs are not built. Only what the "Phase N status" sections list is
 implemented and tested.
-Sections and elevations (Phase 6): the engine side (data model, files, commands, guide maths) is built; guide drawing and the WinUI tab group are not. See "Phase 6 status".
+Sections and elevations (Phase 6): the engine side and the shell tab group are built; the shell tabs were compiled and started but not seen or clicked by hand. See "Phase 6 status".
 
 Summary: keep one drawing file, but split its single model space into named **levels** (each its own
 entity store at a shared origin) and add **sheet sets** (discipline annotation spaces that reference
@@ -56,7 +56,7 @@ Persistence: project key `compose1` (synced on DXF/DWG write in `levels_file::to
 Annotation lives in its own store, not on layers, so two disciplines never collide, take-off never
 counts annotation, and deleting a sheet set never touches the design.
 
-## Phase 6 status: engine built, guide drawing and shell tabs not
+## Phase 6 status: built; the shell tabs were not clicked through
 
 Implemented and tested (`crates/doc/src/viewspace.rs` unit tests, `crates/io` `levels_file` and `native` tests, `crates/engine/src/sectionguide.rs` unit tests, `crates/engine/tests/views.rs`):
 
@@ -73,7 +73,7 @@ Not built:
 - **WinUI**: no Section / Elevation tab group, create-from-tool or right-click menu; `chrome_json` has no `views`.
 - Per-view sheet-set annotation, `Viewport.level` generalised to a view, the marker head's sheet field, milestone history of views (a view saves its level), `ODRAFT$VIEW$` in other CAD programs beyond being a block, egui.
 - `section.levelmarks` uses `level.mark`, so its marks also appear in `level.schedule`.
-- Not run: DWG round trip, `cargo xtask ci` (fmt, clippy `-D warnings` and the tests above were run for `aad-doc`, `aad-io`, `aad-engine`), WinUI build.
+- Not run: DWG round trip, `cargo xtask ci` (fmt and clippy `-D warnings` and the tests above were run for `aad-doc`, `aad-io`, `aad-engine`, `aad-render` and `aad-host`).
 
 ## Sections and elevations (Phase 6 design)
 
@@ -288,7 +288,7 @@ rendering work). Each phase ends with `cargo xtask ci` and its named tests, and 
 | 3. Sheet sets | `SheetSet`, per-level annotation stores, `sheetset.*`, `protect.rs` reference locking, annotation layer prefixes, drawing tabs above the drawing, annotation tool strip | In a sheet view a level object edit is refused naming the level; annotation of two sets on one level does not collide; presets create their spaces |
 | 4. Layouts and exchange | `Viewport.level/sheet_set/traces`, `viewport.set`, layout tessellation per store, `AAD_VP` data, Export for exchange | One layout holds the Electrical and Plumbing First-floor plans side by side and round-trips |
 | 5. Migration and polish (engine done; take-off ids, shell UI and egui not) | `level.import/export`, `project.merge`, take-off level ids, layer "Show for" filter, shortcuts, new-drawing and `project.setup` flow, egui tabs, memory load test (20 levels) | A floor project merges into one file in one undo step; docs and status complete |
-| 6. Sections and elevations (engine built; guide drawing and shell tabs not) | View spaces, linked markers, `section.*` / `view.*` commands, projection guides (`sectionguide.rs`), view tab group, per-space annotation, `ODRAFT$VIEW$` round-trip | See [Done when](#done-when) above |
+| 6. Sections and elevations (engine, guide drawing and shell tab group built; shell not clicked through) | View spaces, linked markers, `section.*` / `view.*` commands, projection guides (`sectionguide.rs`), view tab group, per-space annotation, `ODRAFT$VIEW$` round-trip | See [Done when](#done-when) above |
 
 ## Phase 1 status: done, with the limits below
 
