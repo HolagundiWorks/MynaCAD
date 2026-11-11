@@ -14,7 +14,7 @@
 
 ## 1. Names
 
-**Myna** is the name of the suite (the family of apps); there is no app called Myna any more. Each app is Myna plus a use-case word: **MynaHub** is the hub (company, people, approvals; was Kivo); **MynaCAD** is drafting (was Tren); **MynaOps** is operations: quantities, estimates and billing (was Falcon); **Myna3D** is 3D / BIM modelling (planned; was Finch). The older bird names (Kivo, Tren, Falcon, Finch) and the O- names are retired from user text. Identifiers keep their old spellings (install folders, exe names, `OSTUDIO_*`, the stored origin stamp `"app":"Tren"`). Marks: the three-circle suite mark on each app's colour; the orb is the AI agent's mark inside MynaOps and MynaCAD (MynaHub `docs/BRANDING.md`).
+**Myna** is the name of the suite (the family of apps); there is no app called Myna any more. Each app is Myna plus a use-case word: **MynaHub** is the hub (company, people, approvals; was Kivo); **MynaCAD** is drafting (was Tren); **MynaOps** is operations: quantities, estimates and billing (was Falcon); **Myna3D** (was MynaMod, earlier Finch) is 3D / BIM modelling (planned; was Finch). The older bird names (Kivo, Tren, Falcon, Finch) and the O- names are retired from user text. Identifiers keep their old spellings (install folders, exe names, `OSTUDIO_*`, the stored origin stamp `"app":"Tren"`). Marks: the three-circle suite mark on each app's colour; the orb is the AI agent's mark inside MynaOps and MynaCAD (MynaHub `docs/BRANDING.md`).
 
 | Name to use | What it is | Colour | Repository / folder | Identifiers that keep old spellings |
 |---|---|---|---|---|
@@ -22,7 +22,7 @@
 | **MynaOps** | Quantities, estimates, rate books, bar bending, BOQ, purchase orders, running bills, scheduling; **hosts the AI agent** for itself and MynaCAD; **project database manager** | Dusk `#5630A0` | `MynaOps` | `O-CoreOp.exe`, `AQCCore.exe` (old), `bbs_engine.dll`, `.bbsproj` (old project files), `aqc` |
 | **MynaCAD** | 2D CAD: drafting, DXF/DWG, layouts, plotting, architecture tools and the take-off tools; a client of the AI agent | Midnight `#102C80` | `MynaCAD` | `ODraft.WinUi.exe`, `aad-*` crates, `aad-host.dll`, `aad-winui` |
 | **MynaUI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `MynaUI`; **Hcw.Ui / hcw-ui retired**) | | `MynaUI` | `O.Ui` |
-| **Myna3D** | Planned, not built | Grove `#166040` | `Myna3D` (folder; was `O-Form`) | |
+| **Myna3D** | Planned, not built | Grove `#166040` | `Myna3D` (folder; was `O-Form`; the app was named MynaMod before 2026-11-11) | |
 
 The former **O-Dynamo** companion (a Dynamo fork) is not part of the suite: MynaCAD builds and runs without it. Its optional hook (the `ODRAFT_GRAPH` build flag when a sibling `O-Dynamo` folder exists, and the `ODraft.Dynamo` pipe behind `companion.*`) stays in MynaCAD, inactive. Its GitHub repository was left as it is.
 
