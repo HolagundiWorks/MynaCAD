@@ -618,6 +618,11 @@ public sealed partial class MainWindow : Window
             OpenComposeNavigator();
             return;
         }
+        if (id is "sheet.list" or "sheet.new" or "sheetindex.build" or "sheetindex.publish" or "issue.create")
+        {
+            OpenSheetIndexWindow();
+            return;
+        }
         if (id == "notes.manager")
         {
             OpenNotesManager();
