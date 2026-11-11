@@ -171,7 +171,7 @@ undo restores them, including the active tab. `Viewport` gains `level?` (none = 
 |---|---|
 | `level.list`, `level.new {name, elevation?, height?, after?, copyFrom?}`, `level.set`, `level.delete` (refused for the last level or one in use, unless `force`), `level.activate` | Manage levels; each is one undo step |
 | `level.trace {level?, add?, remove?, fade?, colour?, order?, snap?, layers?}` | Edit a level's traces |
-| `level.copyto {levels\|level, selection?, from?, to?}`, `level.moveto {level, from?, to?}` | Copy or move the selection between levels. Optional `from` / `to` shift geometry so a picked origin matches a point (default `to`: site origin) |
+| `level.copyto {levels\|level, selection?, from?, to?}`, `level.moveto {level, create?, handles?, from?, to?}` | Copy or move the selection between levels. Optional `from` / `to` shift geometry so a picked origin matches a point (default `to`: site origin). `level.moveto` moves objects from whichever level they are on, keeps every property and mark, and with `create` makes the target level first (a drawing with one implicit level gets its first explicit level named after the current floor, else `Level 1`); a refused call creates no level |
 | `sheetset.list / .new / .set / .delete`, `sheetset.activate {set\|null}` | Manage sheet sets; `new` with `preset` creates the five standard ones |
 | `viewport.set` (extended) `{handle, level?, sheetSet?, traces?}` | What a layout viewport shows |
 | `level.import / level.export {path, level}`; `level.fromfloors`; `project.merge` | Migration (below) |
@@ -299,13 +299,13 @@ Implemented and tested (`crates/engine/tests/levels.rs`, unit tests in `crates/i
 - Drawing-wide readers and writers cover every level: `PURGE` blocks, layer in-use check, layer
   rename and merge, `AUDIT` (finds and repairs errors on any level), data-extraction and compare
   walks, text styles in use, unsaved-object counts, `Drawing::entity` and `entity_count`.
-- Objects on an inactive level are found but not editable from the active one: `move` and similar
-  skip them.
+- Objects on an inactive level are found, and `Drawing::modify_entity` (so the take-off, classification
+  and layer-mapper code) can change them by handle; the interactive edit commands (`move` and similar)
+  still act on the active level and the selection only.
 
 Classification of the other `.model` users: they stay on the **active level** by design, because
 the result belongs to the level being worked on. These are `assoc` (dimension associativity),
-permit title-block tools (`bplt`), legends, the door and window schedule block counts, layer
-mapping (`layermap`, which keeps a source layer that another level still uses), the WinUI Blocks panel reference list, and the finite-value check. A later
+permit title-block tools (`bplt`), legends, the door and window schedule block counts, the WinUI Blocks panel reference list, and the finite-value check. A later
 phase may widen the schedule and legend to the whole building.
 
 Damaged or incomplete level data opens the file as one level (or a level empty) and the command line says so (`levelsNote`, set by the reader and reported by `open`).
@@ -527,7 +527,13 @@ carried `levels`, `sheetSets` and `designMode`):
   **matching point** (Enter = site origin). Geometry is shifted by `to − from` before the move
   or copy so floors drawn offset in one plan can share the site base. Enter on the origin prompt
   keeps world coordinates (previous behaviour). Architecture → Levels → Move / Copy to Level
-  opens the same form. Offered only in design view with two or more levels.
+  opens the same form. In a drawing with one implicit level (a file just opened) the canvas menu
+  offers *Move to New Level...* and the Move to Level button asks for a level name: the level is
+  created on the way (`create`). Offered only in design view.
+- **Level tab state**: a layout (paper space) on screen means no level tab is drawn as the current
+  one; clicking a level tab, or `level.activate` / `level.next` / `level.prev`, returns to the Model
+  tab showing that level, so the highlighted tab, the displayed drawing and the active level agree.
+  Verified by engine tests; the tab bar was not clicked through after this change.
 - **Drawing tabs** above the drawing: Design, then one tab per sheet set. A click runs
   `sheetset.activate`. With no sheet sets, a `+ Drawing tabs` tab runs `sheetset.standard` (the
   Project Wizard and `level.setup` also make tabs). Right-click opens Save milestone, Page layout
@@ -573,8 +579,10 @@ dragging (`level.set order` exists); the rail cannot create or rename sheet sets
   with their tab. Quantity take-off layers (`MEASURE-*`) and `0`/`Defpoints` get no suggestion. Short
   words match whole words only (`MEASURE-DEDUCT` is not a duct).
 - `level.import {..., layerMap: {"AR_WALLS": "A-WALL", ...}}` puts the objects of those layers on the
-  target layers (created with the standard look when they are standard layers) and does not bring the
-  emptied source layers along; layers not listed keep their names. Blocks' inner layers are not remapped.
+  target layers (built-in layers only, created with the standard look) and does not bring the
+  emptied source layers along; the file's layer names are kept in the project entry `layerSources`;
+  layers not listed keep their names. Blocks' inner layers are not remapped. The layer mapper for
+  opened and imported drawings is in [layer-mapper.md](layer-mapper.md).
 - `layer.scope` has a third mode, `level`: the Layers panel lists only the layers used on the active
   level (the current layer stays listed).
 - WinUI: Import Level opens a file picker, then a window with one row per layer (suggested target

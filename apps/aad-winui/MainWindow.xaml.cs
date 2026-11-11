@@ -1974,6 +1974,7 @@ public sealed partial class MainWindow : Window
     private async Task<bool> OpenFileAsync(string path)
     {
         var name = System.IO.Path.GetFileName(path);
+        var opened = false;
         ShowBusy("Opening?", string.IsNullOrEmpty(name) ? path : name);
         try
         {
@@ -2005,12 +2006,18 @@ public sealed partial class MainWindow : Window
             {
                 RememberDrawing(path);
                 ShowOpenInfo();
+                opened = true;
             }
             return state == 2;
         }
         finally
         {
             HideBusy();
+            if (opened)
+            {
+                // A drawing that did not come from MynaCAD and has layers of its own gets the layer mapping wizard.
+                DispatcherQueue.TryEnqueue(() => OfferLayerMapper());
+            }
         }
     }
 
@@ -2203,9 +2210,32 @@ public sealed partial class MainWindow : Window
         else
         {
             HideWelcome();
+            // The layers the file brought in that are not built in go through the layer mapping wizard.
+            var brought = ImportedLayers(Native.ReadResult(_host));
+            if (brought.Count > 0)
+            {
+                DispatcherQueue.TryEnqueue(() => OfferLayerMapper(brought));
+            }
         }
         _docKey = "";
         AfterCommand();
+    }
+
+    private static List<string> ImportedLayers(string resultJson)
+    {
+        var names = new List<string>();
+        try
+        {
+            using var doc = JsonDocument.Parse(resultJson);
+            if (doc.RootElement.TryGetProperty("layers", out var layers) && layers.ValueKind == JsonValueKind.Array)
+            {
+                names.AddRange(layers.EnumerateArray().Select(l => l.GetString() ?? "").Where(n => n.Length > 0));
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        return names;
     }
 
     private void OnAppClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
@@ -4006,6 +4036,7 @@ public sealed partial class MainWindow : Window
         }
         _layersWindow = new LayerManagerWindow(Content as FrameworkElement, _host, AfterCommand);
         _layersWindow.MergeRequested += (_, _) => DockLayersToSidePanel();
+        _layersWindow.MapRequested += (_, names) => MapLayersToBuiltIn(names);
         _layersWindow.AppWindow.Closing += (_, args) =>
         {
             if (_shellClosing)
@@ -5806,6 +5837,11 @@ public sealed partial class MainWindow : Window
         {
             _ucs = id != "hide";
             Native.SetUcs(_host, _ucs);
+            return;
+        }
+        if (run == "levelmovenew")
+        {
+            AskLevelForSelection();
             return;
         }
         if (run is "levelmove" or "levelcopy")

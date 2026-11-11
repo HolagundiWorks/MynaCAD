@@ -237,7 +237,10 @@ fn layer_map(p: &Value) -> Result<BTreeMap<String, String>> {
                 if from.len() > 255 {
                     return Err(bad("level.import", "`layerMap` has a layer name that is too long"));
                 }
-                out.insert(from.trim().to_ascii_uppercase(), to.to_string());
+                let dest = super::layermap::dest_of(to).ok_or_else(|| {
+                    bad("level.import", format!("`layerMap`: \"{to}\" is not a built-in layer; only built-in layers are destinations"))
+                })?;
+                out.insert(from.trim().to_ascii_uppercase(), dest.name.to_string());
             }
         }
         Some(_) => return Err(bad("level.import", "`layerMap` is an object of file layer -> layer (at most 4096)")),
@@ -252,17 +255,26 @@ fn remap_layers(d: &mut Drawing, src: &mut Drawing, map: &BTreeMap<String, Strin
         return;
     }
     let mut out = EntityStore::new();
+    // The file's layer names stay on record (project entry `layerSources`): source, destination, count.
+    let mut moved: BTreeMap<(String, String), usize> = BTreeMap::new();
     for e in src.model.iter() {
         let mut c = (**e).clone();
-        if let Some(to) = map.get(&c.common.layer.to_ascii_uppercase()) {
+        if let Some(to) = map.get(&c.common.layer.to_ascii_uppercase())
+            && !to.eq_ignore_ascii_case(&c.common.layer)
+        {
+            *moved.entry((c.common.layer.clone(), to.clone())).or_insert(0) += 1;
             c.common.layer = to.clone();
         }
         out.push(c);
     }
+    let record: Vec<(String, String, usize, Vec<aad_doc::Handle>)> = moved.into_iter().map(|((s, t), n)| (s, t, n, Vec::new())).collect();
+    super::layermap::record_sources(d, &record);
     src.model = out;
     src.layers.retain(|l| !map.contains_key(&l.name.to_ascii_uppercase()) || map.values().any(|t| t.eq_ignore_ascii_case(&l.name)));
     for to in map.values() {
-        super::sheetstd::ensure_standard_layer(d, to);
+        if let Some(dest) = super::layermap::dest_of(to) {
+            super::layermap::ensure_dest(d, &dest);
+        }
     }
 }
 

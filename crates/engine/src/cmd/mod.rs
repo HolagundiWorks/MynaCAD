@@ -36,6 +36,7 @@ pub mod history;
 mod import;
 mod inquiry;
 pub mod layer;
+pub mod layermap;
 pub mod layout;
 mod legacytools;
 mod legend;
@@ -244,6 +245,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(hcwlayers::specs());
         v.extend(bplt::specs());
         v.extend(legacytools::specs());
+        v.extend(layermap::specs());
         v.extend(roomtools::specs());
         v.extend(annot::specs());
         v.extend(project::specs());

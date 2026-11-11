@@ -297,7 +297,8 @@ pub(crate) fn apply_meta(d: &mut Drawing) {
 /// Write every entity mark into `takeoffMeta` so the next DXF save keeps them.
 pub(crate) fn sync_meta(d: &mut Drawing) {
     let mut m = serde_json::Map::new();
-    let stores: Vec<&aad_doc::EntityStore> = std::iter::once(&d.model).chain(d.layouts.iter().map(|l| &l.entities)).collect();
+    // Every level and sheet annotation, not only the active one: a mark on an inactive level must survive a save.
+    let stores: Vec<&aad_doc::EntityStore> = d.model_stores().chain(d.layouts.iter().map(|l| &l.entities)).collect();
     for store in stores {
         for e in store.iter() {
             if let Some(mark) = &e.common.takeoff
@@ -330,6 +331,12 @@ fn thickness_param(cmd: &str, p: &Value, kind: TakeoffKind) -> Result<Option<f64
             Ok(Some(n))
         }
     }
+}
+
+/// The take-off layers a person may draw on or map to: name, ACI colour, description. The label and
+/// table layers are output only and are left out.
+pub(crate) fn measure_layers() -> Vec<(&'static str, i16, &'static str)> {
+    LAYERS.iter().filter(|(n, _, _)| *n != L_LABELS && *n != L_TABLE).copied().collect()
 }
 
 fn ensure_measure_layer(d: &mut Drawing, layer: &str) {
@@ -370,6 +377,44 @@ fn walls(d: &Drawing, space: &Space, layers: &[&str]) -> Vec<Wall> {
         ma.x.total_cmp(&mb.x).then(ma.y.total_cmp(&mb.y)).then(a.handle.0.cmp(&b.handle.0))
     });
     out
+}
+
+/// Why objects on the take-off layers `layers` are not in a result: hidden by their layer, of a kind the
+/// measurement does not read, or on another level. One sentence each, so an empty result explains itself.
+fn unmeasured_notes(d: &Drawing, space: &Space, layers: &[&str], measurable: impl Fn(&EntityKind) -> bool, what: &str) -> Vec<String> {
+    let on_layers = |e: &aad_doc::Entity| layers.iter().any(|l| matches_measure(e, l));
+    let (mut hidden, mut other_kind) = (0usize, 0usize);
+    if let Some(store) = d.space(space) {
+        for e in store.iter().filter(|e| on_layers(e)) {
+            if !d.is_visible(e) {
+                hidden += 1;
+            } else if !measurable(&e.kind) {
+                other_kind += 1;
+            }
+        }
+    }
+    let mut notes = Vec::new();
+    let on = layers.join(", ");
+    if hidden > 0 {
+        notes.push(format!(
+            "{hidden} object(s) on {on} are hidden (the layer is off or frozen) and were not measured; turn the layer on to include them"
+        ));
+    }
+    if other_kind > 0 {
+        notes.push(format!("{other_kind} object(s) on {on} are not {what} and were not measured"));
+    }
+    if matches!(space, Space::Model) {
+        for l in d.levels.iter().filter(|l| Some(l.id) != d.active_level) {
+            let n = d.level_store(l.id).map_or(0, |st| st.iter().filter(|e| on_layers(e)).count());
+            if n > 0 {
+                notes.push(format!(
+                    "{n} object(s) on {on} are on level `{}`; take-off measures the active level, so activate that level to measure them",
+                    l.name
+                ));
+            }
+        }
+    }
+    notes
 }
 
 struct Shape {
@@ -848,6 +893,7 @@ fn measure_walls(s: &mut Session, p: &Value, cmd: &str, name: &'static str, titl
     if ws.is_empty() {
         warnings.push(format!("nothing found on {}", layers.join(", ")));
     }
+    warnings.extend(unmeasured_notes(s.doc()?, &space, &layers, |k| !segments_of(k).is_empty(), "lines, arcs or polylines"));
     if !orphans.is_empty() {
         warnings.push(format!("{} deduction line(s) lie on no wall (labelled D? NO LINE) and are not counted", orphans.len()));
     }
@@ -934,7 +980,8 @@ fn area_command(s: &mut Session, p: &Value, cmd: &str, layer: &str, name: &'stat
     let space = s.space();
     let sh = shapes(s.doc()?, &space, layer);
     let (rows, items, grand) = area_groups(s, &c, &sh, prefix, false)?;
-    let warnings = if sh.is_empty() { vec![format!("no closed outlines on {layer}")] } else { Vec::new() };
+    let mut warnings = if sh.is_empty() { vec![format!("no closed outlines on {layer}")] } else { Vec::new() };
+    warnings.extend(unmeasured_notes(s.doc()?, &space, &[layer], |k| shape_of(k).is_some(), "closed polylines or circles"));
     let header = ["Name", "Count", &format!("Area ({})", c.area_unit()), "Total"].iter().map(|x| (*x).to_string()).collect();
     finish(s, &c, p, Report { name, title: title.into(), header, rows, items, totals: json!({ "count": sh.len(), "area": grand }), warnings })
 }
@@ -965,7 +1012,8 @@ fn run_area(s: &mut Session, p: &Value) -> Result<Value> {
         rows.push(vec!["TOTAL".into(), format!("{:.2}", (total * 100.0).round() / 100.0), String::new()]);
     }
     let header = ["Name", &format!("Area ({})", c.area_unit()), &format!("Perimeter ({})", c.len_unit())].iter().map(|x| (*x).to_string()).collect();
-    let warnings = if sh.is_empty() { vec![format!("no closed outlines on {L_AREA}")] } else { Vec::new() };
+    let mut warnings = if sh.is_empty() { vec![format!("no closed outlines on {L_AREA}")] } else { Vec::new() };
+    warnings.extend(unmeasured_notes(s.doc()?, &space, &[L_AREA], |k| shape_of(k).is_some(), "closed polylines or circles"));
     finish(
         s,
         &c,
@@ -1545,7 +1593,7 @@ fn run_maplayers(s: &mut Session, p: &Value) -> Result<Value> {
     let (phase, bill_phase) = super::takeoffphase::for_new_mark("takeoff.maplayers", s.doc()?, p)?;
     let handles: Vec<Handle> = {
         let d = s.doc()?;
-        d.model.iter().chain(d.layouts.iter().flat_map(|l| l.entities.iter())).map(|e| e.handle).collect()
+        d.model_stores().flat_map(|st| st.iter()).chain(d.layouts.iter().flat_map(|l| l.entities.iter())).map(|e| e.handle).collect()
     };
     let mut tagged = 0usize;
     let mut skipped = 0usize;

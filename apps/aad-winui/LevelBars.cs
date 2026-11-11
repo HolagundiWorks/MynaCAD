@@ -20,6 +20,9 @@ public sealed partial class MainWindow
         public long Id { get; set; }
         public string Name { get; set; } = "";
         public bool Active { get; set; }
+
+        /// <summary>The tab is drawn as the current one: the level is active and the Model tab (not a layout) is on screen.</summary>
+        public bool Shown { get; set; }
         public bool Traced { get; set; }
         public double Elevation { get; set; }
 
@@ -82,7 +85,13 @@ public sealed partial class MainWindow
 
     private void ShowLevelTabs(ChromeState state)
     {
-        var key = state.DesignMode + "|" + string.Join("|", state.Levels.Select(l => l.Id + ":" + l.Name + ":" + l.Active + ":" + l.Traced + ":" + l.Elevation + ":" + l.Trace))
+        // While a layout is on screen no level tab is the current one: clicking one brings its level to the Model tab.
+        var inModel = string.Equals(state.Space, "Model", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(state.Space);
+        foreach (var l in state.Levels)
+        {
+            l.Shown = l.Active && inModel;
+        }
+        var key = state.DesignMode + "|" + inModel + "|" + string.Join("|", state.Levels.Select(l => l.Id + ":" + l.Name + ":" + l.Active + ":" + l.Traced + ":" + l.Elevation + ":" + l.Trace))
             + "|" + string.Join("|", state.SheetSets.Where(s => s.Active).Select(s => s.Name));
         if (key == _levelKey)
         {
@@ -131,11 +140,11 @@ public sealed partial class MainWindow
             FontSize = Density.FontCaption,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
-            FontWeight = level.Active ? FontWeights.SemiBold : FontWeights.Normal,
+            FontWeight = level.Shown ? FontWeights.SemiBold : FontWeights.Normal,
         });
-        var tab = SeamlessTab.Create(label, level.Active, TabEdge.Bottom, SeamlessTab.LabelPadding);
+        var tab = SeamlessTab.Create(label, level.Shown, TabEdge.Bottom, SeamlessTab.LabelPadding);
         tab.MinHeight = Density.ControlHeight;
-        AutomationProperties.SetName(tab, (level.Active ? "Current level " : "Switch to level ") + level.Name);
+        AutomationProperties.SetName(tab, (level.Shown ? "Current level " : "Switch to level ") + level.Name);
         var tip = level.Name + "  elevation " + level.Elevation.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         if (level.Traced)
         {
@@ -456,7 +465,8 @@ public sealed partial class MainWindow
         var targets = _cachedLevels.Where(l => !l.Active).ToList();
         if (targets.Count == 0)
         {
-            History.Text = "Add another level first, or right-click a level tab and choose Send selection here.";
+            // A drawing with one (implicit) level, such as a file just opened: name the level the objects go to; it is made on the way.
+            AskLevelForSelection();
             return;
         }
         var menu = new MenuFlyout { Placement = FlyoutPlacementMode.TopEdgeAlignedLeft };
@@ -468,10 +478,26 @@ public sealed partial class MainWindow
             menu.Items.Add(item);
         }
         menu.Items.Add(new MenuFlyoutSeparator());
+        var newLevel = new MenuFlyoutItem { Text = "New level…" };
+        newLevel.Click += (_, _) => AskLevelForSelection();
+        menu.Items.Add(newLevel);
         var copy = new MenuFlyoutItem { Text = "Copy selection to level…" };
         copy.Click += (_, _) => ShowCopyToLevelMenu(targets);
         menu.Items.Add(copy);
         menu.ShowAt(LevelBarHost, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
+    }
+
+    /// <summary>The <c>level.moveto</c> form with a level name to type (made when it does not exist), then the origin picks.</summary>
+    private void AskLevelForSelection()
+    {
+        var form = Native.ReadForm(_host, "level.moveto");
+        if (form == null)
+        {
+            return;
+        }
+        form = InjectFormField(form, "level", "Level " + Math.Max(2, _cachedLevels.Count + 1));
+        form = InjectFormField(form, "create", "true");
+        FormDialog.Show(this, _host, form, AfterCommand);
     }
 
     private void ShowCopyToLevelMenu(List<LevelTab> targets)

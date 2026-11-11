@@ -6,7 +6,7 @@
 //! anything, as one undo step. The tables are written to the open project file (`.osp`) when there
 //! is one, and are never part of the project's change log, so they are never synced.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use aad_doc::{Drawing, Handle};
@@ -23,7 +23,7 @@ const CMD: &str = "geodb";
 const MAX_ROWS: usize = 2000;
 
 /// Extra standard layers this feature needs that the standard set did not define: the beam layer.
-const EXTRA_LAYERS: &[(&str, i16, &str, u16)] = &[("S-BEAM", 5, "Continuous", 35)];
+pub(crate) const EXTRA_LAYERS: &[(&str, i16, &str, u16)] = &[("S-BEAM", 5, "Continuous", 35)];
 
 /// What a session keeps per drawing between the geometry database commands.
 pub(crate) struct GeoState {
@@ -90,6 +90,7 @@ pub(crate) fn standard_layer_names() -> Vec<&'static str> {
     v.extend(super::hcw::PERMIT_LAYERS.iter().map(|l| l.0));
     v.extend(super::legacytools::VH_LAYERS.iter().map(|l| l.0));
     v.extend(EXTRA_LAYERS.iter().map(|l| l.0));
+    v.extend(super::layermap::MAPPER_LAYERS.iter().map(|l| l.0));
     v.extend(["E-POWR", "E-LITE", "S-BEAM-TEXT", "P-TEXT", "A-FURN", "A-FURN-TEXT", "A-CLNG-GRID", "A-CLNG-TEXT", "ROOM-LABELS", "ROOM-RECT"]);
     v
 }
@@ -107,55 +108,13 @@ pub(crate) fn origin_of(d: &Drawing) -> OriginReport {
 /// Project key set when the layer mapper has moved the layers of a foreign drawing.
 pub(crate) const LAYER_MAP_DONE_KEY: &str = "layerMapDone";
 
-/// Keyword to standard layer, for suggestions only. The mapper never applies these by itself.
-const KEYWORDS: &[(&str, &str)] = &[
-    ("WALL", "A-WALL"),
-    ("DOOR", "A-DOOR"),
-    ("WINDOW", "A-WIND"),
-    ("WIND", "A-WIND"),
-    ("GLAZ", "A-GLAZ"),
-    ("COLUMN", "A-COL"),
-    ("BEAM", "S-BEAM"),
-    ("STAIR", "A-STAIR"),
-    ("FURN", "I-FURN"),
-    ("DIM", "AN-DIMS"),
-    ("TEXT", "AN-TEXT"),
-    ("TXT", "AN-TEXT"),
-    ("HATCH", "AN-HATCH"),
-    ("GRID", "AN-GRID"),
-    ("ROOF", "A-ROOF"),
-    ("CEIL", "A-CLNG"),
-];
-
-/// Suggested layer maps for the layers with objects that are not in the standard set.
+/// Suggested layer maps for the layers with objects that are not built in (every level counts).
+/// The suggestion words live in the layer mapper; nothing here applies them.
 pub(crate) fn suggest_layer_map(d: &Drawing) -> Vec<Value> {
-    let std_names = standard_layer_names();
-    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-    for e in d.model.iter() {
-        *counts.entry(e.common.layer.clone()).or_default() += 1;
-    }
-    let mut out = Vec::new();
-    for (name, n) in counts {
-        if name == "0" || name.eq_ignore_ascii_case("Defpoints") || std_names.iter().any(|s| s.eq_ignore_ascii_case(&name)) {
-            continue;
-        }
-        let up = name.to_ascii_uppercase();
-        // Wall hatching and wall text are not walls: the more specific words win.
-        let target = if up.contains("HATCH") {
-            Some(("AN-HATCH", "the name says hatch"))
-        } else if up.contains("TEXT") || up.contains("TXT") {
-            Some(("AN-TEXT", "the name says text"))
-        } else if up.contains("DIM") {
-            Some(("AN-DIMS", "the name says dimension"))
-        } else {
-            KEYWORDS.iter().find(|(k, _)| up.contains(k)).map(|(_, t)| (*t, "the name contains a known word"))
-        };
-        out.push(match target {
-            Some((to, why)) => json!({ "from": name, "to": to, "objects": n, "reason": why }),
-            None => json!({ "from": name, "objects": n, "reason": "no known word in the name; choose a target" }),
-        });
-    }
-    out
+    super::layermap::candidates(d, None)
+        .into_iter()
+        .map(|l| json!({ "from": l["name"], "to": l["suggested"], "objects": l["objects"], "reason": l["reason"] }))
+        .collect()
 }
 
 /// Called before a drawing is saved: stamp the origin and record the drafting units when the drawing declares them.

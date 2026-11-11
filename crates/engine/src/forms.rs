@@ -259,6 +259,7 @@ pub static FORMS: &[Form] = &[
         wrap: None,
         fields: &[
             field("level", "Target level (name)", Kind::Text).req(),
+            field("create", "Create the level when it does not exist", Kind::Bool).def("true"),
             field("from", "Origin point on the selection (Enter: keep world coordinates)", Kind::Point).ask(),
             field("to", "Matching point for that origin (Enter: site origin)", Kind::Point).ask(),
         ],

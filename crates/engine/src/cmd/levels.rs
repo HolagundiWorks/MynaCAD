@@ -32,7 +32,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{level? (default the active one), add? (level or list), remove? (level or list), set? (an existing traced level to edit), fade? 0..90, colour? grey|true, order? below|above, snap? bool, layers? [names] | \"A, B\" | null or \"*\" (all)} → {level, traces}. A trace shows another level read-only and faded under (or over) this one; settings apply to each added trace and to `set`."),
         CommandSpec::new("level.moveto", "Move to Level", run_moveto)
             .menu(&["Architecture", "Levels", "Move to Level"])
-            .params("{level, handles? (default the selection), from?: [x,y] (origin on the selection), to?: [x,y] (matching point; default site origin when `from` is set)} → {moved, shifted?}. Moves objects of the active level to another level; with `from`/`to` they are shifted so the origin matches."),
+            .params("{level, create? (make the level when it does not exist; a drawing with one implicit level gets it first), handles? (default the selection; objects on any level), from?: [x,y] (origin on the selection), to?: [x,y] (matching point; default site origin when `from` is set)} → {moved, created?, shifted?}. Moves objects to another level, whichever level they are on now; marks, layers and every other property go with them. With `from`/`to` they are shifted so the origin matches."),
         CommandSpec::new("level.copyto", "Copy to Levels", run_copyto)
             .menu(&["Architecture", "Levels", "Copy to Levels"])
             .params("{levels?: [level..] | level?: one level, handles?, from?: [x,y], to?: [x,y]} → {copied, shifted?}. Copies objects to other levels; with `from`/`to` copies are shifted so the origin matches (source stays put)."),
@@ -221,11 +221,24 @@ fn run_prev(s: &mut Session, _p: &Value) -> Result<Value> {
     step(s, "level.prev", -1)
 }
 
+/// A layout (paper space) is on screen: choosing a level shows that level in model space, so the
+/// tab that is highlighted, the drawing that is displayed and the active level always agree.
+fn show_model_tab(s: &mut Session) -> Result<()> {
+    let st = s.state_mut()?;
+    if matches!(st.space, aad_doc::Space::Paper(_)) {
+        st.space = aad_doc::Space::Model;
+        st.mspace = None;
+        st.selection.clear();
+    }
+    Ok(())
+}
+
 fn run_activate(s: &mut Session, p: &Value) -> Result<Value> {
     let id = find(s, "level.activate", p, "level")?;
     if s.block_edit.is_some() {
         return Err(bad("level.activate", "close the block editor first"));
     }
+    show_model_tab(s)?;
     if s.doc()?.active_level != Some(id) {
         s.doc_mut()?.switch_level(id)?;
         s.set_selection(Vec::new());
@@ -323,34 +336,128 @@ fn origin_shift(s: &Session, cmd: &str, p: &Value) -> Result<Option<aad_geom::Ve
     Ok(Some(delta))
 }
 
+/// Where an object lives: the active level's `model`, or the store of another level. Objects that
+/// are not on a level (layout objects, sheet annotation, block definitions) are not listed.
+fn level_of_object(d: &aad_doc::Drawing, h: aad_doc::Handle) -> Option<Option<LevelId>> {
+    if d.model.contains(h) {
+        return Some(d.active_level);
+    }
+    d.levels.iter().find(|l| l.entities.contains(h)).map(|l| Some(l.id))
+}
+
 fn run_moveto(s: &mut Session, p: &Value) -> Result<Value> {
-    let to = find(s, "level.moveto", p, "level")?;
-    if s.doc()?.active_level == Some(to) {
-        return Err(bad("level.moveto", "the objects are already on that level"));
-    }
+    const CMD: &str = "level.moveto";
     if s.block_edit.is_some() {
-        return Err(bad("level.moveto", "close the block editor first"));
+        return Err(bad(CMD, "close the block editor first"));
     }
-    let hs = objects_of_active(s, "level.moveto", p)?;
-    let shift = origin_shift(s, "level.moveto", p)?;
-    if let Some(delta) = shift {
-        super::modify::transform_entities(s, &hs, &aad_geom::Mat3::translate(delta), false)?;
+    if s.doc()?.active_sheet.is_some() {
+        return Err(bad(
+            CMD,
+            "this is a sheet view: the objects are annotation, not level geometry. Switch to Design first (sheetset.activate with null)",
+        ));
     }
+    let create = bool_or(p, "create", false);
+    let wanted = match p.get("level") {
+        Some(Value::String(t)) => Some(t.trim().to_string()),
+        _ => None,
+    };
+    // Resolve the target without changing anything: an existing level, or (with `create`) a name that can become one.
+    let existing = find(s, CMD, p, "level").ok();
+    if existing.is_none() {
+        match (&wanted, create) {
+            (Some(name), true) if aad_doc::level_name_ok(name) => {}
+            (_, true) => return Err(bad(CMD, "`level` must be a level name of 1 to 80 characters to create it")),
+            _ => {
+                find(s, CMD, p, "level")?;
+            }
+        }
+    }
+    let d = s.doc()?;
+    let requested = targets(s, p)?;
+    // Objects of any level; those already on the target level stay where they are.
+    let mut hs: Vec<(aad_doc::Handle, Option<LevelId>)> = Vec::new();
+    for h in requested {
+        if let Some(from) = level_of_object(d, h) {
+            if existing.is_some() && from == existing {
+                continue;
+            }
+            if !hs.iter().any(|(x, _)| *x == h) {
+                hs.push((h, from));
+            }
+        }
+    }
+    if hs.is_empty() {
+        return Err(bad(
+            CMD,
+            if existing.is_some() && d.has_levels() {
+                "the objects are already on that level, or none of them is on a level"
+            } else {
+                "no objects of a level are selected"
+            },
+        ));
+    }
+    let shift = origin_shift(s, CMD, p)?;
+    // Everything is checked; from here on the drawing changes. Create the level first.
+    let mut created = None;
+    let to = match existing {
+        Some(id) => id,
+        None => {
+            let name = wanted.clone().unwrap_or_default();
+            let first = implicit_name(s.doc()?);
+            // On a copy, so a refused level (a duplicate name, too many levels) leaves the drawing as it was.
+            let mut nd = s.doc()?.clone();
+            if !nd.has_levels() {
+                if first.trim().eq_ignore_ascii_case(name.trim()) {
+                    return Err(bad(CMD, format!("`{}` is the name of the existing level; pick another name", first.trim())));
+                }
+                nd.materialize_levels(&first, 0.0, 0.0)?;
+            }
+            let id = nd.add_level(&name, 0.0, 0.0, None)?;
+            *s.doc_mut()? = nd;
+            created = Some(name);
+            id
+        }
+    };
     let d = s.doc_mut()?;
     let mut moved = Vec::with_capacity(hs.len());
-    for h in &hs {
-        if let Some(e) = d.model.remove(*h) {
+    for (h, from) in &hs {
+        // An implicit level became the first explicit one above, and is the active level now.
+        let from = from.or(d.active_level);
+        if from == Some(to) {
+            continue;
+        }
+        let taken = if from == d.active_level {
+            d.model.remove(*h)
+        } else {
+            d.levels.iter_mut().find(|l| Some(l.id) == from).and_then(|l| l.entities.remove(*h))
+        };
+        if let Some(e) = taken {
             moved.push(e);
         }
     }
     let n = moved.len();
-    if let Some(l) = d.levels.iter_mut().find(|l| l.id == to) {
+    // The target is either another level's store, or `model` when it is the active level.
+    let shifted = |e: std::sync::Arc<aad_doc::Entity>| {
+        let mut c = (*e).clone();
+        if let Some(delta) = shift {
+            c.kind.transform(&aad_geom::Mat3::translate(delta));
+        }
+        c
+    };
+    if d.active_level == Some(to) {
         for e in moved {
-            l.entities.push((*e).clone());
+            d.model.push(shifted(e));
+        }
+    } else if let Some(l) = d.levels.iter_mut().find(|l| l.id == to) {
+        for e in moved {
+            l.entities.push(shifted(e));
         }
     }
     s.set_selection(Vec::new());
     let mut out = json!({ "moved": n });
+    if let Some(name) = created {
+        out["created"] = json!(name);
+    }
     if let Some(delta) = shift {
         out["shifted"] = json!([delta.x, delta.y]);
     }

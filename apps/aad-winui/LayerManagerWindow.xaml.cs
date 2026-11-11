@@ -50,6 +50,9 @@ public sealed partial class LayerManagerWindow : Window
     /// <summary>The shell docks this view into the Layers column, or opens it in this window.</summary>
     public event EventHandler? MergeRequested;
 
+    /// <summary>The shell opens the layer mapping wizard for the selected layers (the wizard lives in the main window).</summary>
+    public event EventHandler<List<string>>? MapRequested;
+
     public LayerManagerWindow(FrameworkElement? themeSource, IntPtr host, Action changed)
     {
         InitializeComponent();
@@ -258,7 +261,7 @@ public sealed partial class LayerManagerWindow : Window
     {
         if (RecordOf(sender) is LayerRecord row)
         {
-            Set(row.Name, Flag(row.Name, "newVpFreeze", !row.NewVpFreeze));
+            Set(row.Name, Params(row, "newVpFreeze", !row.NewVpFreeze));
         }
     }
 
@@ -273,7 +276,7 @@ public sealed partial class LayerManagerWindow : Window
         {
             return;
         }
-        Set(row.Name, new Dictionary<string, object> { ["name"] = row.Name, ["color"] = next });
+        Set(row.Name, Params(row, "color", next));
     }
 
     private void OnLinetype(object sender, RoutedEventArgs e)
@@ -282,7 +285,7 @@ public sealed partial class LayerManagerWindow : Window
         {
             return;
         }
-        ShowChoices(button, _linetypes, row.Linetype, value => Set(row.Name, new Dictionary<string, object> { ["name"] = row.Name, ["linetype"] = value }));
+        ShowChoices(button, _linetypes, row.Linetype, value => Set(row.Name, Params(row, "linetype", value)));
     }
 
     private void OnLineweight(object sender, RoutedEventArgs e)
@@ -291,7 +294,7 @@ public sealed partial class LayerManagerWindow : Window
         {
             return;
         }
-        ShowChoices(button, Lineweights, row.Lineweight, value => Set(row.Name, new Dictionary<string, object> { ["name"] = row.Name, ["lineweight"] = value }));
+        ShowChoices(button, Lineweights, row.Lineweight, value => Set(row.Name, Params(row, "lineweight", value)));
     }
 
     private async void OnTransparency(object sender, RoutedEventArgs e)
@@ -310,11 +313,11 @@ public sealed partial class LayerManagerWindow : Window
             Status.Text = "Transparency is a whole number from 0 to 90.";
             return;
         }
-        if (percent == row.Transparency)
+        if (percent == row.Transparency && TargetsOf(row).Count == 1)
         {
             return;
         }
-        Set(row.Name, new Dictionary<string, object> { ["name"] = row.Name, ["transparency"] = percent });
+        Set(row.Name, Params(row, "transparency", percent));
     }
 
     private void OnEditorFocus(object sender, RoutedEventArgs e) => _editors++;
@@ -364,11 +367,14 @@ public sealed partial class LayerManagerWindow : Window
             PaintSelection();
         }
         var menu = new MenuFlyout();
-        menu.Items.Add(Item("Make current", () => SetCurrent(row.Name), row.CanMakeCurrent));
-        menu.Items.Add(Item("Rename", () => _ = Rename(row), true));
-        menu.Items.Add(Item(row.On ? "Turn off" : "Turn on", () => Set(row.Name, Flag(row.Name, "on", !row.On)), true));
-        menu.Items.Add(Item(row.Frozen ? "Thaw" : "Freeze", () => Set(row.Name, Flag(row.Name, "frozen", !row.Frozen)), true));
-        menu.Items.Add(Item(row.Locked ? "Unlock" : "Lock", () => Set(row.Name, Flag(row.Name, "locked", !row.Locked)), true));
+        // With several layers selected the actions apply to all of them; renaming and making current are for one.
+        var several = _selected.Count > 1;
+        menu.Items.Add(Item("Make current", () => SetCurrent(row.Name), row.CanMakeCurrent && !several));
+        menu.Items.Add(Item("Rename", () => _ = Rename(row), !several));
+        menu.Items.Add(Item(row.On ? "Turn off" : "Turn on", () => Set(row.Name, Params(row, "on", !row.On)), true));
+        menu.Items.Add(Item(row.Frozen ? "Thaw" : "Freeze", () => Set(row.Name, Params(row, "frozen", !row.Frozen)), true));
+        menu.Items.Add(Item(row.Locked ? "Unlock" : "Lock", () => Set(row.Name, Params(row, "locked", !row.Locked)), true));
+        menu.Items.Add(Item("Map to built-in layers...", () => MapSelectionToBuiltIn(), true));
         menu.Items.Add(Item("Delete", () => _ = DeleteSelection(), true));
         menu.ShowAt(Rows, e.GetPosition(Rows));
         e.Handled = true;
@@ -423,7 +429,7 @@ public sealed partial class LayerManagerWindow : Window
             "plot" => !row.Plot,
             _ => false,
         };
-        Set(row.Name, Flag(row.Name, field, value));
+        Set(row.Name, Params(row, field, value));
     }
 
     private void SetCurrent(string name)
@@ -454,6 +460,11 @@ public sealed partial class LayerManagerWindow : Window
             return;
         }
         Status.Text = "";
+        if (parameters.TryGetValue("names", out var many) && many is List<string> list)
+        {
+            var skipped = ReadSkipped();
+            Status.Text = "Changed " + (list.Count - skipped.Count) + " layers." + (skipped.Count > 0 ? " Not changed (current layer): " + string.Join(", ", skipped) + "." : "");
+        }
         Reload(name);
         _changed();
     }
@@ -492,7 +503,7 @@ public sealed partial class LayerManagerWindow : Window
         }
         var prompt = names.Count == 1
             ? "Delete layer " + names[0] + "? The command keeps the layer when it still has objects."
-            : "Delete " + names.Count + " layers? Each deletion is its own undo step. A layer that still has objects stays.";
+            : "Delete " + names.Count + " layers in one undo step? A layer that still has objects, the current layer, layer 0 and Defpoints stay.";
         var dialog = CompactContentDialog(
             "Delete layers",
             new TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap, FontSize = Density.FontBody },
@@ -502,22 +513,33 @@ public sealed partial class LayerManagerWindow : Window
         {
             return;
         }
+        // One command, one undo step; the layers that cannot go (used, current, protected) are reported and kept.
         var failed = new List<string>();
         var removed = 0;
-        foreach (var name in names)
+        if (Native.Execute(_host, "layer.delete", JsonSerializer.Serialize(new Dictionary<string, object> { ["names"] = names })) != 0)
         {
-            if (Native.Execute(_host, "layer.delete", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = name })) != 0)
+            failed.Add(Native.LastError(_host));
+        }
+        else
+        {
+            try
             {
-                failed.Add(name + ": " + Native.LastError(_host));
+                using var doc = JsonDocument.Parse(Native.ReadResult(_host));
+                removed = doc.RootElement.GetProperty("deleted").GetArrayLength();
+                foreach (var s in doc.RootElement.GetProperty("skipped").EnumerateArray())
+                {
+                    failed.Add(s.GetProperty("name").GetString() + ": " + s.GetProperty("reason").GetString() + ".");
+                }
             }
-            else
+            catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
             {
-                removed++;
+                removed = names.Count;
             }
         }
         Status.Text = failed.Count == 0
             ? "Deleted " + removed + "."
             : "Deleted " + removed + ". " + string.Join(" ", failed);
+        _selected.Clear();
         Reload("");
         if (removed > 0)
         {
@@ -1120,6 +1142,54 @@ public sealed partial class LayerManagerWindow : Window
 
     private static Dictionary<string, object> Flag(string name, string field, bool value) =>
         new() { ["name"] = name, [field] = value };
+
+    /// <summary>The layers an action on this row applies to: the whole selection when the row is part of a multiple selection.</summary>
+    private List<string> TargetsOf(LayerRecord row) =>
+        _selected.Count > 1 && _selected.Contains(row.Name) ? _selected.ToList() : new List<string> { row.Name };
+
+    /// <summary><c>layer.set</c> parameters for a property of this row: <c>names</c> for a multiple selection, <c>name</c> otherwise.</summary>
+    private Dictionary<string, object> Params(LayerRecord row, string field, object value)
+    {
+        var targets = TargetsOf(row);
+        var parameters = new Dictionary<string, object> { [field] = value };
+        if (targets.Count > 1)
+        {
+            parameters["names"] = targets;
+        }
+        else
+        {
+            parameters["name"] = row.Name;
+        }
+        return parameters;
+    }
+
+    /// <summary>The layers the last <c>layer.set</c> with several names left alone (the current layer is not frozen).</summary>
+    private List<string> ReadSkipped()
+    {
+        var skipped = new List<string>();
+        try
+        {
+            using var doc = JsonDocument.Parse(Native.ReadResult(_host));
+            if (doc.RootElement.TryGetProperty("skipped", out var s) && s.ValueKind == JsonValueKind.Array)
+            {
+                skipped.AddRange(s.EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0));
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        return skipped;
+    }
+
+    private void MapSelectionToBuiltIn()
+    {
+        if (_selected.Count == 0)
+        {
+            Status.Text = "Select one or more layers.";
+            return;
+        }
+        MapRequested?.Invoke(this, _selected.ToList());
+    }
 
     private static LayerRecord? RecordOf(object sender)
     {
