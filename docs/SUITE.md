@@ -1,6 +1,6 @@
 # Myna suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`MynaOps`) and MynaCAD (`MynaCAD`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11. The checkout folders were renamed on 2026-11-11: `O-DRAFT-main` to `MynaCAD`, `O-COREOP` to `MynaOps`, `O-STUDIO` to `MynaHub`, `o-ui` to `MynaUI` (the git remotes keep their old names; the sibling folders `MynaHub`, `MynaOps`, `MynaCAD`, `MynaUI` must stay beside each other).
+**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`MynaOps`) and MynaCAD (`MynaCAD`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11. The checkout folders were renamed on 2026-11-11: `O-DRAFT-main` to `MynaCAD`, `O-COREOP` to `MynaOps`, `O-STUDIO` to `MynaHub`, `o-ui` to `MynaUI` (the GitHub repositories were renamed to match: `HolagundiWorks/MynaCAD`, `MynaOPS`, `MynaHub`, `MynaUI`; `o-form` for Myna3D is not renamed yet; the sibling folders `MynaHub`, `MynaOps`, `MynaCAD`, `MynaUI` must stay beside each other).
 
 ## 0. What changed on 2026-11-11 (owner decisions)
 
@@ -24,7 +24,7 @@
 | **MynaUI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `MynaUI`; **Hcw.Ui / hcw-ui retired**) | | `MynaUI` | `O.Ui` |
 | **Myna3D** | Planned, not built | Grove `#166040` | `Myna3D` (folder; was `O-Form`; the app was named MynaMod before 2026-11-11) | |
 
-The former **O-Dynamo** companion (a Dynamo fork) is not part of the suite: MynaCAD builds and runs without it. Its optional hook (the `ODRAFT_GRAPH` build flag when a sibling `O-Dynamo` folder exists, and the `ODraft.Dynamo` pipe behind `companion.*`) stays in MynaCAD, inactive. Its GitHub repository was left as it is.
+The former **O-Dynamo** companion (a Dynamo fork) was removed from the suite: MynaCAD builds and runs without it. Its optional hook (the `ODRAFT_GRAPH` build flag when a sibling `O-Dynamo` folder exists, and the `ODraft.Dynamo` pipe behind `companion.*`) stays in MynaCAD, inactive. Its checkout and GitHub repository were removed (2026-11-11).
 
 **Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `ai\auth.token`, `ai\host.json`, `ai\host.log`). MynaHub starts MynaOps, MynaCAD and Myna3D by path and passes **nothing** in their environment (no company, no ticket, no project, no AI settings). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (MynaHub).
 

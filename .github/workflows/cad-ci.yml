@@ -63,7 +63,7 @@ jobs:
       # inside the workspace and copied beside the repository folder before the shell is built.
       - uses: actions/checkout@v4
         with:
-          repository: HolagundiWorks/O-UI
+          repository: HolagundiWorks/MynaUI
           ref: feat/brand
           path: MynaUI
       - name: Put the design library beside the repository
