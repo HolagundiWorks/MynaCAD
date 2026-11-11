@@ -122,6 +122,35 @@ Engine tests in `crates/engine/tests/layers_levels_workflows.rs` (the mapper sec
 test in `crates/engine/tests/migrate.rs`. The wizard window and the Layer manager multiple selection are
 WinUI code that compiles; see the verification notes in the report of this change and the status row.
 
+### Hand check of 2026-11-11 (what was and was not run)
+
+Build: release `aad-host`, `aad`, `aad-cli` and the WinUI shell (Debug, x64) from this tree. Test drawing: a
+hand-written DXF (`WALLS_EXT`, `DOORS`, `DIM`, `TEXT_NOTES`, `FURN`, `0`; two storeys 10 m apart, 18
+objects).
+
+Run and seen working (headless, `aad-cli run --cmd ...`, and the WinUI control channel):
+- `layermap {suggest}` flags the drawing as foreign and suggests `A-WALL`, `AN-DIMS`, `A-DOOR`, `I-FURN`,
+  `AN-TEXT`; layer `0` is not listed.
+- `layermap {map, purge}` moves 16 objects, purges the 5 emptied layers, and `layermap {sources}` lists
+  the source names.
+- `selectall` then `level.moveto {level: "Ground", create: true}` on a one-level drawing moves all 18 objects
+  to the new level (the implicit "Level 1" stays behind, empty).
+- `level.import {path, name, elevation, layerMap}` puts the 18 objects on a new level with the mapped layers
+  and records the sources; a `layerMap` target that is not built in (`MY_OWN`) is refused.
+- `app.open` over the control channel converts the DXF to `foreign.osp` and never opens the wizard, as
+  documented.
+
+Not verified, not claimed:
+- The **Map Layers wizard window was never seen**. Computer use could not attach to the locally built shell
+  and a screenshot of the shell's own window came back black, so no wizard page, Review page, Apply, Keep my
+  layers, Cancel, the Layer manager "Map to built-in layers..." result (the row menu did open and lists that
+  item), Move to Level, the Import Level layer rows or the level tabs were looked at.
+- Observation, cause unknown: launching the shell with the foreign DXF as the command-line file closed the
+  process with a native crash (`0xc000027b`, `CoreMessagingXP.dll`) on two of two tries, while launching it
+  with a DXF that only uses built-in layers (no wizard offered) stayed up. A later run of that second launch
+  also died once in `dwmcorei.dll`, so the machine's session may be part of the cause. Not reproduced under
+  a debugger and not fixed; it needs a hand run of File > Open on a foreign drawing.
+
 ## Not done
 
 - A saved named mapping per company or per source program; matching by block names, colours, linetypes
