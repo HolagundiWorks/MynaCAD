@@ -90,9 +90,10 @@ frozen row keeps its number and shows `layout missing` when published.
    bound with `viewport.set {level}`; a level that already has a sheet is skipped (build is repeatable);
 2. one sheet per **Compose View** when asked (`composeViews: true`), applied with `compose.view.apply`;
 3. **section / elevation views**: sheets can name a `view` source. The module asks one function,
-   `view_sources(session)`, for the views that exist; it returns an empty list while no view spaces
-   exist, and a sheet whose view cannot be resolved is still created, without a viewport, with a
-   warning. When the sections and elevations work lands, only that function changes.
+   `view_sources(session)`, for the section and elevation view spaces the drawing has (Phase 6, see
+   `levels-and-sheet-sets.md`). A sheet whose view cannot be resolved is still created, without a
+   viewport, with a warning. Limit: `viewport.set` binds a level, not a view space, so a sheet made
+   from an existing view gets its layout and numbering but no view content yet.
 
 Each layout is named `<number> <title>` (limits of `layout.new` apply), takes the master layout when
 `master` is given (`master.apply`: paper and title block) or the page `paper`, and gets the title

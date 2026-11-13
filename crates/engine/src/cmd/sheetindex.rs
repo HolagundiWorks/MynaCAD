@@ -865,11 +865,13 @@ pub(crate) struct ViewSource {
     pub name: String,
 }
 
-/// The views the drawing has. Section and elevation spaces are built in another change; until they
-/// exist this is empty and every view reference is reported as "not available" instead of failing.
-/// When they land, this is the only function that changes.
-pub(crate) fn view_sources(_s: &Session) -> Vec<ViewSource> {
-    Vec::new()
+/// The section and elevation view spaces the drawing has. A view that does not exist is reported as
+/// "not available" instead of failing.
+pub(crate) fn view_sources(s: &Session) -> Vec<ViewSource> {
+    match s.doc() {
+        Ok(d) => d.view_spaces.iter().map(|v| ViewSource { name: v.rec.name.clone() }).collect(),
+        Err(_) => Vec::new(),
+    }
 }
 
 fn in_layout<T>(s: &mut Session, layout: &str, f: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {

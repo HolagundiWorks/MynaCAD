@@ -237,7 +237,7 @@ public sealed partial class MainWindow
             return;
         }
         var file = Str(reply, "file");
-        var picker = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 260 };
+        var picker = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = Density.PickerListMaxHeight };
         AutomationProperties.SetName(picker, "Backups");
         var paths = new List<string>();
         if (reply.TryGetProperty("backups", out var backups) && backups.ValueKind == JsonValueKind.Array)

@@ -70,6 +70,10 @@ internal static class Density
     public const double ManagerListWidth = 160;
     /// <summary>Smallest useful height of a list in a dialog.</summary>
     public const double ListMinHeight = 160;
+    /// <summary>Tallest list in a picker dialog before it scrolls.</summary>
+    public const double PickerListMaxHeight = 260;
+    /// <summary>Widest drawing tab label before it is trimmed.</summary>
+    public const double ViewTabMaxWidth = 160;
     /// <summary>Numeric and short text fields in dialogs.</summary>
     public const double FieldWidth = 104;
     /// <summary>Cell editor in an inline table row.</summary>

@@ -40,6 +40,7 @@ public sealed partial class MainWindow
         }
         _viewKey = key;
         ViewTabs.Children.Clear();
+        ViewTabsSeparator.Width = Density.DividerThickness;
         ViewTabsSeparator.Visibility = state.Views.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         var views = state.Views.ToList();
         if (views.Count > CollapseAfter)
@@ -58,7 +59,7 @@ public sealed partial class MainWindow
         var label = new TextBlock
         {
             Text = view.Name,
-            MaxWidth = 160,
+            MaxWidth = Density.ViewTabMaxWidth,
             FontSize = Density.FontCaption,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
