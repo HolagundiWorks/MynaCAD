@@ -404,7 +404,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
     }
 
     // Floors and beam depths.
-    let levels: Vec<Value> = floors
+    let mut levels: Vec<Value> = floors
         .iter()
         .map(|f| {
             json!({
@@ -414,6 +414,7 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
             })
         })
         .collect();
+    add_level_ids(d, &mut levels);
     root.insert("levels".into(), Value::Array(levels));
     let beams = project::get(d, "beams");
     if beams.as_array().is_some_and(|a| !a.is_empty()) {
@@ -758,7 +759,64 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
         "electrical": boards.len(), "electricalCircuits": items.iter().filter(|i| i.kind == KIND_ELEC_CIRCUIT).count(),
         "plumbing": items.iter().filter(|i| i.kind == KIND_PLUMB_STACK).count(), "plumbingFixtures": items.iter().filter(|i| i.kind == KIND_PLUMB_FIXTURE).count(),
     });
+    stamp_level_ids(d, &mut items, &mut root);
     Ok(Collected { root, warnings, drawing_id: id, items, counts })
+}
+
+/// Metres to whole millimetres, or `None` for a value that is not a finite number.
+fn metres_to_mm(m: f64) -> Option<f64> {
+    m.is_finite().then(|| mm(m * 1000.0))
+}
+
+/// Adds the optional named-level fields (`id`, `elevation_mm`) to the header's `levels` list when the drawing has explicit levels (`level.*`).
+/// A floor of the project data that has a level of the same name gets that level's `id` and `elevation_mm`; a level with no floor of that name is
+/// appended (`height_mm` is the level's height). A drawing without levels is left as it was: no `id`, no `elevation_mm`.
+fn add_level_ids(d: &aad_doc::Drawing, list: &mut Vec<Value>) {
+    for l in d.levels.iter().take(aad_doc::MAX_LEVELS) {
+        let pos = list.iter().position(|v| v["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(&l.name)));
+        let entry = match pos {
+            Some(i) => &mut list[i],
+            None => {
+                let mut o = json!({ "name": l.name });
+                if let Some(h) = metres_to_mm(l.height) {
+                    o["height_mm"] = json!(h);
+                }
+                list.push(o);
+                let n = list.len() - 1;
+                &mut list[n]
+            }
+        };
+        entry["id"] = json!(l.id.0);
+        if let Some(e) = metres_to_mm(l.elevation) {
+            entry["elevation_mm"] = json!(e);
+        }
+    }
+}
+
+/// Stamps `level_id` on every row whose `level` names one of the drawing's levels (case-insensitive). A row whose `level` is a floor region or
+/// project floor with no level of that name gets no `level_id`: the name alone stays valid for readers that do not know ids.
+fn stamp_level_ids(d: &aad_doc::Drawing, items: &mut [Item], root: &mut Map<String, Value>) {
+    if !d.has_levels() {
+        return;
+    }
+    let stamp = |row: &mut Value| {
+        if let Some(id) = row.get("level").and_then(Value::as_str).and_then(|n| d.level_by_name(n)).map(|l| l.id.0)
+            && row.is_object()
+        {
+            row["level_id"] = json!(id);
+        }
+    };
+    for it in items.iter_mut() {
+        stamp(&mut it.row);
+    }
+    for (k, v) in root.iter_mut() {
+        if k == "levels" {
+            continue;
+        }
+        if let Some(a) = v.as_array_mut() {
+            a.iter_mut().for_each(stamp);
+        }
+    }
 }
 
 /// The entity handle a saved take-off item was measured from: what keeps its `ref` the same when the take-off is run again.
