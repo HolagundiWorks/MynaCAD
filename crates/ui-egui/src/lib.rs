@@ -422,7 +422,11 @@ impl CadApp {
     /// Why a `len`-byte file called `name` is too large for [`Self::open_bytes`], if it is.
     pub fn open_size_error(name: &str, len: u64) -> Option<String> {
         (len > Self::MAX_OPEN_BYTES).then(|| {
-            format!("Open: {name} is {:.1} MB, larger than the {} MB MynaCAD opens in the browser", len as f64 / 1048576.0, Self::MAX_OPEN_BYTES >> 20)
+            format!(
+                "Open: {name} is {:.1} MB, larger than the {} MB MynaCAD opens in the browser",
+                len as f64 / 1048576.0,
+                Self::MAX_OPEN_BYTES >> 20
+            )
         })
     }
 
