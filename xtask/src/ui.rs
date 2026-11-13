@@ -131,6 +131,40 @@ pub fn creates_window(source: &str) -> bool {
     })
 }
 
+/// Buttons that are passed to two `ActionRow(` / `Footer(` calls within 80 lines of each other. A XAML element has
+/// one parent, so the second call throws; the Map Layers wizard crashed the shell that way (one Cancel in two rows).
+pub fn shared_action_buttons(source: &str) -> Vec<String> {
+    let mut seen: Vec<(usize, Vec<String>)> = Vec::new();
+    let mut found = Vec::new();
+    for (index, line) in source.lines().enumerate() {
+        let code = line.trim();
+        if code.starts_with("//") {
+            continue;
+        }
+        let Some(at) = code.find("ActionRow(").or_else(|| code.find("Footer(")) else {
+            continue;
+        };
+        let args = &code[at..];
+        let idents: Vec<String> = args
+            .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .filter(|w| w.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && !w.contains("ActionRow"))
+            .map(str::to_string)
+            .collect();
+        for (earlier, names) in &seen {
+            if index.saturating_sub(*earlier) > 80 {
+                continue;
+            }
+            for name in &idents {
+                if names.contains(name) && !found.contains(name) {
+                    found.push(name.clone());
+                }
+            }
+        }
+        seen.push((index, idents));
+    }
+    found
+}
+
 /// Problems with one file, given its name and contents.
 pub fn check_file(name: &str, source: &str) -> Vec<String> {
     let mut problems = Vec::new();
@@ -145,6 +179,9 @@ pub fn check_file(name: &str, source: &str) -> Vec<String> {
                 problems.push(format!("{name}: calls {call}..) directly; use StandardWindow.Present"));
             }
         }
+    }
+    for button in shared_action_buttons(source) {
+        problems.push(format!("{name}: `{button}` is added to two action rows; a XAML element has one parent, make one per row"));
     }
     if !TOKEN_SOURCES.contains(&name) && !name.starts_with("Themes/") {
         let found = count_literals(source, xaml);
@@ -208,6 +245,16 @@ mod tests {
         assert!(check_file("NewToolWindow.cs", good).is_empty());
         let class = "internal sealed class FooWindow : Window\n{\n}";
         assert_eq!(check_file("FooWindow.cs", class).len(), 1);
+    }
+
+    #[test]
+    fn one_button_in_two_action_rows_is_refused() {
+        let bad = "pick.Children.Add(DialogLayout.ActionRow(review, cancel));
+check.Children.Add(DialogLayout.ActionRow(apply, back, cancel));";
+        assert_eq!(shared_action_buttons(bad), vec!["cancel".to_string()]);
+        let good = "pick.Children.Add(DialogLayout.ActionRow(review, cancel));
+check.Children.Add(DialogLayout.ActionRow(apply, back, cancelReview));";
+        assert!(shared_action_buttons(good).is_empty());
     }
 
     #[test]

@@ -122,6 +122,48 @@ Engine tests in `crates/engine/tests/layers_levels_workflows.rs` (the mapper sec
 test in `crates/engine/tests/migrate.rs`. The wizard window and the Layer manager multiple selection are
 WinUI code that compiles; see the verification notes in the report of this change and the status row.
 
+### Hand check of 2026-11-11 (what was and was not run)
+
+Build: release `aad-host` and `aad`, and the WinUI shell (Debug, x64) from this tree. Test drawing: a
+hand-written DXF (`WALLS_EXT`, `DOORS`, `DIM`, `TEXT_NOTES`, `FURN`, `0`; two storeys 10 m apart, 18
+objects). Driving: the control channel for state and `cmdline.key`, Windows UI Automation (Invoke / Value
+patterns) for the windows; no screenshot of a window was usable (computer use could not attach to the build,
+a window capture came back black), so what was seen is the UI Automation tree, not pixels.
+
+**A crash, found and fixed.** Before the fix, launching the shell with a foreign DXF as the command-line file
+closed it natively (`0xc000027b` in `CoreMessagingXP.dll`, three crash dumps in `%LOCALAPPDATA%\CrashDumps`)
+every time, while a DXF that needed no mapping opened fine, so the wizard open was the cause. Cause: in
+`LayerMapWizard.cs` one `Cancel` button was added to the action rows of both pages; a XAML element has one
+parent, so the second add threw as the window was built, after the file was open. Fix: a button per page. The
+guard `shared_action_buttons` in `xtask/src/ui.rs` (run by `cargo xtask ui`) refuses one button in two
+`ActionRow(` / `Footer(` calls within 80 lines; it found no other case in `apps/aad-winui`. The guard is a
+source check; there is no automated test that builds the window.
+
+Run by hand with the fixed build, on the foreign DXF opened from the command line (the shell's own open path):
+- The **Map Layers window opened** with a row and a built-in-layer list per layer (`WALLS_EXT 8`, `DIM`,
+  `DOORS`, `FURN`, `TEXT_NOTES`), and the buttons Review, Keep my layers and Cancel.
+- **Review** showed `DIM -> AN-DIMS`, `DOORS -> A-DOOR`, `FURN -> I-FURN`, `TEXT_NOTES -> AN-TEXT`,
+  `WALLS_EXT -> A-WALL` (suggestions preselected) and "16 objects will move to built-in layers".
+- **Back** returned to the first page; **Cancel** on the review page closed the window and left the drawing
+  unchanged (`layermap {sources}` empty).
+- **Apply** (first run) closed the window; afterwards `layermap {sources}` listed the five source names with
+  their counts and the objects were on the built-in layers.
+- **Architecture > Levels > Move to Level** opened the "Send Selection to Level" form (target name, "Create
+  the level when it does not exist", ticked by default). With name `Ground`, OK and Enter at the two point
+  prompts, `level.list` showed `Ground` with 18 objects. The active level stayed the empty `Level 1`, so the
+  drawing looks empty until the `Ground` tab is chosen.
+- The Layer manager row menu opens and lists "Map to built-in layers...".
+
+Engine flows also run headless with `aad-cli run --cmd`: `layermap {suggest}` / `{map, purge}` / `{sources}`,
+`level.moveto {create: true}` on one implicit level, `level.import {layerMap}` (a destination that is not
+built in is refused).
+
+Not run by hand: the wizard opened from File > Import or from a Layer manager selection (the menu item was
+listed, not chosen), **Keep my layers**, Cancel on the first page, a Move to Level from the canvas
+right-click menu, **Architecture > Levels > Import Level** with its layer rows, and the level tabs. The
+shell was driven in a session where the screen could not be captured, so layout and appearance of the
+wizard were not looked at.
+
 ## Not done
 
 - A saved named mapping per company or per source program; matching by block names, colours, linetypes

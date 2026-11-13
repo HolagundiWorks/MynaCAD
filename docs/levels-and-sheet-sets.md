@@ -559,6 +559,18 @@ Known limits: the floating Ask pill covers the middle of the bar, so with many l
 tabs are expected to sit under it until the strip is scrolled (not tried with more than four); tabs cannot be reordered by
 dragging (`level.set order` exists); the rail cannot create or rename sheet sets.
 
+Hand check of 2026-11-11 (layers and levels on a foreign DXF; details in [layer-mapper.md](layer-mapper.md)):
+- Run by hand in the WinUI shell (control channel plus UI Automation, no usable screenshot): Architecture >
+  Levels > Move to Level on a selection of 18 objects, with a new target name and "Create the level" on
+  (its default); `level.list` then showed the new level with 18 objects. The active level stayed the empty
+  first level, so the drawing looks empty until the new level's tab is chosen. The Architecture > Levels
+  menu lists Import Level and the other level commands.
+- Not run by hand: the level tabs as drawn, the tab menu, the canvas right-click Move to Level, and
+  Architecture > Levels > Import Level with its layer rows. The headless engine runs of `level.import` with
+  a `layerMap` and of `level.moveto {create: true}` are in layer-mapper.md.
+- Opening a foreign drawing used to close the shell when the Map Layers window opened (a button added to two
+  parents); fixed, see layer-mapper.md.
+
 ## Risks
 
 - **Drawing-wide code that only reads `model`** (purge, audit, layer rename/delete, find and replace,

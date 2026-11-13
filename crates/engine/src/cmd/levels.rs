@@ -76,6 +76,9 @@ pub(super) fn find(s: &Session, cmd: &str, p: &Value, key: &str) -> Result<Level
 }
 
 fn names(d: &aad_doc::Drawing) -> String {
+    if d.levels.is_empty() {
+        return "none yet (the drawing has one implicit level; pass `create: true` to make one)".to_string();
+    }
     d.levels.iter().map(|l| l.name.as_str()).collect::<Vec<_>>().join(", ")
 }
 
