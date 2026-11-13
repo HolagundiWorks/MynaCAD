@@ -87,6 +87,7 @@ mod typography;
 mod underlay;
 mod utility;
 mod view;
+mod views;
 mod walls;
 mod wizard;
 mod xref;
@@ -284,6 +285,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(aicards::specs());
         v.extend(levels::specs());
         v.extend(sheetset::specs());
+        v.extend(views::specs());
         v.extend(sheetstd::specs());
         v.extend(wizard::specs());
         v.extend(exchange::specs());

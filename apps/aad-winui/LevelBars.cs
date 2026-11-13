@@ -79,7 +79,9 @@ public sealed partial class MainWindow
 
     private void ShowLevelBars(ChromeState state)
     {
+        _cachedViews = state.Views.ToList();
         ShowLevelTabs(state);
+        ShowViewTabs(state);
         ShowSheetTabs(state);
     }
 
@@ -89,7 +91,7 @@ public sealed partial class MainWindow
         var inModel = string.Equals(state.Space, "Model", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(state.Space);
         foreach (var l in state.Levels)
         {
-            l.Shown = l.Active && inModel;
+            l.Shown = l.Active && inModel && !state.Views.Any(v => v.Active);
         }
         var key = state.DesignMode + "|" + inModel + "|" + string.Join("|", state.Levels.Select(l => l.Id + ":" + l.Name + ":" + l.Active + ":" + l.Traced + ":" + l.Elevation + ":" + l.Trace))
             + "|" + string.Join("|", state.SheetSets.Where(s => s.Active).Select(s => s.Name));

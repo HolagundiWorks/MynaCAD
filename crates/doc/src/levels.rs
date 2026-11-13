@@ -116,7 +116,10 @@ impl Drawing {
     /// stores of the other levels. For drawing-wide work (purge, audit, extraction).
     pub fn model_stores(&self) -> impl Iterator<Item = &EntityStore> + '_ {
         // The slot of whatever is in `model` is empty, so every slot can be listed.
-        std::iter::once(&self.model).chain(self.levels.iter().map(|l| &l.entities)).chain(self.sheet_sets.iter().flat_map(|s| s.annotations.values()))
+        std::iter::once(&self.model)
+            .chain(self.levels.iter().map(|l| &l.entities))
+            .chain(self.sheet_sets.iter().flat_map(|s| s.annotations.values()))
+            .chain(self.view_spaces.iter().map(|v| &v.entities))
     }
 
     /// Mutable access to every model-space store (the active one first), for drawing-wide edits
@@ -125,6 +128,7 @@ impl Drawing {
         std::iter::once(&mut self.model)
             .chain(self.levels.iter_mut().map(|l| &mut l.entities))
             .chain(self.sheet_sets.iter_mut().flat_map(|s| s.annotations.values_mut()))
+            .chain(self.view_spaces.iter_mut().map(|v| &mut v.entities))
     }
 
     /// The objects of a level, whether or not it is the active one.
@@ -223,6 +227,7 @@ impl Drawing {
                 self.switch_level(next_id)?;
             }
         }
+        self.drop_level_from_views(id)?;
         self.levels.retain(|l| l.id != id);
         for l in &mut self.levels {
             l.traces.retain(|t| t.level != id);

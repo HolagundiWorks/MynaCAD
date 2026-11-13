@@ -6,7 +6,7 @@ above the drawing, a Trace settings form, and a Navigator for Compose Views, Mas
 Sheet set / Traces editor, a Show-for dropdown in the Layer manager, the new-drawing option, the
 egui tabs are not built. Only what the "Phase N status" sections list is
 implemented and tested.
-Sections and elevations (Phase 6) are a design only and are not built: see "Sections and elevations".
+Sections and elevations (Phase 6): the engine side and the shell tab group are built; the shell tabs were compiled and started but not seen or clicked by hand. See "Phase 6 status".
 
 Summary: keep one drawing file, but split its single model space into named **levels** (each its own
 entity store at a shared origin) and add **sheet sets** (discipline annotation spaces that reference
@@ -56,7 +56,26 @@ Persistence: project key `compose1` (synced on DXF/DWG write in `levels_file::to
 Annotation lives in its own store, not on layers, so two disciplines never collide, take-off never
 counts annotation, and deleting a sheet set never touches the design.
 
-## Sections and elevations (Phase 6, planned)
+## Phase 6 status: built; the shell tabs were not clicked through
+
+Implemented and tested (`crates/doc/src/viewspace.rs` unit tests, `crates/io` `levels_file` and `native` tests, `crates/engine/src/sectionguide.rs` unit tests, `crates/engine/tests/views.rs`):
+
+- **Data model** (`aad_doc`): `ViewSpace` (`rec: ViewRecord` + objects), `SpaceId`, `ViewKind`, `ViewLook`; on `Drawing` `view_spaces` (the design called it `views`, which is already the named-view list) and `active_view`. `EditTarget::View` is a third edit target handled by `switch_target`; entering a view parks the active level's objects in its slot and leaves any sheet view. View ids share `level_seed`. At most 128 views. `model_stores` / `model_stores_mut` include view stores, so purge, layer use, rename, extraction and audit see them; `Drawing::entity_count` counts them. Deleting a level deletes its views.
+- **Files**: DXF/DWG as blocks `ODRAFT$VIEW$<id>` plus records and the active view in `levels2` (version 2 only when views exist, so other files stay version 1); `.osp` as additive head fields `view_spaces` / `active_view` and stores `view:<id>`. Damaged records (bad ids, names, line, depth, level, covers, traces) open the file as plain design with a note. Verified for DXF and `.osp`; DWG shares the DXF bridge and was not separately tested.
+- **Commands** (`cmd/views.rs`): `section.new`, `elevation.new` (JSON and prompt forms), `section.link`, `view.list`, `view.edit`, `view.delete`, `view.activate`, `view.trace`, `view.guides`, `section.draft`, `section.check`, `section.levelmarks`. **`view.set` is not available:** it is the existing camera command, so settings are `view.edit`. Each is one undo step; `view.list`, `view.guides` and `section.check` change nothing. Hostile-input tests cover refused numbers, names, caps and unknown views; the generic `hostile_params_never_panic` and interactive start/cancel tests include them.
+- **Marker link**: the markers stay loose linework (`BP-SECTION` / `BP-ELEVATION`), not a block insert with extension data. The view stores the handle of the section line (or elevation circle); `view.activate`, the guides and the draft follow a moved marker, and a deleted marker leaves the view with `marker: None` and a note. Rotating an elevation marker does not rotate the view.
+- **Guides** (`sectionguide.rs`, plain 2D): floor and top-of-storey lines per covered level; cut wall faces (section) or seen wall edges within the depth (elevation) from `A-WALL` lines and straight polyline edges; columns from `A-COL`; openings from `OKIND` inserts with `OSILL` / `OHEAD` (sill and head lines, jambs in an elevation, wall faces broken between sill and head in a section). Capped at 100 000 guides and 2 000 000 plan segments per level. No occlusion, curved walls (bulges), stairs, roofs or slabs.
+- **Draft / check**: `section.draft` adds the guides as lines and closed outlines on `A-SECT` / `A-ELEV` (adjacent wall faces within 0.6 m pair into an outline; optional slab band under floor lines), skips what already exists and never moves drafted objects. `section.check` reports guides with no drafted edge on them, with the distance to the nearest edge (a wall moved 150 mm gives gap 150). The "Done when" behaviour (move a wall, guide moves, drafted lines stay, check reports the gap, DXF round trip) is covered by `views.rs`.
+
+Not built:
+
+- **Guides are not drawn.** There is no render path yet (`view.guides` returns them as data); the trace-path rendering, snapping and the recompute-on-change cache are open.
+- **WinUI**: no Section / Elevation tab group, create-from-tool or right-click menu; `chrome_json` has no `views`.
+- Per-view sheet-set annotation, `Viewport.level` generalised to a view, the marker head's sheet field, milestone history of views (a view saves its level), `ODRAFT$VIEW$` in other CAD programs beyond being a block, egui.
+- `section.levelmarks` uses `level.mark`, so its marks also appear in `level.schedule`.
+- Not run: DWG round trip, `cargo xtask ci` (fmt and clippy `-D warnings` and the tests above were run for `aad-doc`, `aad-io`, `aad-engine`, `aad-render` and `aad-host`).
+
+## Sections and elevations (Phase 6 design)
 
 Sections and elevations are a second kind of model space (a **view space**), drafted by hand in 2D
 like a level, but each is tied to a marker on a level and shows **projection guides** computed from
@@ -269,7 +288,7 @@ rendering work). Each phase ends with `cargo xtask ci` and its named tests, and 
 | 3. Sheet sets | `SheetSet`, per-level annotation stores, `sheetset.*`, `protect.rs` reference locking, annotation layer prefixes, drawing tabs above the drawing, annotation tool strip | In a sheet view a level object edit is refused naming the level; annotation of two sets on one level does not collide; presets create their spaces |
 | 4. Layouts and exchange | `Viewport.level/sheet_set/traces`, `viewport.set`, layout tessellation per store, `AAD_VP` data, Export for exchange | One layout holds the Electrical and Plumbing First-floor plans side by side and round-trips |
 | 5. Migration and polish (engine done; shell UI and egui not) | `level.import/export`, `project.merge`, take-off level ids, layer "Show for" filter, shortcuts, new-drawing and `project.setup` flow, egui tabs, memory load test (20 levels) | A floor project merges into one file in one undo step; docs and status complete |
-| 6. Sections and elevations (planned, not built) | View spaces, linked markers, `section.*` / `view.*` commands, projection guides (`sectionguide.rs`), view tab group, per-space annotation, `ODRAFT$VIEW$` round-trip | See [Done when](#done-when) above |
+| 6. Sections and elevations (engine, guide drawing and shell tab group built; shell not clicked through) | View spaces, linked markers, `section.*` / `view.*` commands, projection guides (`sectionguide.rs`), view tab group, per-space annotation, `ODRAFT$VIEW$` round-trip | See [Done when](#done-when) above |
 
 ## Phase 1 status: done, with the limits below
 

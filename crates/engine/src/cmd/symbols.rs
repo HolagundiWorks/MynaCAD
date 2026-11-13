@@ -64,7 +64,7 @@ fn fmt_level(v: f64) -> String {
     if v.abs() < 5e-4 { "±0.000".to_string() } else { format!("{v:+.3}") }
 }
 
-fn run_level(s: &mut Session, p: &Value) -> Result<Value> {
+pub(super) fn run_level(s: &mut Session, p: &Value) -> Result<Value> {
     let at = point_req("level.mark", p, "at")?;
     let offset = f64_or(p, "offset", 0.0);
     let value = match (p.get("value").and_then(Value::as_f64), str_param(p, "floor")) {
@@ -140,7 +140,7 @@ fn head(s: &mut Session, layer: &str, at: Vec2, label: &str, r: f64) -> Result<(
     put(s, layer, at, label, r * 1.1, (HAlign::Center, VAlign::Middle), 0.0)
 }
 
-fn run_section(s: &mut Session, p: &Value) -> Result<Value> {
+pub(super) fn run_section(s: &mut Session, p: &Value) -> Result<Value> {
     let (a, b) = (point_req("section.marker", p, "p1")?, point_req("section.marker", p, "p2")?);
     if a.near(b, 1e-9) {
         return Err(bad("section.marker", "the two points coincide"));
@@ -157,7 +157,7 @@ fn run_section(s: &mut Session, p: &Value) -> Result<Value> {
     let m = mm(s);
     let r = 300.0 * m;
     ensure_layer(s.doc_mut()?, SECTION, 30, "PHANTOM2", 35, "Section markers");
-    add_on(s, SECTION, line(a, b))?;
+    let marker = add_on(s, SECTION, line(a, b))?;
     let d = (b - a).normalized();
     let n = Vec2::new(-d.y, d.x) * look;
     for (end, out) in [(a, d * -1.0), (b, d)] {
@@ -178,10 +178,10 @@ fn run_section(s: &mut Session, p: &Value) -> Result<Value> {
             ),
         )?;
     }
-    Ok(json!({ "label": label }))
+    Ok(json!({ "label": label, "handle": marker.hex() }))
 }
 
-fn run_elevation(s: &mut Session, p: &Value) -> Result<Value> {
+pub(super) fn run_elevation(s: &mut Session, p: &Value) -> Result<Value> {
     let at = point_req("elevation.marker", p, "at")?;
     let number = str_param(p, "number").ok_or_else(|| bad("elevation.marker", "`number` is required"))?;
     let sheet = str_param(p, "sheet").unwrap_or("-");
@@ -189,7 +189,7 @@ fn run_elevation(s: &mut Session, p: &Value) -> Result<Value> {
     let m = mm(s);
     let r = 300.0 * m;
     ensure_layer(s.doc_mut()?, ELEV, 30, "Continuous", 25, "Elevation markers");
-    add_on(s, ELEV, circle(at, r))?;
+    let marker = add_on(s, ELEV, circle(at, r))?;
     add_on(s, ELEV, line(at - Vec2::new(r, 0.0), at + Vec2::new(r, 0.0)))?;
     put(s, ELEV, at + Vec2::new(0.0, r * 0.5), number, r * 0.7, (HAlign::Center, VAlign::Middle), 0.0)?;
     put(s, ELEV, at - Vec2::new(0.0, r * 0.5), sheet, r * 0.7, (HAlign::Center, VAlign::Middle), 0.0)?;
@@ -204,7 +204,7 @@ fn run_elevation(s: &mut Session, p: &Value) -> Result<Value> {
             true,
         ),
     )?;
-    Ok(json!({ "number": number, "sheet": sheet }))
+    Ok(json!({ "number": number, "sheet": sheet, "handle": marker.hex() }))
 }
 
 fn run_north(s: &mut Session, p: &Value) -> Result<Value> {

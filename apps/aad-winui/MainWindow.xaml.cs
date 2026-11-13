@@ -7408,6 +7408,7 @@ public sealed partial class MainWindow : Window
         public List<DocTab> Documents { get; set; } = new();
         public List<LevelTab> Levels { get; set; } = new();
         public List<SheetSetTab> SheetSets { get; set; } = new();
+        public List<ViewTab> Views { get; set; } = new();
         public bool DesignMode { get; set; } = true;
     }
 

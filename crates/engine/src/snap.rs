@@ -231,7 +231,9 @@ pub(crate) fn gather(
     let mut count = 0usize;
     let mut budget = MAX_BLOCK_LEAVES;
     let main = crate::select::candidates(d, space, ix, &probe.expand(aperture), true, false)?;
-    for (e, known) in main.chain(trace_candidates(d, space)) {
+    // The projection guides of an open section or elevation offer their snap points too.
+    let guides = if matches!(space, Space::Model) { crate::sectionguide::active_guides(d) } else { Default::default() };
+    for (e, known) in main.chain(trace_candidates(d, space)).chain(guides.iter().take(MAX_TRACE_SCAN).map(|e| (e, None))) {
         if !d.is_visible(e) {
             continue;
         }

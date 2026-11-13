@@ -14,7 +14,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use aad_doc::{
     Common, Drawing, Entity, EntityKind, EntityStore, Insert, LEVELS_NOTE_KEY, Level, LevelId, MAX_LEVELS, MAX_MAP_PATTERNS, MAX_SHEET_SETS,
-    MAX_TRACES, SheetSet, SheetSetId, Trace, TraceColour, TraceOrder, layer_prefix_ok, level_name_ok, pattern_ok,
+    MAX_TRACES, MAX_VIEW_SPACES, SheetSet, SheetSetId, SpaceId, Trace, TraceColour, TraceOrder, ViewRecord, ViewSpace, layer_prefix_ok,
+    level_name_ok, pattern_ok,
 };
 use aad_geom::Vec2;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,7 @@ const KEY: &str = "levels2";
 const STORES_LAYER: &str = "ODRAFT-STORES";
 const BLOCK_PREFIX: &str = "ODRAFT$LVL$";
 const ANN_PREFIX: &str = "ODRAFT$ANN$";
+const VIEW_PREFIX: &str = "ODRAFT$VIEW$";
 
 #[derive(Serialize, Deserialize)]
 struct Meta {
@@ -37,6 +39,12 @@ struct Meta {
     active_sheet: u32,
     #[serde(default)]
     sets: Vec<SetMeta>,
+    /// Sections and elevations (version 2 only); their ids come from `seed`.
+    #[serde(default)]
+    views: Vec<ViewRecord>,
+    /// The view being edited; 0 is none.
+    #[serde(default)]
+    active_view: u32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -84,6 +92,10 @@ fn block_name(id: LevelId) -> String {
     format!("{BLOCK_PREFIX}{}", id.0)
 }
 
+fn view_name(id: SpaceId) -> String {
+    format!("{VIEW_PREFIX}{}", id.0)
+}
+
 fn ann_name(set: u32, level: u32) -> String {
     format!("{ANN_PREFIX}{set}${level}")
 }
@@ -101,7 +113,7 @@ fn park(w: &mut Drawing, name: String, store: EntityStore) {
 /// The drawing as it is written: unchanged unless it has two or more levels, any sheet set, or
 /// compose / master / publisher data.
 pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
-    let needs_levels = d.levels.len() >= 2 || !d.sheet_sets.is_empty();
+    let needs_levels = d.levels.len() >= 2 || !d.sheet_sets.is_empty() || !d.view_spaces.is_empty();
     let needs_compose = !d.compose_views.is_empty()
         || !d.master_layouts.is_empty()
         || !d.publisher_sets.is_empty()
@@ -118,8 +130,13 @@ pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
     }
     let mut w = d.clone();
     let stores: Vec<(LevelId, EntityStore)> = d.levels.iter().map(|l| (l.id, d.level_store(l.id).cloned().unwrap_or_default())).collect();
+    let view_stores: Vec<(SpaceId, EntityStore)> =
+        d.view_spaces.iter().map(|v| (v.rec.id, d.view_store(v.rec.id).cloned().unwrap_or_default())).collect();
     let meta = Meta {
-        version: 1,
+        // Version 2 only when views exist, so a file without them still reads in older programs.
+        version: if d.view_spaces.is_empty() { 1 } else { 2 },
+        views: d.view_spaces.iter().map(|v| v.rec.clone()).collect(),
+        active_view: d.active_view.map_or(0, |a| a.0),
         seed: d.level_seed,
         active: d.active_level.map_or(0, |a| a.0),
         sheet_seed: d.sheet_seed,
@@ -173,6 +190,8 @@ pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
         })
         .collect();
     w.levels.clear();
+    w.view_spaces.clear();
+    w.active_view = None;
     w.active_level = None;
     w.sheet_sets.clear();
     w.active_sheet = None;
@@ -192,6 +211,9 @@ pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
     for (name, store) in annotations {
         park(&mut w, name, store);
     }
+    for (id, store) in view_stores {
+        park(&mut w, view_name(id), store);
+    }
     if let Ok(json) = serde_json::to_string(&meta) {
         w.project.insert(KEY.into(), json);
     }
@@ -200,11 +222,15 @@ pub(crate) fn to_file(d: &Drawing) -> Cow<'_, Drawing> {
 }
 
 fn valid(meta: &Meta) -> bool {
-    if meta.version != 1 || meta.levels.len() > MAX_LEVELS || meta.sets.len() > MAX_SHEET_SETS {
+    if !(meta.version == 1 || meta.version == 2)
+        || meta.levels.len() > MAX_LEVELS
+        || meta.sets.len() > MAX_SHEET_SETS
+        || meta.views.len() > MAX_VIEW_SPACES
+    {
         return false;
     }
     // Level data is written for two or more levels, or for any sheet set.
-    if meta.levels.len() < 2 && meta.sets.is_empty() {
+    if meta.levels.len() < 2 && meta.sets.is_empty() && meta.views.is_empty() {
         return false;
     }
     let mut ids = HashSet::new();
@@ -248,7 +274,32 @@ fn valid(meta: &Meta) -> bool {
     if meta.active_sheet != 0 && !set_ids.contains(&meta.active_sheet) {
         return false;
     }
-    meta.levels.iter().all(|l| l.traces.iter().all(|t| t.level != l.id && ids.contains(&t.level) && t.fade <= 90))
+    if !meta.levels.iter().all(|l| l.traces.iter().all(|t| t.level != l.id && ids.contains(&t.level) && t.fade <= 90)) {
+        return false;
+    }
+    if meta.views.is_empty() {
+        return meta.active_view == 0;
+    }
+    if meta.levels.is_empty() || meta.version < 2 {
+        return false;
+    }
+    // View ids share the level counter and must not collide with a level or each other.
+    let mut view_ids = HashSet::new();
+    let mut view_names = HashSet::new();
+    for v in &meta.views {
+        if v.id.0 == 0
+            || v.id.0 > meta.seed
+            || ids.contains(&v.id.0)
+            || !view_ids.insert(v.id.0)
+            || !v.is_valid()
+            || !view_names.insert(v.name.trim().to_ascii_lowercase())
+            || !ids.contains(&v.level.0)
+            || v.covers.as_ref().is_some_and(|c| c.iter().any(|l| !ids.contains(&l.0)))
+        {
+            return false;
+        }
+    }
+    meta.views.iter().all(|v| v.traces.iter().all(|t| view_ids.contains(&t.0))) && (meta.active_view == 0 || view_ids.contains(&meta.active_view))
 }
 
 /// Rebuild the levels and sheet sets of a drawing read from a file. A file without valid
@@ -273,6 +324,9 @@ pub(crate) fn from_file(mut d: Drawing) -> Drawing {
         for l in &meta.levels {
             names.insert(ann_name(s.id, l.id));
         }
+    }
+    for v in &meta.views {
+        names.insert(view_name(v.id));
     }
     let keep: Vec<_> = d
         .model
@@ -356,12 +410,25 @@ pub(crate) fn from_file(mut d: Drawing) -> Drawing {
     }
     d.levels = levels;
     d.level_seed = meta.seed;
+    for v in &meta.views {
+        let entities = match d.blocks.remove(&view_name(v.id)) {
+            Some(b) => b.entities.clone(),
+            None => {
+                missing.push(v.name.trim().to_string());
+                EntityStore::new()
+            }
+        };
+        d.view_spaces.push(ViewSpace { rec: ViewRecord { name: v.name.trim().to_string(), ..v.clone() }, entities });
+    }
     let _ = d.switch_level(LevelId(meta.active));
+    if meta.active_view != 0 {
+        let _ = d.enter_view_space(SpaceId(meta.active_view));
+    }
     if meta.active_sheet != 0 {
         let _ = d.enter_sheet_view(SheetSetId(meta.active_sheet));
     }
     if !missing.is_empty() {
-        let note = format!("The file has no objects for level {}; the level opened empty.", missing.join(", "));
+        let note = format!("The file has no objects for {}; it opened empty.", missing.join(", "));
         d.project.insert(LEVELS_NOTE_KEY.into(), note);
     }
     d
@@ -594,5 +661,130 @@ mod tests {
         assert_eq!(v.traces, vec![t]);
         let p = get(h2);
         assert_eq!((p.level, p.sheet_set, p.traces.len()), (None, None, 0), "an unbound viewport stays unbound");
+    }
+    /// Ground, First, one section on Ground (with a drafted line, being edited) and one elevation.
+    fn with_views() -> Drawing {
+        let (mut d, _) = three_levels();
+        let g = d.level_by_name("Ground").unwrap().id;
+        let sec = d
+            .add_view_space(
+                aad_doc::ViewKind::Section,
+                "Section A-A",
+                g,
+                (Vec2::new(0.0, 0.0), Vec2::new(9000.0, 0.0)),
+                aad_doc::ViewLook::Left,
+                4000.0,
+                Some(aad_doc::Handle(9)),
+            )
+            .unwrap();
+        let elev = d
+            .add_view_space(
+                aad_doc::ViewKind::Elevation,
+                "North",
+                g,
+                (Vec2::new(0.0, 5000.0), Vec2::new(9000.0, 5000.0)),
+                aad_doc::ViewLook::Right,
+                3000.0,
+                None,
+            )
+            .unwrap();
+        let mut rec = d.view_space(elev).unwrap().rec.clone();
+        rec.traces = vec![sec];
+        rec.covers = Some(vec![g]);
+        d.update_view_record(rec).unwrap();
+        d.enter_view_space(sec).unwrap();
+        line(&mut d, 11.0);
+        d
+    }
+
+    #[test]
+    fn views_round_trip_through_blocks_and_the_project_record() {
+        let d = with_views();
+        let bytes = crate::write_dxf(&d);
+        assert!(bytes.contains("ODRAFT$VIEW$"), "other CAD programs see a view as a block");
+        let r = crate::read_dxf(bytes.as_bytes()).unwrap();
+        assert_eq!(r.view_spaces.len(), 2);
+        let sec = r.view_space_by_name("Section A-A").unwrap();
+        assert_eq!(sec.rec.marker, Some(aad_doc::Handle(9)));
+        assert_eq!(r.active_view, Some(sec.rec.id), "the active view is restored");
+        assert_eq!(r.view_store(sec.rec.id).unwrap().len(), 1, "the drafted line is kept");
+        let el = r.view_space_by_name("North").unwrap();
+        assert_eq!(
+            (el.rec.look, el.rec.depth, el.rec.covers.clone(), el.rec.traces.clone()),
+            (aad_doc::ViewLook::Right, 3000.0, Some(vec![r.levels[0].id]), vec![sec.rec.id])
+        );
+        assert_eq!(r.levels.len(), 3);
+        assert_eq!(r.entity_count(), d.entity_count(), "no object is lost or doubled");
+        assert!(r.block("ODRAFT$VIEW$4").is_none() && !r.project.contains_key(KEY));
+        let again = crate::read_dxf(crate::write_dxf(&r).as_bytes()).unwrap();
+        assert_eq!(again.view_spaces.len(), 2);
+        assert_eq!(again.entity_count(), d.entity_count());
+        // Handles stay unique across levels and views.
+        let mut seen = HashSet::new();
+        for st in again.model_stores() {
+            for e in st.iter() {
+                assert!(seen.insert(e.handle), "duplicate handle");
+            }
+        }
+    }
+
+    #[test]
+    fn a_drawing_with_one_level_and_a_view_still_saves_its_views() {
+        let mut d = Drawing::new_metric();
+        let g = d.materialize_levels("Only", 0.0, 3000.0).unwrap();
+        d.add_view_space(aad_doc::ViewKind::Section, "S", g, (Vec2::ZERO, Vec2::new(1000.0, 0.0)), aad_doc::ViewLook::Left, 500.0, None).unwrap();
+        let r = crate::read_dxf(crate::write_dxf(&d).as_bytes()).unwrap();
+        assert_eq!((r.levels.len(), r.view_spaces.len()), (1, 1));
+    }
+
+    #[test]
+    fn a_file_without_views_still_writes_version_one() {
+        let (d, _) = three_levels();
+        let w = to_file(&d);
+        let v: serde_json::Value = serde_json::from_str(&w.project[KEY]).unwrap();
+        assert_eq!(v["version"], 1);
+    }
+
+    #[test]
+    fn damaged_view_data_opens_as_one_level_and_never_fails() {
+        let good = to_file(&with_views()).into_owned();
+        let bad_json = |f: &dyn Fn(&mut serde_json::Value)| {
+            let mut w = good.clone();
+            let mut v: serde_json::Value = serde_json::from_str(&w.project[KEY]).unwrap();
+            f(&mut v);
+            w.project.insert(KEY.into(), v.to_string());
+            w
+        };
+        let cases: Vec<Drawing> = vec![
+            bad_json(&|v| v["views"][0]["depth"] = 0.into()),
+            bad_json(&|v| v["views"][0]["depth"] = serde_json::Value::Null),
+            bad_json(&|v| v["views"][0]["name"] = "".into()),
+            bad_json(&|v| v["views"][1]["name"] = v["views"][0]["name"].clone()),
+            bad_json(&|v| v["views"][1]["id"] = v["views"][0]["id"].clone()),
+            bad_json(&|v| v["views"][0]["id"] = v["levels"][0]["id"].clone()),
+            bad_json(&|v| v["views"][0]["id"] = 0.into()),
+            bad_json(&|v| v["views"][0]["level"] = 999.into()),
+            bad_json(&|v| v["views"][0]["line"] = serde_json::json!([[0.0, 0.0], [0.0, 0.0]])),
+            bad_json(&|v| v["views"][0]["covers"] = serde_json::json!([999])),
+            bad_json(&|v| v["views"][1]["traces"] = serde_json::json!([999])),
+            bad_json(&|v| v["active_view"] = 999.into()),
+            bad_json(&|v| v["version"] = 1.into()),
+            bad_json(&|v| v["views"] = serde_json::json!((0..(MAX_VIEW_SPACES + 3)).map(|_| v["views"][0].clone()).collect::<Vec<_>>())),
+        ];
+        for (i, w) in cases.into_iter().enumerate() {
+            let r = from_file(w);
+            assert!(r.levels.is_empty() && r.view_spaces.is_empty() && r.active_view.is_none(), "case {i} loads as plain design");
+            assert!(r.project.contains_key(LEVELS_NOTE_KEY), "case {i}: the user is told");
+        }
+    }
+
+    #[test]
+    fn a_missing_view_block_gives_an_empty_view() {
+        let mut w = to_file(&with_views()).into_owned();
+        let name = w.blocks.keys().find(|n| n.starts_with(VIEW_PREFIX)).cloned().unwrap();
+        w.blocks.remove(&name);
+        let r = from_file(w);
+        assert_eq!(r.view_spaces.len(), 2);
+        assert!(r.project[LEVELS_NOTE_KEY].contains("opened empty"));
     }
 }
