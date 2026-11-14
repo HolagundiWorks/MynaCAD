@@ -279,6 +279,10 @@ fn hostile_parameters_never_panic() {
         ("sheetindex.publish", json!({"sheets": [true]})),
         ("sheetindex.publish", json!({})), // sheets exist but have no layout
         ("sheetindex.fill", json!({"sheet": "zzz"})),
+        ("issue.delete", json!({})),
+        ("issue.delete", json!({"issue": "nope"})),
+        ("issue.delete", json!({"issue": true})),
+        ("issue.delete", json!({"issue": 99999})),
     ];
     for (cmd, p) in bad {
         assert!(s.execute(cmd, &p).is_err(), "{cmd} {p}");
@@ -305,4 +309,77 @@ fn deleting_a_sheet_can_take_its_layout() {
     s.execute("sheet.delete", &json!({"sheet": "A-101", "layout": true})).unwrap();
     assert!(s.doc().unwrap().layout(&layout).is_none());
     assert_eq!(numbers(&mut s), ["A-102"]);
+}
+
+#[test]
+fn the_standard_title_block_has_the_sheet_index_fields_and_they_are_filled() {
+    let mut s = two_levels();
+    s.execute("sheetindex.build", &json!({})).unwrap();
+    s.execute("sheet.set", &json!({"sheet": "A-101", "checked": "VH", "approved": "AB", "status": "review"})).unwrap();
+    s.execute("issue.create", &json!({"name": "Permit"})).unwrap();
+    let layout = s.execute("sheet.list", &json!({})).unwrap()["sheets"][0]["layout"].as_str().unwrap().to_string();
+    let f = s.execute("sheet.fields", &json!({"layout": layout})).unwrap();
+    let fields = &f["fields"];
+    assert_eq!(fields["CHECKED"], "VH");
+    assert_eq!(fields["APPROVED"], "AB");
+    assert_eq!(fields["DISCIPLINE"], "Architectural");
+    assert_eq!(fields["STATUS"], "issued");
+    assert_eq!(fields["ISSUE"], "Permit");
+    assert_eq!(fields["SHEET"], "A-101");
+}
+
+#[test]
+fn renumbering_renames_the_layout_and_follows_it_in_issues_and_publisher_sets() {
+    let mut s = two_levels();
+    s.execute("sheetindex.build", &json!({})).unwrap();
+    s.execute("issue.create", &json!({"name": "Permit"})).unwrap();
+    let names = |s: &mut Session| -> Vec<String> {
+        s.execute("sheet.list", &json!({})).unwrap()["sheets"].as_array().unwrap().iter().map(|x| x["layout"].as_str().unwrap().to_string()).collect()
+    };
+    assert_eq!(names(&mut s), ["A-101 Ground Plan", "A-102 First Plan"]);
+    // sheet.set number
+    let r = s.execute("sheet.set", &json!({"sheet": "A-102", "number": "A-110"})).unwrap();
+    assert_eq!(r["layoutRenamed"]["to"], "A-110 First Plan");
+    assert!(s.doc().unwrap().layout("A-110 First Plan").is_some() && s.doc().unwrap().layout("A-102 First Plan").is_none());
+    // a title change alone does not rename
+    s.execute("sheet.set", &json!({"sheet": "A-110", "title": "Level One"})).unwrap();
+    assert_eq!(names(&mut s)[1], "A-110 First Plan");
+    // renumber with a swap of two numbers: no clash
+    s.execute("sheet.move", &json!({"sheet": "A-110", "position": 0, "renumber": true})).unwrap();
+    let n = names(&mut s);
+    assert_eq!(n.len(), 2);
+    for (num, layout) in numbers(&mut s).iter().zip(n.iter()) {
+        assert!(layout.starts_with(num.as_str()), "{layout} should start with {num}");
+        assert!(s.doc().unwrap().layout(layout).is_some());
+    }
+    // the issue and its Publisher Set still point at layouts that exist
+    let issue = s.execute("issue.list", &json!({})).unwrap();
+    for row in issue["issues"][0]["sheets"].as_array().unwrap() {
+        assert!(s.doc().unwrap().layout(row["layout"].as_str().unwrap()).is_some(), "{row}");
+    }
+    let set = s.doc().unwrap().publisher_set_by_name("Issue Permit").unwrap().clone();
+    assert!(set.layouts.iter().all(|l| s.doc().unwrap().layout(l).is_some()), "{:?}", set.layouts);
+}
+
+#[test]
+fn deleting_an_issue_keeps_revisions_and_refuses_when_it_is_the_only_record() {
+    let mut s = two_levels();
+    s.execute("sheetindex.build", &json!({})).unwrap();
+    s.execute("issue.create", &json!({"name": "Permit"})).unwrap();
+    s.execute("issue.create", &json!({"name": "Draft", "stamp": false})).unwrap();
+    // Draft stamped nothing: it is the only record of its revision.
+    assert!(s.execute("issue.delete", &json!({"issue": "Draft"})).is_err());
+    assert_eq!(s.execute("issue.list", &json!({})).unwrap()["issues"].as_array().unwrap().len(), 2);
+    let r = s.execute("issue.delete", &json!({"issue": "Draft", "force": true})).unwrap();
+    assert_eq!(r["deleted"], "Draft");
+    // Permit stamped a revision on every sheet: deleting it loses nothing.
+    let r = s.execute("issue.delete", &json!({"issue": "permit"})).unwrap();
+    assert_eq!(r["publisherSetRemoved"], true);
+    assert!(s.doc().unwrap().publisher_set_by_name("Issue Permit").is_none());
+    assert!(s.execute("issue.list", &json!({})).unwrap()["issues"].as_array().unwrap().is_empty());
+    let revs = s.execute("sheet.revision.list", &json!({})).unwrap();
+    assert!(!revs["revisions"].as_array().unwrap().is_empty(), "sheet revisions stay");
+    // undo brings the issue back
+    s.undo().unwrap();
+    assert_eq!(s.execute("issue.list", &json!({})).unwrap()["issues"].as_array().unwrap().len(), 1);
 }

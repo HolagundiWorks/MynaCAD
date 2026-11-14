@@ -91,9 +91,10 @@ frozen row keeps its number and shows `layout missing` when published.
 2. one sheet per **Compose View** when asked (`composeViews: true`), applied with `compose.view.apply`;
 3. **section / elevation views**: sheets can name a `view` source. The module asks one function,
    `view_sources(session)`, for the section and elevation view spaces the drawing has (Phase 6, see
-   `levels-and-sheet-sets.md`). A sheet whose view cannot be resolved is still created, without a
-   viewport, with a warning. Limit: `viewport.set` binds a level, not a view space, so a sheet made
-   from an existing view gets its layout and numbering but no view content yet.
+   `levels-and-sheet-sets.md`), used by `allViews: true` and by `views: [names]`. The sheet's
+   viewport is bound with `viewport.set {view}` (the section or elevation with its projection guides
+   faded, centred on what the view holds). A sheet whose view cannot be resolved is still created,
+   with an unbound viewport and a warning.
 
 Each layout is named `<number> <title>` (limits of `layout.new` apply), takes the master layout when
 `master` is given (`master.apply`: paper and title block) or the page `paper`, and gets the title
@@ -111,12 +112,17 @@ second kind (`kind: revisions`) draws the revision schedule. Our own lines and t
 existing `write_fields` path, so any block with those tags works and tags a block lacks are skipped:
 `SHEET` number, `TITLE`, `SCALE`, `REV`, `DRAWN`, `CHECKED`, `APPROVED`, `DATE`, `DISCIPLINE`,
 `STATUS`, `FLOOR` (source level), `PAPER`, `ISSUE` (latest issue). `PROJECT`, `CLIENT` come from
-project details through `sheet.titleblock` as before. The standard `AAD-TITLEBLOCK` has the nine
-original tags only; a title block with the extra tags is a later, separate piece (planned).
+project details through `sheet.titleblock` as before. The standard `AAD-TITLEBLOCK` that
+`sheet.titleblock` draws (our own drawing, 180 x 56 mm, six rows) carries fourteen tags: the nine
+original ones plus CHECKED, APPROVED, DISCIPLINE, STATUS and ISSUE. A drawing that already holds an
+older `AAD-TITLEBLOCK` definition keeps it (the block is only made when missing); such sheets keep
+filling the tags they have. `PAPER` and `FLOOR` are filled only when the block has them.
 
-The layout name is fixed when the layout is made (`<number> <title>`); a later renumber or title
-change updates the title block and the record, not the layout name, because publisher sets and
-issues refer to layouts by name.
+The layout is named `<number> <title>` when it is made. When a sheet's **number** changes
+(`sheet.set number`, `sheet.renumber`, `sheet.move` with `renumber` or a discipline change) its
+layout is renamed to the new `<number> <title>`, and the rename is followed in the sheet record, in
+the layout names frozen in issues and in every Publisher Set. A title change alone does not rename
+the layout. Renumbering renames in two steps, so swapping two numbers cannot clash.
 
 ## Publishing
 
@@ -134,11 +140,11 @@ record are exactly those of the Publisher; plot styles come from each layout's p
 | `sheet.renumber` | Per discipline, or all; `dryRun` previews |
 | `sheet.move` | Move a sheet before/after another or to a position; `discipline` change renumbers it |
 | `sheet.scheme` | Read or set pattern, width, step, discipline list |
-| `sheetindex.build` | Sheets and layouts from levels, compose views, views |
+| `sheetindex.build` | Sheets and layouts from levels, compose views, views (`allViews`, `views`) |
 | `sheetindex.fill` | Rewrite title-block fields from records |
 | `sheetindex.table` | Draw the sheet list or revision schedule |
 | `sheet.revision.add / list` | Per-sheet revision history; `list` without a sheet is the schedule |
-| `issue.create / list` | Frozen issue sets |
+| `issue.create / list / delete` | Frozen issue sets. `issue.delete {issue, force?, keepPublisherSet?}` removes the record and its `Issue <name>` Publisher Set; sheet revisions and statuses stay. It is refused, unless `force`, when some frozen sheet has no revision entry for the issue (made with `stamp: false`, so the issue is the only record of that revision) |
 | `sheetindex.publish` | Publish by issue or discipline through the Publisher |
 
 All are ordinary commands (JSON form with defaults, no dialogs). Undo covers them because they only
@@ -158,7 +164,7 @@ automatic revision clouds (see `revision.clouds`). No live fields in the drawn t
 
 ## Verification
 
-Run: `cargo test -p aad-engine --test sheet_index --test sheet_index_publish` (14 + 2 tests: numbering,
+Run: `cargo test -p aad-engine --test sheet_index --test sheet_index_publish --test viewport_views` (17 + 2 + 5 tests, including title-block fields, layout rename on renumber, `issue.delete`, a viewport bound to a view, its DXF round trip and `sheetindex.build` binding view sheets; the earlier 14 + 2: numbering,
 renumber/move, build from levels and compose views and a master, missing views, title-block fill,
 revisions, issues frozen across renumbering, drawn table and redraw, key round trip and undo, damaged
 stored data, about 50 hostile parameter cases, the 1000-sheet cap, publish by issue and by discipline
@@ -166,6 +172,4 @@ with fake plot and DWG hooks); `dotnet build` of `Aad.WinUi.csproj` (0 warnings)
 Not run: the WinUI window was compiled but not opened, so tree drag-to-reorder, the buttons and the
 publish dialog were not clicked; real PDF and DWG output through this path was not produced (the tests
 use fake writers); `sheetindex.build` was not tried on a large drawing.
-Planned: a title block with CHECKED, APPROVED, DISCIPLINE, STATUS and ISSUE attributes; section and
-elevation sources once view spaces exist (`view_sources` in `sheetindex.rs` is the single hook);
-renaming a layout when its sheet is renumbered; deleting an issue set.
+Planned: nothing from the earlier list remains open.
