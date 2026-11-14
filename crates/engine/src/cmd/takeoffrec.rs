@@ -54,7 +54,11 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("takeoff.record", "Record Take-off", run_record)
             .menu(&["Architecture", "Take-off", "Record in project"])
-            .params("{path?: another project file (.osp) to record into (default: the open one), annotate?: draw and store the annotated PDF (default true), paper?: \"A3\", level?, bearing?} → {path, headerId, slot, state, counts, written, added, changed?, unchanged?, deleted, pdf?, skipped, warnings}")
+            .params("{path?: another project file (.osp) to record into (default: the open one), annotate?: draw and store the annotated PDF (default true), paper?: \"A3\", level?, levels?: \"all\" or a list of level names or ids to record in one run (each level's rows carry its level_id; not with `level`), bearing?} → {path, headerId, slot, state, counts, written, added, changed?, unchanged?, deleted, pdf?, levels?, skipped, warnings}")
+            .noundo(),
+        CommandSpec::new("takeoff.levels", "Take-off Level Status", run_levels)
+            .menu(&["Architecture", "Take-off", "Level status"])
+            .params("{update?: write the stale flags into the project file's take-off header, path?: another project file} → {levels: [{id, name, recorded, rows, stale}], recordedAt?, updated?}")
             .noundo(),
     ]
 }
@@ -219,7 +223,7 @@ pub(crate) fn header(root: &Map<String, Value>, complete: bool, pdf: Option<&Val
     h.insert("units".into(), json!("mm"));
     h.insert("state".into(), json!(if complete { "complete" } else { "recording" }));
     h.insert("source".into(), Value::Object(source));
-    for key in ["project", "levels", "beam_depths_mm", "opening_schedule", "takeoff_tables"] {
+    for key in ["project", "levels", "beam_depths_mm", "opening_schedule", "takeoff_tables", "level_status"] {
         if let Some(v) = root.get(key) {
             h.insert(key.into(), v.clone());
         }
@@ -382,13 +386,39 @@ fn levels_in_slot(sink: &mut dyn Sink, slot: u32) -> Result<std::collections::BT
     Ok(levels)
 }
 
+/// A level's floor elevation in millimetres from a `levels` list (`elevation_mm`), when it has one.
+fn elevation_in(levels: Option<&Value>, name: &str) -> Option<f64> {
+    levels?
+        .as_array()?
+        .iter()
+        .find(|l| l.get("name").and_then(Value::as_str).is_some_and(|n| n.eq_ignore_ascii_case(name)))?
+        .get("elevation_mm")?
+        .as_f64()
+        .filter(|e| e.is_finite())
+}
+
+/// Whether two levels of two different drawings are the same floor. A level id belongs to one drawing (two drawings may both have a level 1, and a
+/// copied drawing keeps its ids), so across drawings it cannot say; the elevation can: when both levels state one, equal elevations (within 1 mm) are the
+/// same floor whatever they are called. Otherwise the names decide, as before.
+fn same_floor(ours: &str, our_levels: Option<&Value>, theirs: &str, their_levels: Option<&Value>) -> bool {
+    match (elevation_in(our_levels, ours), elevation_in(their_levels, theirs)) {
+        (Some(a), Some(b)) => (a - b).abs() <= 1.0,
+        _ => ours.eq_ignore_ascii_case(theirs),
+    }
+}
+
 /// Warn when another complete take-off in this database already measures the same company-file project and floor.
-/// Mirrors MynaOps's import overlap warning (warn only; recording still completes).
-fn warn_record_overlap(sink: &mut dyn Sink, our_slot: u32, root: &Map<String, Value>, stamped_level: &str) -> Result<Vec<String>> {
+/// Mirrors MynaOps's import overlap warning (warn only; recording still completes). `recorded` are the level names this recording covers.
+fn warn_record_overlap(
+    sink: &mut dyn Sink,
+    our_slot: u32,
+    root: &Map<String, Value>,
+    recorded: &std::collections::BTreeSet<String>,
+) -> Result<Vec<String>> {
     let Some(ours) = root.get("source").and_then(project_key_of) else {
         return Ok(Vec::new());
     };
-    if stamped_level.is_empty() {
+    if recorded.is_empty() {
         return Ok(Vec::new());
     }
     let mut warnings = Vec::new();
@@ -411,15 +441,16 @@ fn warn_record_overlap(sink: &mut dyn Sink, our_slot: u32, root: &Map<String, Va
         }
         let other_slot = slot_of(id);
         let levels = levels_in_slot(sink, other_slot)?;
-        if !levels.contains(stamped_level) {
-            continue;
-        }
         let label = other_drawing_label(&header);
-        if seen.insert(format!("{label}|{stamped_level}")) {
-            warnings.push(format!(
-                "drawing `{label}` already has take-off on `{stamped_level}` for the same company-file project; \
-                 recording this drawing too may double-count that floor (MynaOps also warns at import)"
-            ));
+        for ours_name in recorded {
+            if !levels.iter().any(|t| same_floor(ours_name, root.get("levels"), t, header.get("levels"))) {
+                continue;
+            }
+            if seen.insert(format!("{label}|{ours_name}")) {
+                warnings.push(format!(
+                    "drawing `{label}` already has take-off on `{ours_name}` for the same company-file project;                      recording this drawing too may double-count that floor (MynaOps also warns at import)"
+                ));
+            }
         }
     }
     Ok(warnings)
@@ -536,7 +567,12 @@ fn run_record(s: &mut Session, p: &Value) -> Result<Value> {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let mut c = bridge::collect(s, p)?;
+        let req = super::takeofflevels::parse(s.doc()?, p)?;
+        let mut result_levels = Value::Null;
+        let mut c = match &req {
+            Some(r) => super::takeofflevels::collect(s, p, r)?,
+            None => bridge::collect(s, p)?,
+        };
         // Stash MEASURE table snapshots so takeoff.restore can redraw them from the project file.
         let tables = super::takeoff::snapshot_tables(s.doc()?);
         if let Some(obj) = tables.as_object()
@@ -545,6 +581,13 @@ fn run_record(s: &mut Session, p: &Value) -> Result<Value> {
             c.root.insert("takeoff_tables".into(), tables);
         }
         let mut warnings = c.warnings.clone();
+        if req.is_none() && p.get("levels").is_some_and(|v| !v.is_null()) {
+            warnings.push("the drawing has no named levels: recorded as one level".into());
+        }
+        let level_status = super::takeofflevels::status(s.doc()?, req.as_ref(), &c.items, &bridge::iso_time().unwrap_or_default());
+        if let Some(st) = &level_status {
+            c.root.insert("level_status".into(), st.clone());
+        }
         let kept = {
             let v = project::get(s.doc()?, SLOT_KEY);
             let ours = v.get("drawingId").and_then(Value::as_str) == Some(c.drawing_id.as_str());
@@ -584,11 +627,19 @@ fn run_record(s: &mut Session, p: &Value) -> Result<Value> {
         let built = build(&c, probe_slot)?;
         let out = write_slot(sink.as_mut(), &c, &built, Some(probe_slot), pdf_ref, file_path.is_some())?;
         project::set(s.doc_mut()?, SLOT_KEY, &json!({ "drawingId": c.drawing_id, "slot": out.slot }));
+        if let Some(st) = &level_status {
+            project::set(s.doc_mut()?, super::takeofflevels::LEVELS_KEY, &super::takeofflevels::stored_value(st));
+            result_levels = st["levels"].clone();
+        }
 
-        let stamped_level = c.items.iter().find_map(|i| i.row.get("level").and_then(Value::as_str)).unwrap_or("");
-        warnings.extend(warn_record_overlap(sink.as_mut(), out.slot, &c.root, stamped_level)?);
+        let recorded: std::collections::BTreeSet<String> =
+            c.items.iter().filter_map(|i| i.row.get("level").and_then(Value::as_str)).filter(|n| !n.is_empty()).map(str::to_string).collect();
+        warnings.extend(warn_record_overlap(sink.as_mut(), out.slot, &c.root, &recorded)?);
 
         let mut result = target;
+        if !result_levels.is_null() {
+            result["levels"] = result_levels;
+        }
         result["headerId"] = json!(header_id(out.slot));
         result["slot"] = json!(out.slot);
         result["state"] = json!("complete");
@@ -611,6 +662,62 @@ fn run_record(s: &mut Session, p: &Value) -> Result<Value> {
         s.echo(format!("Take-off recorded: {}.", if text.is_empty() { "no measured rows".to_string() } else { text }));
         Ok(result)
     }
+}
+
+/// `takeoff.levels`: which levels the last recording covered and which of them changed since.
+fn run_levels(s: &mut Session, p: &Value) -> Result<Value> {
+    let d = s.doc()?;
+    let levels = super::takeofflevels::live_status(d);
+    let mut out = json!({ "levels": levels });
+    let stored = project::get(d, super::takeofflevels::LEVELS_KEY);
+    if let Some(at) = stored.get("recordedAt") {
+        out["recordedAt"] = at.clone();
+    }
+    if bool_or(p, "update", false) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            return Err(bad("takeoff.levels", "project files cannot be written on the web"));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            out["updated"] = json!(update_header(s, p, &levels)?);
+        }
+    }
+    Ok(out)
+}
+
+/// Writes the stale flags into the complete header of this drawing's slot. False when there is nothing to update.
+#[cfg(not(target_arch = "wasm32"))]
+fn update_header(s: &mut Session, p: &Value, levels: &[Value]) -> Result<bool> {
+    let file_path = match str_param(p, "path") {
+        Some(t) => Some(std::path::PathBuf::from(t)),
+        None => project_file_of(s, p),
+    };
+    let Some(path) = &file_path else {
+        return Err(bad("takeoff.levels", "open or save the drawing as a project (.osp) first, or give `path`"));
+    };
+    let slot = {
+        let v = project::get(s.doc()?, SLOT_KEY);
+        v.get("slot").and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok())
+    };
+    let Some(slot) = slot else { return Ok(false) };
+    let mut sink = open_file_sink(path)?;
+    let Some(payload) = sink.payload(header_id(slot))? else { return Ok(false) };
+    let mut header: Value = serde_json::from_slice(&payload).map_err(|e| bad("takeoff.levels", e.to_string()))?;
+    if header.get("state").and_then(Value::as_str) != Some("complete") {
+        return Ok(false);
+    }
+    let Some(list) = header.get_mut("level_status").and_then(|v| v.get_mut("levels")).and_then(Value::as_array_mut) else { return Ok(false) };
+    for entry in list.iter_mut() {
+        let id = entry.get("id").and_then(Value::as_u64);
+        let stale =
+            levels.iter().find(|l| l.get("id").and_then(Value::as_u64) == id).and_then(|l| l.get("stale")).and_then(Value::as_bool).unwrap_or(true);
+        entry["stale"] = json!(stale);
+    }
+    let bytes = serde_json::to_vec(&header).map_err(|e| bad("takeoff.levels", e.to_string()))?;
+    sink.put(&[Rec { id: header_id(slot), payload: bytes }])?;
+    sink.save()?;
+    Ok(true)
 }
 
 #[cfg(test)]
