@@ -114,6 +114,10 @@ fn all_levels_are_recorded_in_one_run_each_with_its_level_id() {
     assert!(lv.iter().all(|l| l["stale"] == false));
     // The result carries the same list.
     assert_eq!(r["levels"].as_array().map(Vec::len), Some(3));
+    // For a hand check in MynaOps: `TAKEOFF_LEVELS_SAMPLE=<file.osp>` keeps a copy of this recording.
+    if let Some(keep) = std::env::var_os("TAKEOFF_LEVELS_SAMPLE") {
+        std::fs::copy(&path, keep).unwrap();
+    }
     cleanup(&path);
 }
 
