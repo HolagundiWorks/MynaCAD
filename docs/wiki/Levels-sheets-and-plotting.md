@@ -20,3 +20,5 @@ Extra title-block fields (CHECKED, APPROVED, DISCIPLINE, STATUS, ISSUE), binding
 
 ## Bridge to MynaOps
 Take-off rows carry the level name and, new, `level_id`; the header lists levels with `id` and `elevation_mm`. See `docs/bridge/LEVEL-IDS.md` in MynaOps.
+
+`takeoff.record` with `levels: "all"` (or a list of level names or ids) records several levels in one run, each row with its `level_id`; the header gets an optional `level_status`, and `takeoff.levels` reports which recorded levels changed since (`update` writes the flags into the project file). Run by hand 2026-11-15: a three-level drawing recorded this way was opened in MynaOps (Take-off page level summary and the import level picker, driven with UI Automation). Not run by hand: the stale display, live refresh while recording. The full `cargo xtask ci` and the whole engine test suite were not run (link step out of memory); the take-off and bridge test files, clippy on `aad-engine` and `cargo xtask layers` were.
