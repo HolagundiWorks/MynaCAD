@@ -1,14 +1,14 @@
 # Parity checklist
 
-> **Generated:** 2026-10-28 by `cargo xtask parity`. Do not edit by hand.
+> **Generated:** 2026-11-14 by `cargo xtask parity`. Do not edit by hand.
 
 Menu-breadth parity: a reference menu item counts as covered when a AAD command is registered under the same menu label. It measures breadth, not depth.
 
-**Menu breadth: 184 / 319 items (58%)** · 538 registered commands.
+**Menu breadth: 185 / 319 items (58%)** · 646 registered commands.
 
 | Menu | Items | Covered | % |
 |---|---|---|---|
-| File | 22 | 11 | 50% |
+| File | 22 | 12 | 55% |
 | Edit | 13 | 11 | 85% |
 | View | 39 | 20 | 51% |
 | Insert | 11 | 2 | 18% |
@@ -25,7 +25,6 @@ Menu-breadth parity: a reference menu item counts as covered when a AAD command 
 - File > New Sheet Set...
 - File > Open Sheet Set...
 - File > Open Recent > Clear Menu
-- File > Import...
 - File > Attach...
 - File > Export Layout to Model...
 - File > Package Drawing...

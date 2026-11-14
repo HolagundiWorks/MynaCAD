@@ -1,6 +1,6 @@
 # Structured sheet set: sheet index, revisions and issue sets
 
-Status: engine commands and the WinUI **Sheet index** window are built; see "Verification" at the end for what was run. Planned items are marked as such. Related: the Compose and
+Status: engine commands and the WinUI **Sheet index** window are built and the window was driven by hand once; see "Verification" at the end for what was run. Planned items are marked as such. Related: the Compose and
 publish section of [levels-and-sheet-sets.md](levels-and-sheet-sets.md) (Compose Views, Master
 Layouts, Publisher Sets), [sheets.md](sheets.md) (title block, `sheet.index`),
 [revision-history.md](revision-history.md) (project revision register), [plot-styles.md](plot-styles.md).
@@ -169,7 +169,7 @@ renumber/move, build from levels and compose views and a master, missing views, 
 revisions, issues frozen across renumbering, drawn table and redraw, key round trip and undo, damaged
 stored data, about 50 hostile parameter cases, the 1000-sheet cap, publish by issue and by discipline
 with fake plot and DWG hooks); `dotnet build` of `Aad.WinUi.csproj` (0 warnings).
-Not run: the WinUI window was compiled but not opened, so tree drag-to-reorder, the buttons and the
-publish dialog were not clicked; real PDF and DWG output through this path was not produced (the tests
+Run by hand (2026-11-15, locally built shell, Windows UI Automation; computer use was declined): Architecture > Sheets > Sheet Index opened the window; the tree listed Architectural with A-101 and A-102 (levels) and A-103 and A-104 (sections made by `sheetindex.build allViews`); selecting A-104, setting Sheet number to A-110 and Apply fields renamed its layout to `A-110 Section B-B`; Renumber put it back to A-104 with the layout; New issue set with text `Permit` made the issue and its Publisher Set. The Architecture > Sheets menu lists two entries named `Sheet Index` (this window and the older `sheet.index` snapshot).
+Not run: tree drag-to-reorder, Move up/down, Add revision and the publish dialog were not clicked; real PDF and DWG output through this path was not produced (the tests
 use fake writers); `sheetindex.build` was not tried on a large drawing.
 Planned: nothing from the earlier list remains open.
