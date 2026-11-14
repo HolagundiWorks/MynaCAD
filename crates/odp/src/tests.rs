@@ -381,7 +381,8 @@ fn probe_ok(path: &std::path::Path) -> Probe {
 }
 
 fn header_with_levels(ids: &[&str]) -> Vec<u8> {
-    let levels: Vec<_> = ids.iter().map(|i| json!({ "id": i, "name": i })).collect();
+    // Ids are numbers in the real header; a text id is read too.
+    let levels: Vec<_> = ids.iter().map(|i| match i.parse::<u32>() { Ok(n) => json!({ "id": n, "name": i }), Err(_) => json!({ "id": i, "name": i }) }).collect();
     json!({ "state": "complete", "levels": levels }).to_string().into_bytes()
 }
 
@@ -408,13 +409,13 @@ fn every_revision_says_who_wrote_it_and_when() {
 fn recording_a_takeoff_stamps_its_levels_and_a_later_drawing_save_makes_it_stale() {
     let (_d, path) = temp();
     let mut odp = Odp::create(&path, "House").unwrap();
-    let recs = vec![(rec(1, 1, 0), header_with_levels(&["L0", "L1"])), (rec(3, 1, 0), json!({ "ref": "W0" }).to_string().into_bytes())];
+    let recs = vec![(rec(1, 1, 0), header_with_levels(&["2", "L1"])), (rec(3, 1, 0), json!({ "ref": "W0" }).to_string().into_bytes())];
     let rev = odp.replace_takeoff(&recs).unwrap();
     let p = probe_ok(&path);
     assert_eq!(p.takeoff.len(), 1);
     let t = &p.takeoff[0];
     assert_eq!((t.slot, t.revision), (1, rev));
-    assert_eq!(t.levels, vec![("L0".to_string(), rev), ("L1".to_string(), rev)]);
+    assert_eq!(t.levels, vec![("2".to_string(), rev), ("L1".to_string(), rev)]);
     assert!(p.stale_slots().is_empty(), "no drawing yet");
     // Recording the same thing again changes nothing but is still stamped "current".
     let again = odp.replace_takeoff(&recs).unwrap();
