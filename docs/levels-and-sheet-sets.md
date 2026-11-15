@@ -6,7 +6,7 @@ above the drawing, a Trace settings form, and a Navigator for Compose Views, Mas
 Sheet set / Traces editor, a Show-for dropdown in the Layer manager, the new-drawing option, the
 egui tabs are not built. Only what the "Phase N status" sections list is
 implemented and tested.
-Sections and elevations (Phase 6): the engine side and the shell tab group are built; the shell tabs were compiled and started but not seen or clicked by hand. See "Phase 6 status".
+Sections and elevations (Phase 6): the engine side and the shell tab group are built; the tab group was driven by hand through Windows UI Automation (see "Phase 6 status"); guides were seen in the rendered picture, not photographed in the window.
 
 Summary: keep one drawing file, but split its single model space into named **levels** (each its own
 entity store at a shared origin) and add **sheet sets** (discipline annotation spaces that reference
@@ -56,7 +56,7 @@ Persistence: project key `compose1` (synced on DXF/DWG write in `levels_file::to
 Annotation lives in its own store, not on layers, so two disciplines never collide, take-off never
 counts annotation, and deleting a sheet set never touches the design.
 
-## Phase 6 status: built; the shell tabs were not clicked through
+## Phase 6 status: built; the shell tab group was driven by hand
 
 Implemented and tested (`crates/doc/src/viewspace.rs` unit tests, `crates/io` `levels_file` and `native` tests, `crates/engine/src/sectionguide.rs` unit tests, `crates/engine/tests/views.rs`):
 
@@ -69,11 +69,12 @@ Implemented and tested (`crates/doc/src/viewspace.rs` unit tests, `crates/io` `l
 
 Not built:
 
-- **Guides are not drawn.** There is no render path yet (`view.guides` returns them as data); the trace-path rendering, snapping and the recompute-on-change cache are open.
-- **WinUI**: no Section / Elevation tab group, create-from-tool or right-click menu; `chrome_json` has no `views`.
-- Per-view sheet-set annotation, `Viewport.level` generalised to a view, the marker head's sheet field, milestone history of views (a view saves its level), `ODRAFT$VIEW$` in other CAD programs beyond being a block, egui.
+- **Layout viewports** can show a view space: `viewport.set` / `viewport.add` take `view` (name or id; null returns to the level). The viewport draws the view's objects with its guides faded under them (the guide maths is registered into `aad-render` by `Session::empty` through `set_guide_provider`, cached per view), centres on what the view holds when no `center` is given, round-trips as `view` in the `VPBIND` xdata (so DXF; DWG shares that bridge and was not separately run) and is unbound when the view is deleted. `sheetindex.build {allViews | views}` binds view sheets this way. Tests: `crates/engine/tests/viewport_views.rs` (5), `aad-io` `dxf_ext` unit tests. Entering such a viewport with MSPACE does not edit the view yet (it shows the level binding's target).
+- **Run by hand (2026-11-15, locally built shell, Windows UI Automation plus the control channel; computer use was declined):** a section made through the shell's New section flyout (prompt: two points, Left/Right) appeared as a tab; the tab group switched between `Current view ...` / `Open view ...` and level tabs; the guides drawn under an open section were checked in the control-channel render, which first did not include them (defect found, fixed in `aad-host`, test `ui_render_draws_the_projection_guides_of_an_open_section`). Not seen: a photograph of the window itself, tab right-click menus, the elevation flyout item.
+- **WinUI**: no create-from-tool or right-click menu for views; `chrome_json` has no `views`.
+- Per-view sheet-set annotation, the marker head's sheet field, milestone history of views (a view saves its level), `ODRAFT$VIEW$` in other CAD programs beyond being a block, egui.
 - `section.levelmarks` uses `level.mark`, so its marks also appear in `level.schedule`.
-- Not run: DWG round trip, `cargo xtask ci` (fmt and clippy `-D warnings` and the tests above were run for `aad-doc`, `aad-io`, `aad-engine`, `aad-render` and `aad-host`).
+- Not run: DWG round trip of the viewport binding.
 
 ## Sections and elevations (Phase 6 design)
 

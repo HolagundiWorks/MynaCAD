@@ -60,6 +60,11 @@ pub const FIELDS: &[(&str, &str)] = &[
     ("SHEET", "Sheet no."),
     ("SCALE", "Scale"),
     ("REV", "Revision"),
+    ("CHECKED", "Checked by"),
+    ("APPROVED", "Approved by"),
+    ("DISCIPLINE", "Discipline"),
+    ("STATUS", "Status"),
+    ("ISSUE", "Issue"),
 ];
 const MAX_TEMPLATE_ENTITIES: usize = 20_000;
 const MAX_TEMPLATE_BLOCKS: usize = 200;
@@ -69,7 +74,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("sheet.titleblock", "Title Block", run_titleblock)
             .menu(&["Architecture", "Sheets", "Title Block"])
-            .params("{layout?, fields?: {PROJECT, CLIENT, TITLE, FLOOR, DRAWN, DATE, SHEET, SCALE, REV}} → {handle, fields, created}"),
+            .params("{layout?, fields?: {PROJECT, CLIENT, TITLE, FLOOR, DRAWN, DATE, CHECKED, APPROVED, DISCIPLINE, STATUS, ISSUE, SHEET, SCALE, REV}} → {handle, fields, created}"),
         CommandSpec::new("sheet.designer", "Title Plate", run_designer)
             .menu(&["Architecture", "Sheets", "Title Plate"])
             .params("{open?: bool, landscape?: bool (default true → Nameplate L; false → Nameplate P)} → {name, layouts, created}. Ensures both nameplates; `open` switches to the chosen one."),
@@ -97,7 +102,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("viewport.add", "Add Viewport", run_vp_add)
             .menu(&["View", "Viewports", "Add"])
             .alias(&["vpadd", "mview"])
-            .params("{layout?, p1?, p2? (paper units; default the printable area), scale?: \"1:100\", locked?: bool} → {handle}"),
+            .params("{layout?, p1?, p2? (paper units; default the printable area), scale?: \"1:100\", locked?: bool, level?, view? (section/elevation name or id), sheetSet?, traces?} → {handle}"),
         CommandSpec::new("viewport.remove", "Remove Viewport", run_vp_remove)
             .menu(&["View", "Viewports", "Remove"])
             .alias(&["vprem"])
@@ -190,26 +195,32 @@ fn ensure_title_block(s: &mut Session) -> Result<()> {
         return Ok(());
     }
     const W: f64 = 180.0;
-    const ROW: f64 = 14.0;
-    const H: f64 = ROW * 4.0;
+    const H: f64 = 56.0;
+    const ROWS: usize = 6;
+    const ROW: f64 = H / ROWS as f64;
     let style = s.doc()?.header.str("TEXTSTYLE", "Standard");
     // (tag, label, x from the left of the panel, width, row from the top)
-    let cells: [(&str, &str, f64, f64, usize); 9] = [
+    let cells: [(&str, &str, f64, f64, usize); 14] = [
         ("PROJECT", "PROJECT", 0.0, 180.0, 0),
         ("CLIENT", "CLIENT", 0.0, 90.0, 1),
         ("TITLE", "DRAWING TITLE", 90.0, 90.0, 1),
         ("FLOOR", "FLOOR", 0.0, 60.0, 2),
         ("DRAWN", "DRAWN BY", 60.0, 60.0, 2),
         ("DATE", "DATE", 120.0, 60.0, 2),
-        ("SHEET", "SHEET", 0.0, 60.0, 3),
-        ("SCALE", "SCALE", 60.0, 60.0, 3),
-        ("REV", "REVISION", 120.0, 60.0, 3),
+        ("CHECKED", "CHECKED BY", 0.0, 60.0, 3),
+        ("APPROVED", "APPROVED BY", 60.0, 60.0, 3),
+        ("DISCIPLINE", "DISCIPLINE", 120.0, 60.0, 3),
+        ("STATUS", "STATUS", 0.0, 60.0, 4),
+        ("ISSUE", "ISSUE", 60.0, 60.0, 4),
+        ("REV", "REVISION", 120.0, 60.0, 4),
+        ("SHEET", "SHEET", 0.0, 90.0, 5),
+        ("SCALE", "SCALE", 90.0, 90.0, 5),
     ];
     let mut kinds: Vec<(String, EntityKind)> = Vec::new();
     let x = |v: f64| v - W;
     let y = |row: usize| H - ROW * (row as f64 + 1.0);
     kinds.push(("0".into(), lwpoly(rect_vertices(Vec2::new(x(0.0), 0.0), Vec2::new(0.0, H)), true)));
-    for r in 1..4 {
+    for r in 1..ROWS {
         let yy = H - ROW * r as f64;
         // Rows below the first are split into cells; the first row spans the panel.
         kinds.push(("0".into(), line(Vec2::new(x(0.0), yy), Vec2::new(0.0, yy))));
@@ -222,8 +233,8 @@ fn ensure_title_block(s: &mut Session) -> Result<()> {
     }
     for (tag, label, x0, _, row) in cells {
         let (cx, cy) = (x(x0) + 2.0, y(row));
-        kinds.push(("0".into(), make_text(s, Vec2::new(cx, cy + ROW - 4.0), label, 2.0, 0.0, (HAlign::Left, VAlign::Baseline))));
-        kinds.push(("0".into(), attdef(&style, tag, label, Vec2::new(cx, cy + 3.0), 4.5)));
+        kinds.push(("0".into(), make_text(s, Vec2::new(cx, cy + ROW - 3.0), label, 1.8, 0.0, (HAlign::Left, VAlign::Baseline))));
+        kinds.push(("0".into(), attdef(&style, tag, label, Vec2::new(cx, cy + 1.8), 3.5)));
     }
     let d = s.doc_mut()?;
     let mut b = Block::new(TITLE_BLOCK);
@@ -791,7 +802,7 @@ fn run_vp_add(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(l) = p.get("locked") {
         set["locked"] = l.clone();
     }
-    for key in ["level", "sheetSet", "traces"] {
+    for key in ["level", "view", "sheetSet", "traces"] {
         if let Some(v) = p.get(key) {
             set[key] = v.clone();
         }

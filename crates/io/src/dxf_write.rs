@@ -848,7 +848,7 @@ fn entity(w: &mut W, d: &Drawing, e: &Entity, owner: &str, paper: bool, cx: &Ctx
             // Status flags: 16384 = display locked, 32768 = always set (readers take it as "on").
             w.i(90, 32768 | if v.locked { 16384 } else { 0 });
             // One AAD xdata group holds both lists: readers stop at the first group of an app.
-            let bound = v.level.is_some() || v.sheet_set.is_some() || !v.traces.is_empty();
+            let bound = v.level.is_some() || v.sheet_set.is_some() || !v.traces.is_empty() || v.view.is_some();
             if !v.frozen_layers.is_empty() || !v.layer_colors.is_empty() || !v.clip.is_empty() || bound {
                 w.s(1001, dxf_ext::APP);
                 if !v.frozen_layers.is_empty() {
@@ -861,7 +861,7 @@ fn entity(w: &mut W, d: &Drawing, e: &Entity, owner: &str, paper: bool, cx: &Ctx
                     w.xdata(dxf_ext::clip_xdata(&v.clip, true));
                 }
                 if bound {
-                    w.xdata(dxf_ext::vpbind_xdata(v.level, v.sheet_set, &v.traces));
+                    w.xdata(dxf_ext::vpbind_xdata(v.level, v.sheet_set, &v.traces, v.view));
                 }
             }
         }

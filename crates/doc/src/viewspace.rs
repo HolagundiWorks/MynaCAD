@@ -257,7 +257,29 @@ impl Drawing {
         for v in &mut self.view_spaces {
             v.rec.traces.retain(|t| *t != id);
         }
+        self.clear_viewport_views(&[id]);
         Ok(())
+    }
+
+    /// Unbind every layout viewport that shows one of the removed views.
+    fn clear_viewport_views(&mut self, gone: &[SpaceId]) {
+        for layout in &mut self.layouts {
+            let handles: Vec<_> = layout
+                .entities
+                .iter()
+                .filter(|e| matches!(&e.kind, crate::EntityKind::Viewport(vp) if vp.view.is_some_and(|x| gone.contains(&x))))
+                .map(|e| e.handle)
+                .collect();
+            for h in handles {
+                if let Some(arc) = layout.entities.get(h).cloned() {
+                    let mut e = (*arc).clone();
+                    if let crate::EntityKind::Viewport(vp) = &mut e.kind {
+                        vp.view = None;
+                        layout.entities.replace(e);
+                    }
+                }
+            }
+        }
     }
 
     /// Drop everything that names `level` (called when a level is removed).
@@ -267,6 +289,7 @@ impl Drawing {
             self.leave_view_space()?;
         }
         self.view_spaces.retain(|v| v.rec.level != level);
+        self.clear_viewport_views(&gone);
         for v in &mut self.view_spaces {
             v.rec.traces.retain(|t| !gone.contains(t));
             if let Some(c) = &mut v.rec.covers {

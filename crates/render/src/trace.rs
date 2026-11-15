@@ -130,37 +130,70 @@ pub fn build_with_guides(d: &Drawing, opts: &Options, background: Rgb, guides: &
 
 /// One store a layout viewport draws, with the trace settings when it is a trace.
 pub(crate) struct Source<'a> {
-    pub store: &'a aad_doc::EntityStore,
+    pub store: Option<&'a aad_doc::EntityStore>,
+    /// Transient projection guides of a view space (drawn faded, never selectable).
+    pub guides: Option<std::sync::Arc<Vec<aad_doc::Entity>>>,
     pub trace: Option<&'a Trace>,
+}
+
+impl<'a> Source<'a> {
+    fn store(store: &'a aad_doc::EntityStore, trace: Option<&'a Trace>) -> Self {
+        Source { store: Some(store), guides: None, trace }
+    }
+}
+
+/// Computes the projection guides of a view space. The guide maths lives in the engine (above
+/// this crate), which registers it with [`set_guide_provider`]; without one a viewport showing a
+/// view draws no guides.
+pub type GuideProvider = fn(&Drawing, &aad_doc::ViewRecord) -> std::sync::Arc<Vec<aad_doc::Entity>>;
+static GUIDE_PROVIDER: std::sync::OnceLock<GuideProvider> = std::sync::OnceLock::new();
+
+/// Register the guide computation used for layout viewports that show a view space. Only the
+/// first registration counts.
+pub fn set_guide_provider(f: GuideProvider) {
+    let _ = GUIDE_PROVIDER.set(f);
 }
 
 /// The stores a layout viewport draws, in draw order: its Below traces, the level it shows, that
 /// level's annotation for its sheet set, its Above traces. A viewport with no binding shows the
 /// first level (what every older file shows); a drawing without levels shows `model`.
 pub(crate) fn viewport_sources<'a>(d: &'a Drawing, vp: &'a aad_doc::Viewport) -> Vec<Source<'a>> {
+    if let Some(id) = vp.view {
+        // A view space: its projection guides faded under its own objects. A view that is gone
+        // shows nothing (the document clears such bindings when a view is removed).
+        let Some(v) = d.view_space(id) else { return Vec::new() };
+        let mut out = Vec::new();
+        if let Some(f) = GUIDE_PROVIDER.get() {
+            out.push(Source { store: None, guides: Some(f(d, &v.rec)), trace: None });
+        }
+        if let Some(store) = d.view_store(id) {
+            out.push(Source::store(store, None));
+        }
+        return out;
+    }
     if d.levels.is_empty() {
-        return vec![Source { store: &d.model, trace: None }];
+        return vec![Source::store(&d.model, None)];
     }
     let level = vp.level.filter(|id| d.level(*id).is_some()).or_else(|| d.levels.first().map(|l| l.id));
-    let Some(level) = level else { return vec![Source { store: &d.model, trace: None }] };
+    let Some(level) = level else { return vec![Source::store(&d.model, None)] };
     let mut out = Vec::new();
     let traces = |order: TraceOrder| vp.traces.iter().filter(move |t| t.order == order && t.level != level);
     for t in traces(TraceOrder::Below) {
         if let Some(store) = d.level_store(t.level) {
-            out.push(Source { store, trace: Some(t) });
+            out.push(Source::store(store, Some(t)));
         }
     }
     if let Some(store) = d.level_store(level) {
-        out.push(Source { store, trace: None });
+        out.push(Source::store(store, None));
     }
     if let Some(set) = vp.sheet_set.filter(|s| d.sheet_set(*s).is_some())
         && let Some(store) = d.annotation_store(set, level)
     {
-        out.push(Source { store, trace: None });
+        out.push(Source::store(store, None));
     }
     for t in traces(TraceOrder::Above) {
         if let Some(store) = d.level_store(t.level) {
-            out.push(Source { store, trace: Some(t) });
+            out.push(Source::store(store, Some(t)));
         }
     }
     out
@@ -170,9 +203,15 @@ pub(crate) fn viewport_sources<'a>(d: &'a Drawing, vp: &'a aad_doc::Viewport) ->
 pub(crate) fn hash_sources(sources: &[Source<'_>], h: &mut impl std::hash::Hasher) {
     use std::hash::Hash;
     for s in sources {
-        s.store.len().hash(h);
-        for e in s.store.iter() {
-            (std::sync::Arc::as_ptr(e) as usize).hash(h);
+        if let Some(store) = s.store {
+            store.len().hash(h);
+            for e in store.iter() {
+                (std::sync::Arc::as_ptr(e) as usize).hash(h);
+            }
+        }
+        if let Some(g) = &s.guides {
+            2u8.hash(h);
+            (std::sync::Arc::as_ptr(g) as usize).hash(h);
         }
         match s.trace {
             Some(t) => {
@@ -199,7 +238,9 @@ pub(crate) fn tessellate_sources(
     for src in sources {
         let mut part =
             crate::Builder { list: DisplayList::default(), opts: b.opts, plotting: b.plotting, styles: b.styles, named: None, budget: None };
-        for me in src.store.iter() {
+        let guide_refs: Vec<&aad_doc::Entity> = src.guides.as_ref().map(|g| g.iter().collect()).unwrap_or_default();
+        let store_refs: Vec<&aad_doc::Entity> = src.store.map(|st| st.iter().map(|e| e.as_ref()).collect()).unwrap_or_default();
+        for me in store_refs.into_iter().chain(guide_refs) {
             if matches!(me.kind, aad_doc::EntityKind::Viewport(_)) {
                 continue;
             }
@@ -217,6 +258,9 @@ pub(crate) fn tessellate_sources(
         }
         if let Some(t) = src.trace {
             stylize_trace(&mut part.list, t.fade, t.colour == TraceColour::TrueColour, Rgb(255, 255, 255));
+        }
+        if src.guides.is_some() {
+            stylize_trace(&mut part.list, GUIDE_FADE, false, Rgb(255, 255, 255));
         }
         append(&mut out, part.list);
     }

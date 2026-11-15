@@ -436,7 +436,7 @@ fn entity(kind: &str, tags: &[Tag]) -> Option<(Common, EntityKind)> {
         }
         "ACAD_TABLE" => EntityKind::Table(acad_table(tags)),
         "VIEWPORT" => {
-            let (level, sheet_set, traces) = crate::dxf_ext::read_vpbind(tags);
+            let (level, sheet_set, traces, view) = crate::dxf_ext::read_vpbind(tags);
             EntityKind::Viewport(Viewport {
                 center: t.p(10),
                 width: t.fd(40, 1.0),
@@ -452,6 +452,7 @@ fn entity(kind: &str, tags: &[Tag]) -> Option<(Common, EntityKind)> {
                 sheet_set,
                 traces,
                 compose_view: None,
+                view,
             })
         }
         "WIPEOUT" => {

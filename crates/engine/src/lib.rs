@@ -574,6 +574,7 @@ impl Session {
     }
     /// A session with no open drawing (the Start tab).
     pub fn empty() -> Self {
+        aad_render::set_guide_provider(sectionguide::guides_for);
         Session {
             docs: Vec::new(),
             active: 0,
