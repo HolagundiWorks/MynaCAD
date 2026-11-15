@@ -565,7 +565,7 @@ pub fn not_saved_message(lost: &std::collections::BTreeMap<String, usize>) -> Op
 }
 
 /// Whether `path` is saved as a drawing (DXF, DWG) rather than exported as an image.
-fn is_drawing_file(path: &str) -> bool {
+pub fn is_drawing_file(path: &str) -> bool {
     let ext = std::path::Path::new(path).extension().map(|e| e.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
     matches!(ext.as_str(), "dxf" | "dwg" | "")
 }
