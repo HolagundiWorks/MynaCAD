@@ -270,7 +270,7 @@ fn read_fields(d: &Drawing, layout: &str) -> BTreeMap<String, String> {
     out
 }
 
-/// Write title-block attribute values on `layout`. Used by `sheet.fields` and `companion.commit`.
+/// Write title-block attribute values on `layout`. Used by `sheet.fields`.
 pub(crate) fn write_fields(d: &mut Drawing, layout: &str, fields: &BTreeMap<String, String>) -> usize {
     let mut changed = 0;
     for h in title_inserts(d, layout) {
