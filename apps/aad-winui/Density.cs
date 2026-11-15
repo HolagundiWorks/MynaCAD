@@ -91,12 +91,8 @@ internal static class Density
     public const double LogoWelcome = 72;
     /// <summary>In-window splash logo.</summary>
     public const double LogoSplash = 96;
-    /// <summary>Parametric graph canvas default extent.</summary>
-    public const double GraphCanvasWidth = 720;
-    public const double GraphCanvasHeight = 520;
-    /// <summary>Wide manager / graph window minimums.</summary>
+    /// <summary>Wide manager window minimum.</summary>
     public const double WindowMinWidthWide = 640;
-    public const double WindowMinHeightGraph = 480;
     /// <summary>History / revisions panel minimums.</summary>
     public const double HistoryPanelMinWidth = 360;
     public const double HistoryPanelMinHeight = 420;

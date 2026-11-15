@@ -83,7 +83,6 @@ public sealed partial class MainWindow : Window
     private Window? _dimStyleWindow;
     private Window? _linetypeWindow;
     private Window? _parametersWindow;
-    private Window? _graphWindow;
     private Window? _revisionsWindow;
     private Window? _historyWindow;
     private HistoryWindow.HistoryPanelController? _historyPanel;
@@ -2666,7 +2665,6 @@ public sealed partial class MainWindow : Window
         _dimStyleWindow = null;
         _linetypeWindow = null;
         _parametersWindow = null;
-        _graphWindow = null;
         _revisionsWindow = null;
         _historyWindow = null;
         _smartBlockWindow = null;
@@ -2691,7 +2689,7 @@ public sealed partial class MainWindow : Window
         {
             _calc, _pomodoro, _toolsWindow, _leftFloat, _pdfWindow, _formWindow,
             _unitsWindow, _textStyleWindow, _pageSetupWindow, _plotStyleWindow, _batchPlotWindow,
-            _dimStyleWindow, _linetypeWindow, _parametersWindow, _graphWindow, _revisionsWindow, _historyWindow, _smartBlockWindow, _hatchWindow, _pointStyleWindow, _mleaderStyleWindow,
+            _dimStyleWindow, _linetypeWindow, _parametersWindow, _revisionsWindow, _historyWindow, _smartBlockWindow, _hatchWindow, _pointStyleWindow, _mleaderStyleWindow,
             _roomSettingsWindow, _draftingWindow, _quickWindow, _quickSelectWindow,
         })
         {
@@ -3876,20 +3874,6 @@ public sealed partial class MainWindow : Window
             _parametersWindow.Closed += (_, _) => _parametersWindow = null;
         }
         PresentToolWindow(_parametersWindow);
-    }
-
-    private void OpenGraph()
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        if (_graphWindow == null)
-        {
-            _graphWindow = GraphWindow.Open(this, _host, AfterCommand);
-            _graphWindow.Closed += (_, _) => _graphWindow = null;
-        }
-        PresentToolWindow(_graphWindow);
     }
 
     private void OpenRevisions()
@@ -6742,7 +6726,6 @@ public sealed partial class MainWindow : Window
         CommandItem(window, "History", () => ShowSidePanel(SideTab.History));
         CommandItem(window, "Revisions", () => ShowSidePanel(SideTab.Revisions));
         CommandItem(window, "Parameters Manager", OpenParameters);
-        CommandItem(window, "Graph", OpenGraph);
         CommandItem(window, "Revision register", OpenRevisions);
         CommandItem(window, "Version history", OpenHistory);
         CommandItem(window, "Classic workspace", () => SwitchWorkspace(classic: true));
