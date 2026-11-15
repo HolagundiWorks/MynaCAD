@@ -7,8 +7,8 @@ use std::path::Path;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 use super::{
-    Applied, ConfigError, KEY_APPLIED, KEY_PROPOSAL, MAX_VALUE_BYTES, PARTS, PREFIX, Part, ProjectConfig, Proposal, Read, Result, Schema, parse_applied,
-    parse_proposal,
+    Applied, ConfigError, KEY_APPLIED, KEY_PROPOSAL, MAX_VALUE_BYTES, PARTS, PREFIX, Part, ProjectConfig, Proposal, Read, Result, Schema,
+    parse_applied, parse_proposal,
 };
 use crate::Odp;
 
@@ -90,10 +90,8 @@ pub fn probe(path: &Path) -> Result<Loaded> {
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX).map_err(file_err)?;
     conn.busy_timeout(std::time::Duration::from_secs(1)).map_err(file_err)?;
     let len = |k: &str| -> Result<Option<u64>> {
-        let n: Option<i64> = conn
-            .query_row("SELECT length(CAST(value AS BLOB)) FROM meta WHERE key = ?1", params![k], |r| r.get(0))
-            .optional()
-            .map_err(file_err)?;
+        let n: Option<i64> =
+            conn.query_row("SELECT length(CAST(value AS BLOB)) FROM meta WHERE key = ?1", params![k], |r| r.get(0)).optional().map_err(file_err)?;
         Ok(n.map(|n| u64::try_from(n).unwrap_or(0)))
     };
     let get = |k: &str| -> Result<Option<String>> {

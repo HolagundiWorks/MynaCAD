@@ -19,12 +19,7 @@ fn load_json(path: &Path) -> Value {
 
 /// The key texts of a fixture: an object is the key's JSON text, a string is the raw text.
 fn texts(doc: &Value) -> BTreeMap<String, String> {
-    doc["keys"]
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (k.clone(), v.as_str().map_or_else(|| v.to_string(), str::to_string)))
-        .collect()
+    doc["keys"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_str().map_or_else(|| v.to_string(), str::to_string))).collect()
 }
 
 fn all_fixtures() -> Vec<(String, Value)> {
@@ -264,7 +259,9 @@ fn hostile_config_never_panics() {
 fn hostile_values_in_a_file_never_panic() {
     let (_d, path) = temp_file("p.osp");
     let mut odp = Odp::create(&path, "House").unwrap();
-    for (k, v) in [("config.schema", "{\"v\":1}"), ("config.levels", "\u{0}\u{1}"), ("config.tabs", "{\"v\":1,\"items\":[null]}"), ("config.rev", "[]")] {
+    for (k, v) in
+        [("config.schema", "{\"v\":1}"), ("config.levels", "\u{0}\u{1}"), ("config.tabs", "{\"v\":1,\"items\":[null]}"), ("config.rev", "[]")]
+    {
         odp.set_local_meta(&[(k, v)]).unwrap();
         let _ = read(&odp);
         let _ = probe(&path);
@@ -342,6 +339,10 @@ fn fixture_applied() -> Applied {
         time: "2026-11-15T10:00:00Z".into(),
         result: "partial".into(),
         has_content: true,
-        items: vec![AppliedItem { key: "levels".into(), status: "orphans".into(), detail: "L3 (120 objects) is no longer configured and stays".into() }],
+        items: vec![AppliedItem {
+            key: "levels".into(),
+            status: "orphans".into(),
+            detail: "L3 (120 objects) is no longer configured and stays".into(),
+        }],
     }
 }

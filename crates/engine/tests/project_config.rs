@@ -58,7 +58,14 @@ fn adopted() -> (Session, Value) {
     }));
     // The levels come from what the drawing says (a proposal's levels become the configuration, cid = LevelId).
     let prop = s.execute("project.config.propose", &json!({})).unwrap()["proposal"].clone();
-    let items: Vec<Value> = prop["levels"].as_array().unwrap().iter().map(|p| l(p["cid"].as_u64().unwrap() as u32, p["name"].as_str().unwrap(), p["elevation_mm"].as_f64().unwrap(), p["height_mm"].as_f64().unwrap())).collect();
+    let items: Vec<Value> = prop["levels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            l(p["cid"].as_u64().unwrap() as u32, p["name"].as_str().unwrap(), p["elevation_mm"].as_f64().unwrap(), p["height_mm"].as_f64().unwrap())
+        })
+        .collect();
     let next = items.iter().map(|i| i["cid"].as_u64().unwrap()).max().unwrap() as u32 + 1;
     let mut c = c;
     c["levels"] = levels_json(Value::Array(items), next);
@@ -124,14 +131,17 @@ fn a_new_project_gets_its_levels_in_order_with_floors_details_tabs_and_scheme() 
     assert_eq!(floors[1]["name"], "First");
     assert_eq!((floors[1]["floorToFloor"].as_f64(), floors[1]["slab"].as_f64(), floors[1]["beam"].as_f64()), (Some(3.2), Some(175.0), Some(500.0)));
     let details = s.execute("project", &json!({})).unwrap()["details"].clone();
-    assert_eq!((details["title"].as_str(), details["location"].as_str(), details["architect"].as_str()), (Some("Hospet House"), Some("Hospet"), Some("A. Kulkarni")));
+    assert_eq!(
+        (details["title"].as_str(), details["location"].as_str(), details["architect"].as_str()),
+        (Some("Hospet House"), Some("Hospet"), Some("A. Kulkarni"))
+    );
     let sets = s.execute("sheetset.list", &json!({})).unwrap()["sheetSets"].clone();
     assert_eq!(sets[0]["name"], "Electrical");
     assert_eq!(sets[0]["layers"], json!(["E-*"]));
     let scheme = s.execute("sheet.scheme", &json!({})).unwrap()["scheme"].clone();
     assert_eq!((scheme["width"].as_u64(), scheme["step"].as_u64(), scheme["disciplines"][0]["code"].as_str()), (Some(4), Some(5), Some("A")));
     assert!(s.doc().unwrap().layer("BP-SITE-BOUNDARY").is_some(), "the permit set was created");
-    assert_eq!(s.doc().unwrap().project.get("config.titleblock.defaults").is_some(), true);
+    assert!(s.doc().unwrap().project.contains_key("config.titleblock.defaults"));
     // Applying the same configuration again is a no-op.
     let n = undo_len(&s);
     assert_eq!(apply(&mut s, &c)["changed"], false);
@@ -353,7 +363,12 @@ fn a_bound_level_carries_its_configuration_id_in_the_takeoff_header() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("t.osp");
     let mut s = Session::new();
-    apply(&mut s, &config(json!({ "units": { "v": 1, "drawing_unit": "mm" }, "levels": levels_json(json!([l(7, "Ground", 0.0, 3000.0), l(9, "First", 3000.0, 3000.0)]), 10) })));
+    apply(
+        &mut s,
+        &config(
+            json!({ "units": { "v": 1, "drawing_unit": "mm" }, "levels": levels_json(json!([l(7, "Ground", 0.0, 3000.0), l(9, "First", 3000.0, 3000.0)]), 10) }),
+        ),
+    );
     s.execute("takeoff.record", &json!({ "path": path.to_string_lossy(), "annotate": false })).unwrap();
     let odp = aad_odp::Odp::open(&path).unwrap();
     let header = &odp.takeoff_headers().unwrap()[0].json;

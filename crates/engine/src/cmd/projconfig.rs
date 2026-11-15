@@ -368,7 +368,7 @@ fn apply_levels(s: &mut Session, l: &cfg::Levels, rep: &mut Report) -> Result<()
             .map(|(_, id)| id)
             .or_else(|| map.get(&item.cid).map(|n| LevelId(*n)).filter(|id| free(*id)))
             .or_else(|| d.level_by_name(&item.name).map(|lv| lv.id).filter(|id| free(*id) && !bound_elsewhere.contains(id)))
-            .or_else(|| (!had_map).then(|| LevelId(item.cid)).filter(|id| free(*id) && !bound_elsewhere.contains(id)));
+            .or_else(|| (!had_map).then_some(LevelId(item.cid)).filter(|id| free(*id) && !bound_elsewhere.contains(id)));
         if let Some(id) = found {
             taken.insert(id);
         }
@@ -461,7 +461,13 @@ fn apply_levels(s: &mut Session, l: &cfg::Levels, rep: &mut Report) -> Result<()
             map.remove(&cid);
             changes.push(format!("{name} deleted (empty)"));
         } else {
-            let why = if n > 0 { format!("{n} objects") } else if traced { "traced by another level".to_string() } else { "the last level".to_string() };
+            let why = if n > 0 {
+                format!("{n} objects")
+            } else if traced {
+                "traced by another level".to_string()
+            } else {
+                "the last level".to_string()
+            };
             rep.add("levels", "orphans", format!("{name} ({why}) is no longer configured and stays"));
         }
     }
@@ -524,9 +530,11 @@ fn apply_floors(s: &mut Session, l: &cfg::Levels, made: &BTreeSet<usize>, rep: &
                 let li = lintel.unwrap_or_else(|| (c - 0.3).min(2.1));
                 let entry = json!({ "name": item.name.trim(), "floorToFloor": ftf, "ceiling": c, "lintel": li, "slab": slab.unwrap_or(cs), "beam": beam.unwrap_or(cb) });
                 // Before the next configured floor that already has an entry, else at the end.
-                let next = l.items.iter().skip(i + 1).find_map(|n| {
-                    list.iter().position(|f| f["name"].as_str().is_some_and(|x| x.trim().eq_ignore_ascii_case(n.name.trim())))
-                });
+                let next = l
+                    .items
+                    .iter()
+                    .skip(i + 1)
+                    .find_map(|n| list.iter().position(|f| f["name"].as_str().is_some_and(|x| x.trim().eq_ignore_ascii_case(n.name.trim()))));
                 match next {
                     Some(at) => list.insert(at, entry),
                     None => list.push(entry),
@@ -555,18 +563,26 @@ fn apply_tabs(s: &mut Session, t: &cfg::Tabs, rep: &mut Report) -> Result<()> {
         let found = {
             let d = s.doc()?;
             let exists = |id: u32| d.sheet_sets.iter().any(|x| x.id.0 == id) && !taken.contains(&id);
-            map.get(&item.tid).copied().filter(|id| exists(*id)).or_else(|| {
-                d.sheet_set_by_name(&item.name)
-                    .map(|x| x.id.0)
-                    .filter(|id| exists(*id) && !map.iter().any(|(tid, lid)| lid == id && *tid != item.tid))
-            })
-            // A drawing adopted before any binding exists: the tid is the sheet set's own id.
-            .or_else(|| (!had_map).then_some(item.tid).filter(|id| exists(*id)))
+            map.get(&item.tid)
+                .copied()
+                .filter(|id| exists(*id))
+                .or_else(|| {
+                    d.sheet_set_by_name(&item.name)
+                        .map(|x| x.id.0)
+                        .filter(|id| exists(*id) && !map.iter().any(|(tid, lid)| lid == id && *tid != item.tid))
+                })
+                // A drawing adopted before any binding exists: the tid is the sheet set's own id.
+                .or_else(|| (!had_map).then_some(item.tid).filter(|id| exists(*id)))
         };
         let id = match found {
             Some(id) => {
                 let (name, prefix, layers, blocks) = {
-                    let x = s.doc()?.sheet_sets.iter().find(|x| x.id.0 == id).ok_or_else(|| bad("project.config.apply", "a tab disappeared while applying"))?;
+                    let x = s
+                        .doc()?
+                        .sheet_sets
+                        .iter()
+                        .find(|x| x.id.0 == id)
+                        .ok_or_else(|| bad("project.config.apply", "a tab disappeared while applying"))?;
                     (x.name.clone(), x.layer_prefix.clone(), x.layers.clone(), x.blocks.clone())
                 };
                 let mut set = Map::new();
@@ -670,7 +686,13 @@ fn build_proposal(d: &Drawing) -> Proposal {
         .sheet_sets
         .iter()
         .take(cfg::MAX_TABS)
-        .map(|x| ProposalTab { tid: x.id.0, name: x.name.clone(), layer_prefix: x.layer_prefix.clone(), layers: x.layers.clone(), blocks: x.blocks.clone() })
+        .map(|x| ProposalTab {
+            tid: x.id.0,
+            name: x.name.clone(),
+            layer_prefix: x.layer_prefix.clone(),
+            layers: x.layers.clone(),
+            blocks: x.blocks.clone(),
+        })
         .collect();
     let layer_sets = cfg::LAYER_SETS.iter().filter(|set| layer_set_present(d, set)).map(|x| (*x).to_string()).collect();
     let mut project = BTreeMap::new();
@@ -684,9 +706,11 @@ fn build_proposal(d: &Drawing) -> Proposal {
             project.insert(k.clone(), text.chars().take(cfg::MAX_TEXT).collect());
         }
     }
-    let scheme = d.project.contains_key(super::sheetindex::KEY).then(|| super::sheetindex::scheme_value(d)).and_then(|v| {
-        serde_json::from_value::<cfg::Scheme>(v).ok()
-    });
+    let scheme = d
+        .project
+        .contains_key(super::sheetindex::KEY)
+        .then(|| super::sheetindex::scheme_value(d))
+        .and_then(|v| serde_json::from_value::<cfg::Scheme>(v).ok());
     Proposal {
         v: 1,
         time: aad_odp::now_utc(),
