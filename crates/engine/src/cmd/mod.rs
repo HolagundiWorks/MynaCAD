@@ -274,6 +274,8 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(structure::specs());
         v.extend(symbols::specs());
         v.extend(bridge::specs());
+        #[cfg(not(target_arch = "wasm32"))]
+        v.extend(crate::projectsync::specs());
         v.extend(xref::specs());
         v.extend(package::specs());
         v.extend(extract::specs());

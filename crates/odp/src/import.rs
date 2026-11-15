@@ -94,8 +94,28 @@ impl Odp {
                 edit.delete_asset(&id)?;
             }
         }
+        // The stamp says the take-off matches the file as of this revision (also when nothing changed); the stale marker compares it with the drawing.
+        let touched: Vec<u32> = headers.keys().copied().collect();
+        for slot in touched {
+            let levels = headers.get(&slot).map(level_ids).unwrap_or_default();
+            edit.stamp_takeoff(slot, &levels)?;
+        }
         edit.commit()
     }
+}
+
+/// The level ids a take-off header lists (`levels[].id`, a number or a text), at most 256 of them, each at most 128 characters.
+fn level_ids(header: &serde_json::Value) -> Vec<String> {
+    let id_text = |l: &serde_json::Value| match l.get("id")? {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Number(n) => Some(n.to_string()),
+        _ => None,
+    };
+    header
+        .get("levels")
+        .and_then(|l| l.as_array())
+        .map(|a| a.iter().filter_map(id_text).filter(|i| !i.is_empty() && i.len() <= 128).take(256).collect())
+        .unwrap_or_default()
 }
 
 fn record_id(kind: u8, slot: u32, n: u32) -> u64 {

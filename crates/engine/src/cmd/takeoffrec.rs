@@ -302,6 +302,7 @@ fn open_file_sink(path: &std::path::Path) -> Result<Box<dyn Sink>> {
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) struct OdpSink {
     odp: aad_odp::Odp,
+    path: std::path::PathBuf,
     records: std::collections::BTreeMap<u64, Vec<u8>>,
 }
 
@@ -316,7 +317,7 @@ impl OdpSink {
         }
         .map_err(|e| bad("takeoff.record", format!("{}: {e}", path.display())))?;
         let records = odp.takeoff_as_records().map_err(|e| bad("takeoff.record", e.to_string()))?.into_iter().collect();
-        Ok(OdpSink { odp, records })
+        Ok(OdpSink { odp, path: path.to_path_buf(), records })
     }
 }
 
@@ -339,7 +340,10 @@ impl Sink for OdpSink {
     }
     fn save(&mut self) -> Result<()> {
         let all: Vec<(u64, Vec<u8>)> = self.records.iter().map(|(k, v)| (*k, v.clone())).collect();
-        self.odp.replace_takeoff(&all).map(|_| ()).map_err(|e| bad("takeoff.record", e.to_string()))
+        let (before, project_id) = self.odp.meta().map(|m| (m.revision, m.project_id)).unwrap_or_default();
+        let after = self.odp.replace_takeoff(&all).map_err(|e| bad("takeoff.record", e.to_string()))?;
+        crate::projectsync::note_own_write(&self.path, before, after, &project_id);
+        Ok(())
     }
 }
 

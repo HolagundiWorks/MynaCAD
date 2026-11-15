@@ -370,3 +370,171 @@ fn a_bulk_file_reads_like_any_other_once_finished() {
     e.put_takeoff_row(&row(1, 3, 1)).unwrap();
     assert_eq!(e.commit().unwrap(), 2);
 }
+
+// ---- live sync (docs/live-sync.md) ----
+
+fn probe_ok(path: &std::path::Path) -> Probe {
+    match probe(path) {
+        Peek::Ok(p) => p,
+        other => panic!("expected a readable file, got {other:?}"),
+    }
+}
+
+fn header_with_levels(ids: &[&str]) -> Vec<u8> {
+    // Ids are numbers in the real header; a text id is read too.
+    let levels: Vec<_> = ids
+        .iter()
+        .map(|i| match i.parse::<u32>() {
+            Ok(n) => json!({ "id": n, "name": i }),
+            Err(_) => json!({ "id": i, "name": i }),
+        })
+        .collect();
+    json!({ "state": "complete", "levels": levels }).to_string().into_bytes()
+}
+
+fn rec(kind: u8, slot: u32, n: u32) -> u64 {
+    (u64::from(kind) << 56) | (u64::from(slot) << 32) | u64::from(n)
+}
+
+#[test]
+fn every_revision_says_who_wrote_it_and_when() {
+    let (_d, path) = temp();
+    let mut odp = Odp::create(&path, "House").unwrap();
+    let mut e = odp.edit().unwrap();
+    e.put_takeoff_row(&row(1, 3, 0)).unwrap();
+    assert_eq!(e.commit().unwrap(), 1);
+    let p = probe_ok(&path);
+    assert_eq!((p.revision, p.last_app.as_deref(), p.last_revision), (1, Some("mynacad"), Some(1)));
+    assert!(p.last_time.is_some_and(|t| t.ends_with('Z')));
+    // A commit with nothing in it is no revision and leaves the stamp.
+    odp.edit().unwrap().commit().unwrap();
+    assert_eq!(probe_ok(&path).last_revision, Some(1));
+}
+
+#[test]
+fn recording_a_takeoff_stamps_its_levels_and_a_later_drawing_save_makes_it_stale() {
+    let (_d, path) = temp();
+    let mut odp = Odp::create(&path, "House").unwrap();
+    let recs = vec![(rec(1, 1, 0), header_with_levels(&["2", "L1"])), (rec(3, 1, 0), json!({ "ref": "W0" }).to_string().into_bytes())];
+    let rev = odp.replace_takeoff(&recs).unwrap();
+    let p = probe_ok(&path);
+    assert_eq!(p.takeoff.len(), 1);
+    let t = &p.takeoff[0];
+    assert_eq!((t.slot, t.revision), (1, rev));
+    assert_eq!(t.levels, vec![("2".to_string(), rev), ("L1".to_string(), rev)]);
+    assert!(p.stale_slots().is_empty(), "no drawing yet");
+    // Recording the same thing again changes nothing but is still stamped "current".
+    let again = odp.replace_takeoff(&recs).unwrap();
+    assert_eq!(again, rev);
+    assert!(probe_ok(&path).stale_slots().is_empty());
+    // The drawing is saved after the record: the take-off is out of date.
+    let mut e = odp.edit().unwrap();
+    e.put_drawing("a.dxf", "dxf", b"0\nEOF\n").unwrap();
+    let saved = e.commit().unwrap();
+    assert!(saved > rev);
+    assert_eq!(probe_ok(&path).stale_slots(), vec![1]);
+    // Recording after the save makes it current again.
+    odp.replace_takeoff(&recs).unwrap();
+    assert!(probe_ok(&path).stale_slots().is_empty());
+}
+
+#[test]
+fn a_probe_never_writes_and_sees_a_writer_in_the_middle_of_a_commit() {
+    let (_d, path) = temp();
+    let mut writer = Odp::create(&path, "House").unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let _ = probe_ok(&path);
+    assert_eq!(std::fs::read(&path).unwrap(), before, "a probe leaves the file as it was");
+    // An open write transaction (the writer holds the lock, nothing committed): readers still see the last committed revision.
+    let mut e = writer.edit().unwrap();
+    e.put_takeoff_row(&row(1, 3, 0)).unwrap();
+    assert_eq!(probe_ok(&path).revision, 0);
+    e.commit().unwrap();
+    assert_eq!(probe_ok(&path).revision, 1);
+}
+
+#[test]
+fn missing_empty_foreign_and_corrupt_files_are_reported_not_panicked_on() {
+    let dir = tempfile::tempdir().unwrap();
+    assert_eq!(probe(&dir.path().join("nope.osp")), Peek::Missing);
+    let empty = dir.path().join("empty.osp");
+    std::fs::write(&empty, b"").unwrap();
+    assert!(matches!(probe(&empty), Peek::Unreadable(_)));
+    let text = dir.path().join("text.osp");
+    std::fs::write(&text, b"this is not a database at all, but it is long enough to look like a file header").unwrap();
+    assert!(matches!(probe(&text), Peek::Unreadable(_)));
+    // A real file cut short and one with garbage in the middle.
+    let (_d, path) = temp();
+    {
+        let mut odp = Odp::create(&path, "House").unwrap();
+        for n in 0..50 {
+            let mut e = odp.edit().unwrap();
+            e.put_takeoff_row(&row(1, 3, n)).unwrap();
+            e.commit().unwrap();
+        }
+        odp.checkpoint().unwrap();
+    }
+    let bytes = std::fs::read(&path).unwrap();
+    let cut = dir.path().join("cut.osp");
+    std::fs::write(&cut, &bytes[..bytes.len() / 2]).unwrap();
+    assert!(matches!(probe(&cut), Peek::Unreadable(_)), "cut file");
+    let mut bad = bytes.clone();
+    for b in bad.iter_mut().skip(4096).step_by(7) {
+        *b = 0xA5;
+    }
+    let garbled = dir.path().join("garbled.osp");
+    std::fs::write(&garbled, &bad).unwrap();
+    let _ = probe(&garbled); // any outcome but a panic
+}
+
+#[test]
+fn a_file_of_another_format_or_a_newer_version_is_unreadable() {
+    let (_d, path) = temp();
+    let odp = Odp::create(&path, "House").unwrap();
+    drop(odp);
+    let c = rusqlite::Connection::open(&path).unwrap();
+    c.execute("UPDATE meta SET value = '2' WHERE key = 'version'", []).unwrap();
+    drop(c);
+    assert!(matches!(probe(&path), Peek::Unreadable(m) if m.contains("version 2")));
+    let c = rusqlite::Connection::open(&path).unwrap();
+    c.execute("UPDATE meta SET value = '1' WHERE key = 'version'", []).unwrap();
+    c.execute("UPDATE meta SET value = 'other' WHERE key = 'format'", []).unwrap();
+    drop(c);
+    assert!(matches!(probe(&path), Peek::Unreadable(m) if m.contains("format")));
+}
+
+#[test]
+fn hostile_sync_values_are_ignored_or_capped() {
+    let (_d, path) = temp();
+    drop(Odp::create(&path, "House").unwrap());
+    let c = rusqlite::Connection::open(&path).unwrap();
+    let huge = "x".repeat(100_000);
+    for (k, v) in [
+        ("sync.last", huge.clone()),
+        ("sync.takeoff.1", "not json".to_string()),
+        ("sync.takeoff.abc", "{}".to_string()),
+        ("sync.takeoff.2", json!({ "revision": "text" }).to_string()),
+        ("sync.takeoff.3", json!({ "revision": -5, "levels": { "L": { "revision": null } } }).to_string()),
+    ] {
+        c.execute("INSERT INTO meta (key, value) VALUES (?1, ?2)", rusqlite::params![k, v]).unwrap();
+    }
+    drop(c);
+    let p = probe_ok(&path);
+    assert_eq!(p.last_app, None);
+    assert_eq!(p.takeoff.len(), 1);
+    assert_eq!(p.takeoff[0].slot, 3);
+}
+
+#[test]
+fn a_locked_file_is_reported_as_locked() {
+    let (_d, path) = temp();
+    drop(Odp::create(&path, "House").unwrap());
+    // An exclusive lock held by another connection: every reader is refused.
+    let c = rusqlite::Connection::open(&path).unwrap();
+    c.pragma_update(None, "locking_mode", "EXCLUSIVE").unwrap();
+    c.execute_batch("BEGIN EXCLUSIVE").unwrap();
+    let started = std::time::Instant::now();
+    assert_eq!(probe(&path), Peek::Locked);
+    assert!(started.elapsed() < std::time::Duration::from_secs(3), "the probe waits a fraction of a second, not the writer's 5 s");
+    c.execute_batch("ROLLBACK").unwrap();
+}

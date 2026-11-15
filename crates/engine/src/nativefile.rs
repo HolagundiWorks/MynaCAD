@@ -88,6 +88,9 @@ fn native_model(odp: &aad_odp::Odp, first: &str) -> Result<Option<Drawing>, Stri
 /// Read the drawing of a project file: the native model when it is present and belongs to the stored drawing, else the stored DXF or DWG bytes.
 pub fn read_project(path: &str) -> Result<ProjectDrawing, String> {
     let odp = aad_odp::Odp::open(Path::new(path)).map_err(|e| format!("{path}: {e}"))?;
+    if let Ok(m) = odp.meta() {
+        crate::projectsync::note_opened(Path::new(path), m.revision, &m.project_id);
+    }
     let name = odp.drawing_names().map_err(|e| format!("{path}: {e}"))?.into_iter().next().ok_or_else(|| format!("{path} holds no drawing yet"))?;
     let fallback = match native_model(&odp, &name) {
         Ok(Some(drawing)) => return Ok(ProjectDrawing { drawing, native: true, fallback: None }),
@@ -131,6 +134,7 @@ pub fn write_project(path: &str, drawing: &Drawing, format_hint: Option<&str>) -
     }
     // The structural details (RCC blocks with their parameters) go in the same revision as the drawing, for MynaOps to draw read only.
     let details = crate::structural_details(drawing, &name);
+    let (before, project_id) = odp.meta().map(|m| (m.revision, m.project_id)).unwrap_or_default();
     let mut edit = odp.edit().map_err(|e| format!("{path}: {e}"))?;
     if edit.drawing_sha256(&name).map_err(|e| format!("{path}: {e}"))?.as_deref() != Some(sha.as_str()) {
         let ext = Path::new(&name).extension().and_then(|e| e.to_str()).unwrap_or("dxf").to_string();
@@ -139,7 +143,8 @@ pub fn write_project(path: &str, drawing: &Drawing, format_hint: Option<&str>) -
     edit.replace_details(&name, &details).map_err(|e| format!("{path}: {e}"))?;
     edit.put_native(&name, &sha, aad_io::native::FORMAT_VERSION, &part_refs(&parts)).map_err(|e| format!("{path}: {e}"))?;
     edit.set_local_meta("native.saved", &aad_odp::now_utc()).map_err(|e| format!("{path}: {e}"))?;
-    edit.commit().map_err(|e| format!("{path}: {e}"))?;
+    let after = edit.commit().map_err(|e| format!("{path}: {e}"))?;
+    crate::projectsync::note_own_write(p, before, after, &project_id);
     Ok(bytes.len())
 }
 

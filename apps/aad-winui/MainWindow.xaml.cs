@@ -5908,6 +5908,11 @@ public sealed partial class MainWindow : Window
             {
                 UpdateSaveState();
             }
+            // About every three seconds: has MynaOps (or anything else) written the open project file? Read only; never reloads.
+            if (_ticks % 96 == 0)
+            {
+                UpdateSyncState();
+            }
             // Every ~4 ticks so hover rollover updates Properties / Layer / Blocks promptly.
             if (_ticks % 4 == 0)
             {
