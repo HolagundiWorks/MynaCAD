@@ -1,0 +1,43 @@
+{
+  "description": "Unknown fields and unknown keys are ignored.",
+  "expect": "ok",
+  "levels": 1,
+  "tabs": 0,
+  "rev": 2,
+  "notes": 0,
+  "keys": {
+    "schema": {
+      "v": 1,
+      "min_reader": 1,
+      "future_flag": true
+    },
+    "rev": {
+      "v": 1,
+      "rev": 2,
+      "app": "mynaops",
+      "time": "2026-11-15T09:30:12Z",
+      "who": "x"
+    },
+    "levels": {
+      "v": 1,
+      "next_cid": 8,
+      "extra": [
+        1,
+        2
+      ],
+      "items": [
+        {
+          "cid": 7,
+          "name": "Ground",
+          "elevation_mm": 0,
+          "height_mm": 3000,
+          "colour": "red"
+        }
+      ]
+    },
+    "something_new": {
+      "v": 9,
+      "x": 1
+    }
+  }
+}

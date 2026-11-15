@@ -1,0 +1,25 @@
+{
+  "description": "Level names are unique without case.",
+  "expect": "error",
+  "error_key": "config.levels",
+  "keys": {
+    "levels": {
+      "v": 1,
+      "next_cid": 5,
+      "items": [
+        {
+          "cid": 1,
+          "name": "Ground",
+          "elevation_mm": 0,
+          "height_mm": 3000
+        },
+        {
+          "cid": 2,
+          "name": "GROUND",
+          "elevation_mm": 3000,
+          "height_mm": 3000
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "A layer set listed twice.",
+  "expect": "error",
+  "error_key": "config.layer_sets",
+  "keys": {
+    "layer_sets": {
+      "v": 1,
+      "sets": [
+        "permit",
+        "Permit"
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "description": "Two levels with the same cid.",
+  "expect": "error",
+  "error_key": "config.levels",
+  "keys": {
+    "levels": {
+      "v": 1,
+      "next_cid": 5,
+      "items": [
+        {
+          "cid": 1,
+          "name": "A",
+          "elevation_mm": 0,
+          "height_mm": 3000
+        },
+        {
+          "cid": 1,
+          "name": "B",
+          "elevation_mm": 3000,
+          "height_mm": 3000
+        }
+      ]
+    }
+  }
+}

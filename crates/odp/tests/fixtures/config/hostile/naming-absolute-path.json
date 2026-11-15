@@ -1,0 +1,13 @@
+{
+  "description": "A file pattern that is an absolute path.",
+  "expect": "error",
+  "error_key": "config.naming",
+  "keys": {
+    "naming": {
+      "v": 1,
+      "patterns": {
+        "file": "C:/temp/x"
+      }
+    }
+  }
+}

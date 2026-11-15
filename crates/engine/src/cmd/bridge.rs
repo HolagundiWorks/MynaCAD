@@ -768,10 +768,13 @@ fn metres_to_mm(m: f64) -> Option<f64> {
     m.is_finite().then(|| mm(m * 1000.0))
 }
 
-/// Adds the optional named-level fields (`id`, `elevation_mm`) to the header's `levels` list when the drawing has explicit levels (`level.*`).
+/// Adds the optional named-level fields (`id`, `elevation_mm`, `config_id`) to the header's `levels` list when the drawing has explicit levels (`level.*`).
 /// A floor of the project data that has a level of the same name gets that level's `id` and `elevation_mm`; a level with no floor of that name is
 /// appended (`height_mm` is the level's height). A drawing without levels is left as it was: no `id`, no `elevation_mm`.
 fn add_level_ids(d: &aad_doc::Drawing, list: &mut Vec<Value>) {
+    // The project configuration's level ids (`cid`, MynaOps' own) the drawing's levels are bound to (`config.levelmap`): `config_id` is added next to `id`.
+    let bound: std::collections::BTreeMap<u32, u32> =
+        d.project.get(aad_odp::config::KEY_LEVELMAP).map(|t| aad_odp::config::levelmap_from_text(t)).unwrap_or_default();
     for l in d.levels.iter().take(aad_doc::MAX_LEVELS) {
         let pos = list.iter().position(|v| v["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(&l.name)));
         let entry = match pos {
@@ -787,6 +790,9 @@ fn add_level_ids(d: &aad_doc::Drawing, list: &mut Vec<Value>) {
             }
         };
         entry["id"] = json!(l.id.0);
+        if let Some((cid, _)) = bound.iter().find(|(_, lid)| **lid == l.id.0) {
+            entry["config_id"] = json!(cid);
+        }
         if let Some(e) = metres_to_mm(l.elevation) {
             entry["elevation_mm"] = json!(e);
         }

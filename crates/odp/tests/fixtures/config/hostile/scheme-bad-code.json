@@ -1,0 +1,22 @@
+{
+  "description": "A discipline code that is not 1 to 4 letters or digits.",
+  "expect": "error",
+  "error_key": "config.sheets",
+  "keys": {
+    "sheets": {
+      "v": 1,
+      "scheme": {
+        "pattern": "{D}-{N}",
+        "width": 3,
+        "step": 1,
+        "disciplines": [
+          {
+            "code": "A/B*",
+            "name": "Arch",
+            "start": 1
+          }
+        ]
+      }
+    }
+  }
+}

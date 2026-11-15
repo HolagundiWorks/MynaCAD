@@ -1,0 +1,8 @@
+{
+  "description": "A key that is a JSON array.",
+  "expect": "error",
+  "error_key": "config.units",
+  "keys": {
+    "units": "[1,2,3]"
+  }
+}

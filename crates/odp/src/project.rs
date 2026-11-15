@@ -749,3 +749,25 @@ impl Odp {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+impl Odp {
+    /// The size in bytes of a `meta` value, without reading it (`None` when the key is absent). A reader of a value whose size a file states checks it
+    /// with this first.
+    pub fn meta_len(&self, key: &str) -> Result<Option<u64>> {
+        let n: Option<i64> =
+            self.conn.query_row("SELECT length(CAST(value AS BLOB)) FROM meta WHERE key = ?1", params![key], |r| r.get(0)).optional()?;
+        Ok(n.map(|n| u64::try_from(n).unwrap_or(0)))
+    }
+}
+
+impl Edit<'_> {
+    /// Write a shared `meta` value (the `config.*` keys MynaOps owns): it is a change, so the group becomes a revision and a `change` row says which key.
+    /// The keys that describe the file itself cannot be written this way.
+    pub fn put_meta(&mut self, key: &str, value: &str) -> Result<()> {
+        if CORE_META.contains(&key) {
+            return Err(Error::Import(format!("`{key}` is not a meta key to write")));
+        }
+        self.tx.execute("INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2", params![key, value])?;
+        self.log("meta", key, "put")
+    }
+}

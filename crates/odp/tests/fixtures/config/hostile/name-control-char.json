@@ -1,0 +1,19 @@
+{
+  "description": "A level name with a NUL character.",
+  "expect": "error",
+  "error_key": "config.levels",
+  "keys": {
+    "levels": {
+      "v": 1,
+      "next_cid": 2,
+      "items": [
+        {
+          "cid": 1,
+          "name": "A\u0000B",
+          "elevation_mm": 0,
+          "height_mm": 3000
+        }
+      ]
+    }
+  }
+}

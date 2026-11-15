@@ -1,0 +1,24 @@
+{
+  "description": "Only the schema, the revision and the unit.",
+  "expect": "ok",
+  "levels": 0,
+  "tabs": 0,
+  "rev": 1,
+  "notes": 0,
+  "keys": {
+    "schema": {
+      "v": 1,
+      "min_reader": 1
+    },
+    "rev": {
+      "v": 1,
+      "rev": 1,
+      "app": "mynaops",
+      "time": "2026-11-15T09:30:12Z"
+    },
+    "units": {
+      "v": 1,
+      "drawing_unit": "m"
+    }
+  }
+}

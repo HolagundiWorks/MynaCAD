@@ -1,0 +1,19 @@
+{
+  "description": "An elevation that is the text NaN.",
+  "expect": "error",
+  "error_key": "config.levels",
+  "keys": {
+    "levels": {
+      "v": 1,
+      "next_cid": 2,
+      "items": [
+        {
+          "cid": 1,
+          "name": "A",
+          "elevation_mm": "NaN",
+          "height_mm": 3000
+        }
+      ]
+    }
+  }
+}

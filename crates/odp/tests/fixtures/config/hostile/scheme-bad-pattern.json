@@ -1,0 +1,22 @@
+{
+  "description": "A numbering pattern with no {N}.",
+  "expect": "error",
+  "error_key": "config.sheets",
+  "keys": {
+    "sheets": {
+      "v": 1,
+      "scheme": {
+        "pattern": "{D}-X",
+        "width": 3,
+        "step": 1,
+        "disciplines": [
+          {
+            "code": "A",
+            "name": "Arch",
+            "start": 1
+          }
+        ]
+      }
+    }
+  }
+}
