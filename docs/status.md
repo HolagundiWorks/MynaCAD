@@ -91,6 +91,7 @@ architectural walls and take-off is implemented; see [parametric.md](parametric.
 
 | Item | Notes |
 |---|---|
+| Ops-first workflow (owner decision 2026-11-15) | MynaOps opens or creates the project and launches MynaCAD with it; project configuration (wizard, settings, levels, layer sets, units, sheet numbering) moves to MynaOps and reaches MynaCAD as `meta.config.*`; MynaCAD managed mode has Import and Export only, no Open/New/Save As of project files, one `.osp` live across both apps (lease); Realtime sync on/off and Sync now in both apps. **Design only, nothing built**: [ops-first-workflow.md](ops-first-workflow.md) |
 | macOS, Linux and web builds | Later phases. Only Windows is built, tested and packaged now |
 | Result tables and highlighting; retrieval | [ai-agent.md](ai-agent.md) |
 | Remaining hcwCAD-KIT tools | Drawing tools (`INCARRAY`, `DGRID`, `AUTOLABEL`, ...), layer and permit-layer tools, notes and fields, wall edit and join, escalators, auto-dimension ([hcw-kit-port.md](hcw-kit-port.md)) |

@@ -1,8 +1,8 @@
 # Myna suite: names, roles, files, links and how it works live
 
-**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`MynaOps`) and MynaCAD (`MynaCAD`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-11. The checkout folders were renamed on 2026-11-11: `O-DRAFT-main` to `MynaCAD`, `O-COREOP` to `MynaOps`, `O-STUDIO` to `MynaHub`, `o-ui` to `MynaUI` (the GitHub repositories were renamed to match: `HolagundiWorks/MynaCAD`, `MynaOPS`, `MynaHub`, `MynaUI`; `o-form` for Myna3D is not renamed yet; the sibling folders `MynaHub`, `MynaOps`, `MynaCAD`, `MynaUI` must stay beside each other).
+**Canonical copy:** the MynaHub repository, `docs/SUITE.md`. MynaOps (`MynaOps`) and MynaCAD (`MynaCAD`) carry an identical copy at `docs/SUITE.md` so a developer in any one repo knows what the others are, what they are called and how they connect. If you change one, change all three (links are written as repo and path, not as relative links, so the copies can stay identical). Updated 2026-11-15 (section 0: the Ops-first workflow decision). The checkout folders were renamed on 2026-11-11: `O-DRAFT-main` to `MynaCAD`, `O-COREOP` to `MynaOps`, `O-STUDIO` to `MynaHub`, `o-ui` to `MynaUI` (the GitHub repositories were renamed to match: `HolagundiWorks/MynaCAD`, `MynaOPS`, `MynaHub`, `MynaUI`; `o-form` for Myna3D is not renamed yet; the sibling folders `MynaHub`, `MynaOps`, `MynaCAD`, `MynaUI` must stay beside each other).
 
-## 0. What changed on 2026-11-11 (owner decisions)
+## 0. What changed on 2026-11-11 and 2026-11-15 (owner decisions)
 
 | Decision | State |
 |---|---|
@@ -10,6 +10,7 @@
 | **MynaHub** keeps every login (company sign-in, users, admin password, roles) and its own database (the company file `.osas`; Neon cloud sync is MynaHub only). MynaHub has **no AI**: no assistant bar, no AI status, no AI settings passed to the apps it starts | Implemented |
 | The **AI agent** (Olmo 3 7B through llama.cpp `llama-server`, loopback `127.0.0.1:8742`) is **hosted by MynaOps** and serves **MynaOps and MynaCAD** only. A MynaOps window hosts it; without a window MynaOps runs it headless (`O-CoreOp.exe --ai-host`), which **MynaCAD starts** when no host answers and which ends by itself when neither app is open | Implemented |
 | The **project database manager** for the shared `.osp` lives in **MynaOps** (Project > Project database, also File > Project database) | Implemented |
+| **Ops-first workflow** (decided 2026-11-15, planned, not implemented): MynaOps is started first and opens or creates the project (project wizard, settings, levels, layer sets, team, units, sheet numbering are configured there and written to the `.osp` as `meta.config.*`); MynaOps starts and stops the AI agent and controls the project database (online/offline: today there is no database server, only a SQLite file); **MynaCAD is launched from MynaOps with the current project**, has no File > Open/New/Save As of project files and only Import (DXF, DWG into the project) and Export (DXF, DWG, PDF, SVG, PNG); exactly one `.osp` is live across both apps (a lease); **Realtime sync on/off** and **Sync now** buttons in both apps (built on the live-sync design). Contract, schema, plan and open questions: MynaOps `docs/ops-first-workflow.md` (identical copy in MynaCAD `docs/ops-first-workflow.md`) | Design only |
 | MynaCAD and MynaOps stay independent of MynaHub (no sign-in, no link) | Unchanged since 2026-11-08 |
 
 ## 1. Names
