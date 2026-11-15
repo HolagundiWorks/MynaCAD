@@ -1849,7 +1849,8 @@ impl Host {
         let Ok(state) = self.session.state() else {
             return json_err("no drawing");
         };
-        let list = aad_render::build(&state.doc, &state.space, &aad_render::Options::default());
+        // The same list the window draws: with traces of other levels and, in a section or elevation, the faded guides.
+        let list = build_list_and_scene(&state.doc, &state.space, &aad_render::Options::default(), self.paper()).0;
         let view = state.view();
         let raster = if fit {
             aad_render::raster::View::fit(&list.bounds, width, height, 0.05)
@@ -4050,6 +4051,26 @@ mod tests {
         assert!(reply["result"]["bytes"].as_u64().unwrap_or(0) > 0);
         assert!(path.is_file(), "missing {}", path.display());
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn ui_render_draws_the_projection_guides_of_an_open_section() {
+        let render = |host: &mut Host, tag: &str| -> Vec<u8> {
+            let path = std::env::temp_dir().join(format!("aad-host-guides-{tag}-{}.png", std::process::id()));
+            let reply = host.control_one("ui.render", &json!({ "path": path.to_string_lossy(), "width": 160, "height": 120 }));
+            assert_eq!(reply["ok"], true, "{reply}");
+            let bytes = std::fs::read(&path).unwrap();
+            let _ = std::fs::remove_file(&path);
+            bytes
+        };
+        let mut host = Host::create(false);
+        host.execute("level.new", &json!({ "name": "First", "first": "Ground", "elevation": 3150.0, "height": 3000.0 })).unwrap();
+        host.execute("section.new", &json!({ "p1": [0.0, 0.0], "p2": [10000.0, 0.0], "depth": 5000.0 })).unwrap();
+        host.execute("view.activate", &json!({ "view": "Section A-A" })).unwrap();
+        // The view holds no objects: only the faded floor and top lines (the guides) can be on the picture.
+        let with_guides = render(&mut host, "with");
+        let blank = render(&mut Host::create(false), "blank");
+        assert_ne!(with_guides, blank, "the open section shows its guides in the rendered picture");
     }
 
     #[test]

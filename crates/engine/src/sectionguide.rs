@@ -378,7 +378,9 @@ pub fn guide_entities(g: &Guides) -> Vec<Entity> {
 }
 
 type CacheEntry = (u64, std::sync::Arc<Vec<Entity>>, Vec<aad_doc::EntityStore>);
-static CACHE: std::sync::Mutex<Option<CacheEntry>> = std::sync::Mutex::new(None);
+/// A few views at once: layout viewports may each show a different view and the open view is one more.
+const CACHE_SLOTS: usize = 16;
+static CACHE: std::sync::Mutex<Vec<CacheEntry>> = std::sync::Mutex::new(Vec::new());
 
 /// What the guides of `rec` depend on: the record, the covered levels (elevation, height and the
 /// identity and size of their stores) and the drawing unit. The stores are returned so the cache
@@ -414,16 +416,27 @@ fn fingerprint(d: &Drawing, rec: &ViewRecord) -> (u64, Vec<aad_doc::EntityStore>
 /// by identity, the same rule as level traces), so a pan or a snap query costs one hash.
 pub fn active_guides(d: &Drawing) -> std::sync::Arc<Vec<Entity>> {
     let Some(v) = d.active_view_ref() else { return std::sync::Arc::new(Vec::new()) };
-    let (key, kept) = fingerprint(d, &v.rec);
-    if let Ok(c) = CACHE.lock()
-        && let Some((k, ents, _)) = c.as_ref()
-        && *k == key
+    guides_for(d, &v.rec)
+}
+
+/// The guides of any view record as drawable line objects, cached like [`active_guides`]
+/// (also used by layout viewports that show a view).
+pub fn guides_for(d: &Drawing, rec: &ViewRecord) -> std::sync::Arc<Vec<Entity>> {
+    let (key, kept) = fingerprint(d, rec);
+    if let Ok(mut c) = CACHE.lock()
+        && let Some(i) = c.iter().position(|(k, _, _)| *k == key)
     {
-        return ents.clone();
+        let hit = c.remove(i);
+        let ents = hit.1.clone();
+        c.push(hit);
+        return ents;
     }
-    let ents = std::sync::Arc::new(guide_entities(&compute(d, &v.rec)));
+    let ents = std::sync::Arc::new(guide_entities(&compute(d, rec)));
     if let Ok(mut c) = CACHE.lock() {
-        *c = Some((key, ents.clone(), kept));
+        if c.len() >= CACHE_SLOTS {
+            c.remove(0);
+        }
+        c.push((key, ents.clone(), kept));
     }
     ents
 }

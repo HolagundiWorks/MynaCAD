@@ -34,7 +34,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{p1?, p2? (default: printable area), count?: 1-4, arrangement?: vertical|horizontal|left|right|above|below, layout?}")
             .interactive(|_| Ok(Box::new(MviewM::new(1, true)))),
         CommandSpec::new("viewport.set", "Viewport Properties", run_viewport_set).params(
-            "{handle? (default: selected viewports), scale?: paper units per model unit | \"1:50\", viewHeight?, center?: [x,y], locked?, freeze?: [layer], thaw?: [layer], colors?: {layer: color | null}, level? (level id or name; null = the first level), sheetSet? (sheet set id or name; null = plain geometry), traces? ([{level, fade?, colour?, order?, snap?, layers?}] or null)}",
+            "{handle? (default: selected viewports), scale?: paper units per model unit | \"1:50\", viewHeight?, center?: [x,y], locked?, freeze?: [layer], thaw?: [layer], colors?: {layer: color | null}, level? (level id or name; null = the first level), view? (section/elevation view id or name; shows that view with its guides faded; null = back to the level), sheetSet? (sheet set id or name; null = plain geometry), traces? ([{level, fade?, colour?, order?, snap?, layers?}] or null)}",
         ),
         CommandSpec::new("vplayer", "Viewport Layer Freeze", run_viewport_set)
             .params("{handle?, freeze?: [layer], thaw?: [layer], colors?: {layer: color (\"red\" | 1..255 | \"r,g,b\") | null to clear}} (typed: option prompts)")
@@ -719,6 +719,11 @@ fn run_viewport_set(s: &mut Session, p: &Value) -> Result<Value> {
         }
         if let Some(c) = center {
             v.view_center = c;
+        } else if let Some(Some(id)) = bind.view
+            && let Some(c) = view_extent_center(s.doc()?, id)
+        {
+            // Showing a view without saying where: look at what the view holds.
+            v.view_center = c;
         }
         if let Some(l) = locked {
             v.locked = l;
@@ -737,6 +742,13 @@ fn run_viewport_set(s: &mut Session, p: &Value) -> Result<Value> {
         }
         if let Some(l) = bind.level {
             v.level = l;
+            // Binding a level takes the viewport off a view unless both are given.
+            if bind.view.is_none() {
+                v.view = None;
+            }
+        }
+        if let Some(x) = bind.view {
+            v.view = x;
         }
         if let Some(x) = bind.sheet_set {
             v.sheet_set = x;
@@ -746,13 +758,28 @@ fn run_viewport_set(s: &mut Session, p: &Value) -> Result<Value> {
         }
         // A viewport cannot trace the level it shows (an unbound one shows the first level).
         let shown = v.level.or_else(|| s.doc().ok().and_then(|d| d.levels.first().map(|l| l.id)));
-        if shown.is_some() && v.traces.iter().any(|t| Some(t.level) == shown) {
+        if v.view.is_none() && shown.is_some() && v.traces.iter().any(|t| Some(t.level) == shown) {
             return Err(bad(cmd, "a viewport cannot trace the level it shows"));
         }
         out.push(viewport_json(h, &v));
         s.doc_mut()?.modify_entity(h, |e| e.kind = EntityKind::Viewport(v)).map_err(|e| bad(cmd, e.to_string()))?;
     }
     Ok(Value::Array(out))
+}
+
+/// The centre of what a view space holds: its drafted objects and its projection guides.
+fn view_extent_center(d: &Drawing, id: aad_doc::SpaceId) -> Option<Vec2> {
+    let rec = &d.view_space(id)?.rec;
+    let mut b = aad_geom::Bounds2::default();
+    if let Some(store) = d.view_store(id) {
+        for e in store.iter() {
+            b = b.union(&aad_doc::entity_bounds(d, e, 0));
+        }
+    }
+    for g in crate::sectionguide::guides_for(d, rec).iter() {
+        b = b.union(&aad_doc::entity_bounds(d, g, 0));
+    }
+    (!b.is_empty() && b.min.is_finite() && b.max.is_finite()).then(|| (b.min + b.max) * 0.5)
 }
 
 // ---------- page setup ----------

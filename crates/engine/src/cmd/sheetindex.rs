@@ -57,7 +57,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{pattern?: \"{D}-{N}\", width?: 1..8, step?: 1..1000, disciplines?: [{code, name, start}]} → {scheme}. Omit fields to read."),
         CommandSpec::new("sheetindex.build", "Build Sheets from Levels", run_build)
             .menu(&["Architecture", "Sheets", "Build Sheet Index"])
-            .params("{discipline? (A), scale? (1:100), paper?, landscape?, master?, levels?: bool (true), composeViews?: bool (false), views?: [view names], table?: bool} → {created, skipped, warnings}. Repeatable: a level or compose view that already has a sheet is skipped."),
+            .params("{discipline? (A), scale? (1:100), paper?, landscape?, master?, levels?: bool (true), composeViews?: bool (false), views?: [view names], allViews?: bool (false; every section/elevation), table?: bool} → {created, skipped, warnings}. Repeatable: a level or compose view that already has a sheet is skipped."),
         CommandSpec::new("sheetindex.fill", "Fill Title Blocks from Sheet Records", run_fill)
             .params("{sheet? (default all)} → {filled: [{sheet, layout, changed}]}"),
         CommandSpec::new("sheetindex.table", "Draw Sheet List", run_table)
@@ -71,6 +71,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("issue.create", "Create Issue Set", run_issue_create)
             .menu(&["Architecture", "Sheets", "New Issue Set"])
             .params("{name, date? (today), rev?, description?, discipline? | sheets?: [numbers], stamp?: bool (true), publisherSet?: bool (true)} → {issue}. Freezes the chosen sheets (default every sheet that is not void), stamps a revision on each and marks them issued."),
+        CommandSpec::new("issue.delete", "Delete Issue Set", run_issue_delete)
+            .params("{issue (name or id), force?: bool, keepPublisherSet?: bool} → {deleted, publisherSetRemoved}. Sheet revisions and statuses stay. Refused when some frozen sheet has no revision entry for the issue (the issue is then the only record) unless `force`."),
         CommandSpec::new("issue.list", "Issue Sets", run_issue_list)
             .params("{} → {issues: [{id, name, date, rev, description, publisherSet, sheets: [{number, title, layout, rev, status}]}]}")
             .noundo(),
@@ -537,6 +539,40 @@ fn fill_sheet(s: &mut Session, idx: &Index, sh: &Sheet) -> Result<usize> {
     Ok(super::sheet::write_fields(s.doc_mut()?, &sh.layout, &fields))
 }
 
+/// Point every reference to layout `from` (sheet records, layout names frozen in issues, publisher
+/// sets) at `to`.
+fn follow_layout_rename(s: &mut Session, idx: &mut Index, from: &str, to: &str) -> Result<()> {
+    for x in idx.sheets.iter_mut().filter(|x| x.layout == from) {
+        x.layout = to.to_string();
+    }
+    for f in idx.issues.iter_mut().flat_map(|i| i.frozen.iter_mut()).filter(|f| f.layout == from) {
+        f.layout = to.to_string();
+    }
+    for set in s.doc_mut()?.publisher_sets.iter_mut() {
+        for l in set.layouts.iter_mut().filter(|l| l.as_str() == from) {
+            *l = to.to_string();
+        }
+    }
+    Ok(())
+}
+
+/// Rename a sheet's layout to `<number> <title>` after its number changed, and follow the rename
+/// in the index and the publisher sets. A missing layout, or one already named right, is left alone.
+fn sync_layout_name(s: &mut Session, idx: &mut Index, sheet_id: u32) -> Result<Option<(String, String)>> {
+    let Some(sh) = idx.sheets.iter().find(|x| x.id == sheet_id).cloned() else { return Ok(None) };
+    if sh.layout.is_empty() || s.doc()?.layout(&sh.layout).is_none() {
+        return Ok(None);
+    }
+    let want = layout_label_except(s.doc()?, &sh.number, &sh.title, Some(&sh.layout));
+    if want == sh.layout {
+        return Ok(None);
+    }
+    s.execute("layout.rename", &json!({ "from": sh.layout, "to": want }))?;
+    let to = s.doc()?.layouts.iter().find(|l| l.name.eq_ignore_ascii_case(&want)).map(|l| l.name.clone()).unwrap_or(want);
+    follow_layout_rename(s, idx, &sh.layout, &to)?;
+    Ok(Some((sh.layout, to)))
+}
+
 // ---------------------------------------------------------------- sheet records
 
 fn run_list(s: &mut Session, p: &Value) -> Result<Value> {
@@ -665,12 +701,16 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
     }
     apply_fields(s, cmd, p, &idx, &mut sh)?;
     let changed = fill_sheet(s, &idx, &sh)?;
-    let out = sheet_json(s.doc()?, &sh);
+    let (id, renumbered) = (sh.id, idx.sheets.get(at).is_some_and(|old| old.number != sh.number));
     if let Some(slot) = idx.sheets.get_mut(at) {
         *slot = sh;
     }
+    // A new number gives the layout its new name (a title change alone does not rename it).
+    let renamed = if renumbered { sync_layout_name(s, &mut idx, id)? } else { None };
+    let sh = idx.sheets.iter().find(|x| x.id == id).cloned().unwrap_or_default();
+    let out = sheet_json(s.doc()?, &sh);
     store(s, &idx)?;
-    Ok(json!({ "sheet": out, "titleBlock": changed }))
+    Ok(json!({ "sheet": out, "titleBlock": changed, "layoutRenamed": renamed.map(|(f, t)| json!({ "from": f, "to": t })) }))
 }
 
 fn run_delete(s: &mut Session, p: &Value) -> Result<Value> {
@@ -720,6 +760,29 @@ fn plan_renumber(idx: &Index, only: Option<&str>) -> Result<Vec<(usize, String)>
     Ok(changes)
 }
 
+/// Rename the layouts of several sheets to their new `<number> <title>`. Two steps (a scratch name
+/// first) so that a swap of two numbers cannot clash.
+fn rename_layouts(s: &mut Session, idx: &mut Index, ids: &[u32]) -> Result<()> {
+    let mut stage = Vec::new();
+    for id in ids {
+        let Some(sh) = idx.sheets.iter().find(|x| x.id == *id).cloned() else { continue };
+        if sh.layout.is_empty() || s.doc()?.layout(&sh.layout).is_none() {
+            continue;
+        }
+        let tmp = format!("~renumber {id}");
+        s.execute("layout.rename", &json!({ "from": sh.layout, "to": tmp }))?;
+        stage.push((*id, sh.layout, tmp));
+    }
+    for (id, from, tmp) in stage {
+        let Some(sh) = idx.sheets.iter().find(|x| x.id == id).cloned() else { continue };
+        let want = layout_label_except(s.doc()?, &sh.number, &sh.title, Some(&tmp));
+        s.execute("layout.rename", &json!({ "from": tmp, "to": want }))?;
+        let to = s.doc()?.layouts.iter().find(|l| l.name.eq_ignore_ascii_case(&want)).map(|l| l.name.clone()).unwrap_or(want);
+        follow_layout_rename(s, idx, &from, &to)?;
+    }
+    Ok(())
+}
+
 fn run_renumber(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "sheet.renumber";
     let mut idx = load(s)?;
@@ -739,8 +802,10 @@ fn run_renumber(s: &mut Session, p: &Value) -> Result<Value> {
                 sh.number = n.clone();
             }
         }
-        for (i, _) in &changes {
-            if let Some(sh) = idx.sheets.get(*i).cloned() {
+        let ids: Vec<u32> = changes.iter().filter_map(|(i, _)| idx.sheets.get(*i).map(|x| x.id)).collect();
+        rename_layouts(s, &mut idx, &ids)?;
+        for id in &ids {
+            if let Some(sh) = idx.sheets.iter().find(|x| x.id == *id).cloned() {
                 fill_sheet(s, &idx, &sh)?;
             }
         }
@@ -767,6 +832,7 @@ fn run_move(s: &mut Session, p: &Value) -> Result<Value> {
     if [before.is_some(), after.is_some(), position.is_some()].iter().filter(|b| **b).count() > 1 {
         return Err(bad(cmd, "give only one of `before`, `after`, `position`"));
     }
+    let before_numbers: std::collections::BTreeMap<u32, String> = idx.sheets.iter().map(|x| (x.id, x.number.clone())).collect();
     let mut sh = idx.sheets.remove(at);
     if let Some(c) = opt_text(cmd, p, "discipline")?.filter(|t| !t.is_empty()) {
         let c = code_ok(cmd, &c)?;
@@ -803,6 +869,13 @@ fn run_move(s: &mut Session, p: &Value) -> Result<Value> {
             if let Some(x) = idx.sheets.get_mut(i) {
                 x.number = n;
             }
+        }
+    }
+    let changed_ids: Vec<u32> = idx.sheets.iter().filter(|x| before_numbers.get(&x.id).is_some_and(|n| *n != x.number)).map(|x| x.id).collect();
+    rename_layouts(s, &mut idx, &changed_ids)?;
+    for cid in &changed_ids {
+        if let Some(sh) = idx.sheets.iter().find(|x| x.id == *cid).cloned() {
+            fill_sheet(s, &idx, &sh)?;
         }
     }
     if let Some(sh) = idx.sheets.iter().find(|x| x.id == id).cloned() {
@@ -887,6 +960,11 @@ fn in_layout<T>(s: &mut Session, layout: &str, f: impl FnOnce(&mut Session) -> R
 }
 
 fn layout_label(d: &Drawing, number: &str, title: &str) -> String {
+    layout_label_except(d, number, title, None)
+}
+
+/// The layout name for a sheet; `except` is the sheet's own current layout, which does not clash with itself.
+fn layout_label_except(d: &Drawing, number: &str, title: &str, except: Option<&str>) -> String {
     let raw = if title.is_empty() { number.to_string() } else { format!("{number} {title}") };
     let base: String =
         raw.chars().map(|c| if c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.' | '(' | ')') { c } else { '_' }).take(80).collect();
@@ -894,7 +972,7 @@ fn layout_label(d: &Drawing, number: &str, title: &str) -> String {
     let base = if base.is_empty() || base.eq_ignore_ascii_case("model") { "Sheet".to_string() } else { base };
     let mut name = base.clone();
     let mut n = 2;
-    while d.layout(&name).is_some() && n < 10_000 {
+    while d.layout(&name).is_some_and(|l| except.is_none_or(|e| !l.name.eq_ignore_ascii_case(e))) && n < 10_000 {
         name = format!("{base} ({n})");
         n += 1;
     }
@@ -942,11 +1020,17 @@ fn make_layout(s: &mut Session, number: &str, job: &Job, o: &BuildOpts, warnings
                     set.insert("level".into(), json!(n));
                 }
             }
-            "view" => warnings.push(format!(
-                "{}: view `{}` is not available yet; the sheet has an unbound viewport",
-                job.title,
-                job.source.view.clone().unwrap_or_default()
-            )),
+            "view" => {
+                let want = job.source.view.clone().unwrap_or_default();
+                let found = s.doc().ok().and_then(|d| d.view_space_by_name(&want).map(|v| (v.rec.name.clone(), v.rec.id)));
+                match found {
+                    Some((vname, _)) => {
+                        set.insert("view".into(), json!(vname));
+                        // viewport.set centres the viewport on what the view holds.
+                    }
+                    None => warnings.push(format!("{}: view `{want}` does not exist; the sheet has an unbound viewport", job.title)),
+                }
+            }
             _ => {}
         }
         s.execute("viewport.set", &Value::Object(set))?;
@@ -1002,6 +1086,11 @@ fn run_build(s: &mut Session, p: &Value) -> Result<Value> {
             });
         }
     }
+    if bool_or(p, "allViews", false) {
+        for v in view_sources(s) {
+            jobs.push(Job { title: v.name.clone(), source: Source { kind: "view".into(), view: Some(v.name), ..Source::default() } });
+        }
+    }
     match p.get("views") {
         None | Some(Value::Null) => {}
         Some(Value::Array(a)) if a.len() <= 128 => {
@@ -1016,8 +1105,6 @@ fn run_build(s: &mut Session, p: &Value) -> Result<Value> {
     if jobs.len() > MAX_SHEETS.saturating_sub(idx.sheets.len()) {
         return Err(bad(cmd, format!("that would make more than {MAX_SHEETS} sheets")));
     }
-    let known: BTreeSet<String> = view_sources(s).into_iter().map(|v| v.name.to_ascii_lowercase()).collect();
-
     let (mut created, mut skipped, mut warnings) = (Vec::new(), Vec::new(), Vec::new());
     for job in jobs {
         let exists = idx.sheets.iter().any(|sh| {
@@ -1031,11 +1118,6 @@ fn run_build(s: &mut Session, p: &Value) -> Result<Value> {
         if exists {
             skipped.push(json!({ "title": job.title, "reason": "already has a sheet" }));
             continue;
-        }
-        let mut job = job;
-        if job.source.kind == "view" && !job.source.view.as_ref().is_some_and(|v| known.contains(&v.to_ascii_lowercase())) {
-            warnings.push(format!("view `{}` does not exist; its sheet is made without content", job.title));
-            job.source.view = job.source.view.take();
         }
         let number = idx.next_number(cmd, &disc)?;
         let layout = make_layout(s, &number, &job, &opts, &mut warnings)?;
@@ -1424,6 +1506,40 @@ fn run_issue_create(s: &mut Session, p: &Value) -> Result<Value> {
     idx.issues.push(issue);
     store(s, &idx)?;
     Ok(json!({ "issue": out }))
+}
+
+fn run_issue_delete(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "issue.delete";
+    let mut idx = load(s)?;
+    let key = p.get("issue").ok_or_else(|| bad(cmd, "`issue` (name or id) is required"))?;
+    let at = match key {
+        Value::Number(n) => n.as_u64().and_then(|n| idx.issues.iter().position(|i| u64::from(i.id) == n)),
+        Value::String(t) => idx.issues.iter().position(|i| i.name.eq_ignore_ascii_case(t.trim())),
+        _ => None,
+    }
+    .ok_or_else(|| bad(cmd, format!("no issue `{key}`")))?;
+    let issue = idx.issues.remove(at);
+    // An issue made with `stamp: false` is the only record of its revision: its sheets carry no
+    // revision entry for it (or the sheet is gone). Deleting it would lose that record.
+    let only_record = issue.frozen.iter().any(|f| {
+        idx.sheets.iter().find(|sh| sh.id == f.sheet).is_none_or(|sh| !sh.revisions.iter().any(|r| r.issue.eq_ignore_ascii_case(&issue.name)))
+    });
+    if only_record && !bool_or(p, "force", false) {
+        return Err(bad(
+            cmd,
+            format!(
+                "issue `{}` is the only record of revision `{}` for some sheets (no sheet revision carries it); pass `force: true` to delete it anyway",
+                issue.name, issue.rev
+            ),
+        ));
+    }
+    let mut set_removed = false;
+    if !bool_or(p, "keepPublisherSet", false) && !issue.publisher_set.is_empty() && s.doc()?.publisher_set_by_name(&issue.publisher_set).is_some() {
+        s.execute("publisher.delete", &json!({ "set": issue.publisher_set }))?;
+        set_removed = true;
+    }
+    store(s, &idx)?;
+    Ok(json!({ "deleted": issue.name, "publisherSetRemoved": set_removed }))
 }
 
 fn run_issue_list(s: &mut Session, _p: &Value) -> Result<Value> {

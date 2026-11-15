@@ -769,6 +769,11 @@ pub struct Viewport {
     /// scale are taken from that view when applied.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compose_view: Option<crate::ComposeViewId>,
+    /// A section or elevation view space this viewport shows instead of a level; its projection
+    /// guides are drawn faded under it. `None` shows `level`. When set, `level`, `sheet_set` and
+    /// `traces` are ignored by the renderer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view: Option<crate::SpaceId>,
 }
 impl Default for Viewport {
     fn default() -> Self {
@@ -787,6 +792,7 @@ impl Default for Viewport {
             sheet_set: None,
             traces: Vec::new(),
             compose_view: None,
+            view: None,
         }
     }
 }

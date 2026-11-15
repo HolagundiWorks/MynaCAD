@@ -799,11 +799,13 @@ pub(super) struct Binding {
     pub level: Option<Option<LevelId>>,
     pub sheet_set: Option<Option<aad_doc::SheetSetId>>,
     pub traces: Option<Vec<Trace>>,
+    /// A section or elevation view space (`Some(None)` clears it).
+    pub view: Option<Option<aad_doc::SpaceId>>,
 }
 
 impl Binding {
     pub fn is_given(&self) -> bool {
-        self.level.is_some() || self.sheet_set.is_some() || self.traces.is_some()
+        self.level.is_some() || self.sheet_set.is_some() || self.traces.is_some() || self.view.is_some()
     }
 }
 
@@ -816,6 +818,19 @@ pub(super) fn parse_binding(s: &Session, cmd: &str, p: &Value) -> Result<Binding
         let clearing = ["level", "sheetSet", "traces"].iter().all(|k| p.get(*k).is_none_or(Value::is_null));
         if !clearing {
             return Err(bad(cmd, "the drawing has one level; add another with level.new before binding a viewport"));
+        }
+    }
+    match p.get("view") {
+        None => {}
+        Some(Value::Null) => b.view = Some(None),
+        Some(v) => {
+            let d = s.doc()?;
+            let found = match v {
+                Value::String(n) => d.view_space_by_name(n).map(|x| x.rec.id),
+                Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()).map(aad_doc::SpaceId).filter(|id| d.view_space(*id).is_some()),
+                _ => None,
+            };
+            b.view = Some(Some(found.ok_or_else(|| bad(cmd, "`view` is not a section or elevation of this drawing (name or id)"))?));
         }
     }
     match p.get("level") {
@@ -855,6 +870,7 @@ pub(super) fn viewport_binding_json(v: &aad_doc::Viewport) -> Value {
     json!({
         "level": v.level.map(|l| l.0),
         "sheetSet": v.sheet_set.map(|x| x.0),
+        "view": v.view.map(|x| x.0),
         "traces": v.traces.iter().map(|t| json!({
             "level": t.level.0, "fade": t.fade,
             "colour": if t.colour == TraceColour::Grey { "grey" } else { "true" },
