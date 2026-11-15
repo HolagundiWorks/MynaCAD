@@ -104,7 +104,7 @@ MynaCAD: a status text beside "Saved hh:mm" in the status bar, the command `proj
 | Stage | Content | Status |
 |---|---|---|
 | 0 | This document | done |
-| 1 | `aad-odp`: `sync.last` and `sync.takeoff.*` in the commit, read-only `sync::probe`; engine `project.sync` (control channel, host method) with accepted-revision tracking; WinUI status text `SyncState` | Rust tests pass (odp 31, engine `project_sync` 4 + 3 unit); fmt, clippy `-D warnings`, `cargo xtask layers` clean; WinUI shell builds; status text not read in a window |
+| 1 | `aad-odp`: `sync.last` and `sync.takeoff.*` in the commit, read-only `sync::probe`; engine `project.sync` (control channel, host method) with accepted-revision tracking; WinUI status text `SyncState` | Rust tests pass (odp 31, engine `project_sync` 4 + 3 unit); fmt, clippy `-D warnings`, `cargo xtask layers` clean; WinUI shell builds; status text read in a window (see below) |
 | 2 | MynaOps (`Office.Shared`: `OdpSync`, `SyncStatusService`, `ProjectFileWatcher`; `sync.last` in `OdpFile.Write`; status text in the status strip; Take-off page accepts on refresh and shows the note) | 11 `OdpSync` xunit tests pass; `BBSApp` builds (Release x64) |
 | 3 | Both apps on one test `.osp` | see below |
 
@@ -112,13 +112,15 @@ The existing MynaOps 2 s poll (`ServedProject.PollAsync`) is reused: the status 
 
 ### Run by hand
 
-Setup: MynaCAD WinUI shell (debug build) started with `--control 47911`, a drawing with one brick wall saved as `C:\Temp\sync-e2e\house.osp` (`saveas`, which records the take-off), MynaOps (Release build of the `live-sync` branch) opened on the same file. MynaOps read through UI Automation (`ProjectSyncStatus`), MynaCAD through the control channel (`project.sync`).
+Run on 2026-11-15 on the merged branches (MynaCAD `claude/osp-live-sync-aa35c6`, MynaOps `live-sync`, both with `main` merged). MynaCAD WinUI shell (debug build, `--control 47911`) and MynaOps (Release build) open on one test file `house.osp` (a drawing with one brick wall, saved with `saveas`, which records the take-off). Each app's status text was read through UI Automation (`ProjectSyncStatus`); MynaCAD's `project.sync` was also read over the control channel. Times are local.
 
 | Step | Seen |
 |---|---|
-| MynaOps opens the file | status `Synced` |
-| MynaCAD adds a wall and runs `takeoff.record` (revision 4) | MynaCAD stays `Synced` (own write accepted); MynaOps within 0.7 s of the first look shows `Updated by MynaCAD at 08:52` (local time), and keeps it |
-| A second writer (a Python sqlite script standing in for MynaOps, writing `project_doc`, revision 5, `sync.last` app `mynaops`) | `project.sync` in MynaCAD: `updated`, `Updated by MynaOps at 03:23 UTC`; `ack` returns `synced` |
+| Both apps open | MynaCAD `Synced`, MynaOps `Synced` |
+| MynaCAD adds a wall and runs `takeoff.record` | MynaCAD stays `Synced` (own write); MynaOps shows `Updated by MynaCAD at 10:06` at the first read, 0.8 s after the record returned, and keeps it |
+| A second writer (a Python sqlite script standing in for MynaOps: writes `project_doc`, bumps the revision, sets `sync.last` with app `mynaops`) | MynaCAD `Updated by MynaOps at 10:06` within 1 s; MynaOps also shows `Updated by MynaOps` because the writer was not MynaOps's own code path (a real MynaOps save is accepted by `NoteOwnWrite`) |
+| Another process holds the file exclusively for 9 s | MynaCAD `Locked`, MynaOps `Locked` (MynaOps flickered back to `Updated` between two polls); both returned to `Updated by MynaOps at 10:06` after the lock ended |
+| A copy of another project (other project id, lower revision) copied over the open file | both apps `Project file was replaced` within 4 s |
+| The file overwritten with text | both apps `Project file unreadable` (`file is not a database`); both stayed responsive |
 
-Not verified: MynaOps pressing Ctrl+S did not raise a revision (nothing to save), so MynaOps' own `sync.last` write was only covered by the xunit test; the Take-off page refresh and Accept was not seen (the navigation item could not be selected through UI Automation); the MynaCAD shell status text was not read (that build predates the AutomationId edit and the shell exited once during the run, cause not found); locked, replaced and corrupt files were tested only in unit tests, not with both apps; the watcher's latency was not measured separately from the poll.
-
+Not verified: a real MynaOps File > Save raising a revision (Ctrl+S sent to the window wrote nothing in an earlier attempt; the xunit test covers `sync.last` on `OdpFile` writes); the Take-off page reloading and accepting the file, and the level picker keeping its selection (the nav item could not be selected through UI Automation); the status tooltips; watcher latency apart from the poll; MynaCAD saving after a `replaced` state (it still writes only its own tables and the shell tooltip tells the user to reopen); a restore or Compact done from the MynaOps Project database page. The MynaCAD shell exited once in an earlier run (cause not found); it did not in this run.
