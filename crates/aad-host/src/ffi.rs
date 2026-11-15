@@ -658,6 +658,29 @@ pub unsafe extern "C" fn aad_host_open_start_with(host: *mut Host, path: *const 
     })
 }
 
+/// Make the host managed for `project` (an absolute path of a project file): opening other files, creating projects and editing the project
+/// configuration are refused from now on (`docs/ops-first-workflow.md`). `ops_pid` is the MynaOps process id, 0 when unknown. Returns 1 with
+/// the reason in the last error when the path is not a project file.
+///
+/// # Safety
+/// `host` is live. `project` is null-terminated UTF-8, at most 1 MiB.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aad_host_set_managed(host: *mut Host, project: *const c_char, ops_pid: u32) -> i32 {
+    call(host, |host| {
+        let project = read_text(project)?;
+        host.set_managed(&project, (ops_pid != 0).then_some(ops_pid))
+    })
+}
+
+/// Start opening the managed project (the only open a managed host allows); poll with [`aad_host_open_poll`].
+///
+/// # Safety
+/// `host` is live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aad_host_open_managed_start(host: *mut Host) -> i32 {
+    call(host, |host| host.open_managed_start())
+}
+
 /// What the open worker is doing now, one line (empty when nothing is being opened). `buf` receives UTF-8 without a terminator. Returns the
 /// byte length, or a negative length when `buf` is too small.
 ///

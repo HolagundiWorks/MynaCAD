@@ -236,13 +236,21 @@ fn spawn_host(_exe: &Path) -> std::io::Result<()> {
     Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "MynaOps runs on Windows only"))
 }
 
+/// Managed mode: MynaOps is always running and starts and stops the agent itself, so MynaCAD never starts it.
+static AUTOSTART_SUPPRESSED: AtomicBool = AtomicBool::new(false);
+
+/// Stop (or allow again) MynaCAD from starting MynaOps as the AI host; set by managed mode.
+pub fn suppress_autostart(on: bool) {
+    AUTOSTART_SUPPRESSED.store(on, Ordering::Release);
+}
+
 /// Start MynaOps as the AI host when nothing answers (and it was not just started). Returns at once; never waits for it.
 fn start_host_if_needed() {
     let now = Instant::now();
     let autostart = std::env::var(ENV_AI_AUTOSTART).ok();
     let Ok(mut seen) = SEEN.lock() else { return };
     // Tests never start a program.
-    if cfg!(test) || !should_start(&seen.start, &host(), autostart.as_deref(), now) {
+    if cfg!(test) || AUTOSTART_SUPPRESSED.load(Ordering::Acquire) || !should_start(&seen.start, &host(), autostart.as_deref(), now) {
         return;
     }
     seen.start = match find_host_exe() {
@@ -317,6 +325,9 @@ pub fn status_label() -> String {
     let _ = core_ready();
     let (checked, health, start) =
         SEEN.lock().map(|seen| (seen.at.is_some(), seen.health, seen.start.clone())).unwrap_or((true, Health::NoHost, Start::None));
+    if AUTOSTART_SUPPRESSED.load(Ordering::Acquire) && checked && health == Health::NoHost {
+        return "AI agent · stopped in MynaOps".into();
+    }
     label_for(checked, health, &start, Instant::now())
 }
 

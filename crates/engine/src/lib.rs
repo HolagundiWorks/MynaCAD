@@ -539,7 +539,14 @@ pub struct Session {
     pub history_preview: Option<cmd::history::HistoryPreviewState>,
     /// Open 2D block editor (`bedit` / `refedit`); `None` when not editing.
     pub block_edit: Option<cmd::bedit::BlockEdit>,
+    /// A host policy that refuses commands by id and parameters (managed mode: projects open and are configured in MynaOps). `None` allows
+    /// everything. Checked by [`Session::execute`] and by starting a command by name; commands that call other commands
+    /// (`project.config.apply`) are not subject to it. It never changes what a command does.
+    pub policy: Option<Policy>,
 }
+
+/// Returns the reason when the command is refused for these parameters (`Null` when it is started by name).
+pub type Policy = fn(&str, &Value) -> Option<String>;
 
 impl Default for Session {
     fn default() -> Self {
@@ -600,6 +607,7 @@ impl Session {
             param_cache: aad_param::Cache::default(),
             history_preview: None,
             block_edit: None,
+            policy: None,
         }
     }
     pub fn new_drawing(&mut self, metric: bool) -> usize {
@@ -707,6 +715,9 @@ impl Session {
     /// Run a command with JSON parameters (no dialogs). Records undo when the drawing changes.
     pub fn execute(&mut self, id: &str, params: &Value) -> Result<Value> {
         let spec = find_command(id).ok_or_else(|| EngineError::UnknownCommand(id.to_string()))?;
+        if let Some(why) = self.policy.and_then(|p| p(spec.id, params)) {
+            return Err(EngineError::Disabled(spec.id.into(), why));
+        }
         (spec.enabled)(self).map_err(|m| EngineError::Disabled(spec.id.into(), m))?;
         let before = self.state().ok().map(|s| (s.doc.clone(), s.selection.clone(), s.uid));
         let run = spec.run;
@@ -789,6 +800,9 @@ impl Session {
                 self.echo(format!(">>{}", spec.label));
                 return self.execute(spec.id, &Value::Null).map(|_| ());
             }
+        }
+        if let Some(why) = self.policy.and_then(|p| p(spec.id, force.as_ref().unwrap_or(&Value::Null))) {
+            return Err(EngineError::Disabled(spec.id.into(), why));
         }
         if self.running.is_some() {
             self.cancel();

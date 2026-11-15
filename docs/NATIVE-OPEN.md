@@ -4,6 +4,10 @@ Status: **implemented** in the engine, the host (`app.open`, the WinUI open path
 below. The shell part (status text, the "source changed" question) is implemented in `apps/aad-winui` and compiles; it was not driven in a
 running window (see "Not verified" at the end).
 
+## Managed mode (Ops-first): import into the project instead
+
+In a MynaCAD started by MynaOps (`--managed --project`, [ops-first-workflow.md](ops-first-workflow.md)) a DWG or DXF is **not** opened and no `<name>.osp` is made beside it: the file is imported into the open project with the engine command `import` (File > Import, `--import`, or the pipe request `import`), the objects become content of the project's drawing, and a Save writes them into the project's `.osp`. Verified by `cargo test -p aad-host --lib managed` (the source folder is unchanged by the import and the save) and by hand with a two-line DXF. Not done in managed mode yet: the `import.<n>.*` provenance keys, the `before-reimport` backup of the project before an import, and a worker with progress for a large DWG (the import runs on the UI thread). The rules below stay true for `--standalone` and for `aad-cli`.
+
 ## What happens
 
 MynaCAD edits one format: the project file (`.osp`, format `osp` version 1, SQLite; see [PROJECT-FILE.md](PROJECT-FILE.md)). A drawing that is not a

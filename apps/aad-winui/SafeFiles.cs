@@ -218,6 +218,11 @@ public sealed partial class MainWindow
         foreach (var item in list.EnumerateArray())
         {
             var m = item.TryGetProperty("manifest", out var manifest) ? manifest : default;
+            if (IsManaged && !SameProject(Str(m, "path")))
+            {
+                // A managed MynaCAD offers only what was unsaved in its own project.
+                continue;
+            }
             var unix = m.ValueKind == JsonValueKind.Object && m.TryGetProperty("savedUnix", out var u) && u.TryGetInt64(out var secs) ? secs : 0;
             var when = unix > 0 ? DateTimeOffset.FromUnixTimeSeconds(unix).ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "";
             var path = Str(m, "path");
@@ -232,6 +237,10 @@ public sealed partial class MainWindow
         body.Children.Add(Density.Secondary(
             "Restore opens them with their unsaved changes; nothing is written to your files until you save. Discard deletes the kept changes.",
             TextWrapping.WrapWholeWords));
+        if (ids.Count == 0)
+        {
+            return;
+        }
         var dlg = new ContentDialog
         {
             Title = "Restore unsaved drawings?",
@@ -305,7 +314,9 @@ public sealed partial class MainWindow
             picker.SelectedIndex = 0;
             body.Children.Add(picker);
             body.Children.Add(Density.Secondary(
-                "Open a copy shows the backup as a new unnamed drawing and changes nothing. Restore replaces " + System.IO.Path.GetFileName(file)
+                IsManaged
+                    ? "Open a copy shows the backup as a new unnamed drawing and changes nothing. Restoring a project backup is done in MynaOps. Folder: " + Str(reply, "folder")
+                    : "Open a copy shows the backup as a new unnamed drawing and changes nothing. Restore replaces " + System.IO.Path.GetFileName(file)
                 + " with the backup; the file as it is now is kept as another backup first. Folder: " + Str(reply, "folder"),
                 TextWrapping.WrapWholeWords));
         }
@@ -313,7 +324,7 @@ public sealed partial class MainWindow
         {
             Title = "Restore from backup",
             Content = body,
-            PrimaryButtonText = paths.Count > 0 ? "Restore" : "",
+            PrimaryButtonText = paths.Count > 0 && !IsManaged ? "Restore" : "",
             SecondaryButtonText = paths.Count > 0 ? "Open a copy" : "",
             CloseButtonText = "Close",
             XamlRoot = Content.XamlRoot,

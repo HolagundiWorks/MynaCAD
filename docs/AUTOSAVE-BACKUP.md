@@ -85,6 +85,7 @@ source, that the project file's revision did not move until the save, and that t
 - **In the app:** File > Restore from Backup... lists the backups of the open project file, newest first. **Open a copy** opens the selected one
   as a new unnamed drawing and changes nothing. **Restore** asks about unsaved changes, replaces the project file with the backup (the file as it
   was is first kept as a `before-restore` backup), and reopens it.
+- **Managed mode (Ops-first):** MynaCAD offers only **Open a copy**; the Restore button and `backup.restore` are refused ("projects open through MynaOps"), because a restore replaces the file MynaOps has open. Restore moves to the MynaOps database manager (package A). After a crash the restore question lists only snapshots of the managed project.
 - **By hand:** a backup is an ordinary `.osp`. Copy it out of `<name>.backups` and open it.
 - **At the command line or from a script:** the engine command `BACKUP.RESTORE` (also the File menu item when the shell does not handle it)
   lists the backups of the active project file without arguments, and with `{backup: <path>}` restores one and reopens the drawing from it

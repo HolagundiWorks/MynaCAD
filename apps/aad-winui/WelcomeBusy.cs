@@ -24,7 +24,7 @@ public sealed partial class MainWindow
         }
         SplashOverlay.Visibility = Visibility.Collapsed;
         // Launch files replace the empty session; otherwise show the welcome screen.
-        if (_launch.Files.Count == 0 && !_launch.Sample && !_welcomeDismissed)
+        if (_launch.Files.Count == 0 && !_launch.Sample && !_welcomeDismissed && !IsManaged)
         {
             ShowWelcome();
         }

@@ -16,6 +16,9 @@ mod ffi;
 mod forms;
 #[cfg(windows)]
 mod gpu;
+pub mod managed;
+#[cfg(test)]
+mod managed_tests;
 mod osas_ai;
 mod overlay;
 mod panels;
@@ -610,6 +613,8 @@ pub struct Host {
     autosave: autosave::Autosave,
     /// A `geodb.build` running on a worker; its model goes back into the session on a later pump.
     geodb_job: Option<std::sync::mpsc::Receiver<aad_engine::cmd::geodb::BuildDone>>,
+    /// Managed mode (MynaOps owns the project); `None` is the standalone behaviour.
+    managed: Option<managed::Managed>,
 }
 
 /// A drawing read by the open worker: flattened and ready, with the project file it is edited in.
@@ -747,6 +752,7 @@ impl Host {
             zoom_anim: None,
             autosave: autosave::Autosave::new(),
             geodb_job: None,
+            managed: None,
         }
     }
 
@@ -759,6 +765,14 @@ impl Host {
     /// [`Host::open_start`] with the choice for a source that changed since its working copy was made. A project file opens as it is; a DWG
     /// or DXF is converted once into its working copy (a project file) on the worker and edited there, so the original is never written.
     pub fn open_start_with(&mut self, path: &str, on_changed: aad_engine::nativefile::OnChanged) -> Result<(), String> {
+        if self.managed.is_some() {
+            return Err(managed::OPEN_REFUSED.into());
+        }
+        self.open_start_inner(path, on_changed)
+    }
+
+    /// The open itself; the managed gate is in [`Host::open_start_with`], [`Host::open_managed_start`] is the one way past it.
+    pub(crate) fn open_start_inner(&mut self, path: &str, on_changed: aad_engine::nativefile::OnChanged) -> Result<(), String> {
         if self.loading.is_some() {
             return Err("a drawing is already being opened".into());
         }
@@ -857,6 +871,10 @@ impl Host {
         }
         if path.is_some_and(|p| p.is_empty() || p.len() > 4096) {
             return Err("missing path".into());
+        }
+        // Managed: a save writes the project; the only other target is an export to DXF or DWG (a copy).
+        if self.managed.is_some() && path.is_some_and(|p| !aad_engine::cmd::file::is_drawing_file(p) || aad_engine::cmd::file::is_container(p)) {
+            return Err(managed::OPEN_REFUSED.into());
         }
         self.save_notice.clear();
         let job = Arc::new(aad_engine::cmd::file::begin_save(&mut self.session, path).map_err(|e| e.to_string())?);
@@ -978,6 +996,8 @@ impl Host {
                 serde_json::to_value(aad_engine::nativefile::peek(&path)?).map_err(|e| e.to_string())
             }
             "autosave.status" => Ok(self.autosave.status_json(autosave_interval())),
+            "host.managed" => Ok(self.managed_info()),
+            "project.config.poll" => self.config_poll(params),
             // Live sync (docs/live-sync.md): read only, never reloads; `ack` accepts the file as it is now.
             "project.sync" => match active_file(self) {
                 Some(path) => {
@@ -1054,6 +1074,9 @@ impl Host {
                 Ok(serde_json::json!({ "index": index }))
             }
             "backup.restore" => {
+                if self.managed.is_some() {
+                    return Err(managed::OPEN_REFUSED.into());
+                }
                 let backup = text("backup").ok_or("missing backup")?;
                 let file = text("path").or_else(|| active_file(self)).ok_or("missing path")?;
                 let path = std::path::Path::new(&file);
@@ -3032,6 +3055,8 @@ fn is_app_method(method: &str) -> bool {
         "app.peek"
             | "autosave.status"
             | "project.sync"
+            | "host.managed"
+            | "project.config.poll"
             | "autosave.now"
             | "recovery.list"
             | "recovery.restore"

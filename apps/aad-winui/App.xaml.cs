@@ -41,6 +41,20 @@ public partial class App : Application
         // The window must stay rooted. A local variable is collected and the window closes.
         // Splash is drawn inside MainWindow (not a second top-level window) so command chrome
         // is not torn down by a competing Activate/Close during startup.
+        if (Program.Launch.Mode == LaunchMode.LaunchScreen)
+        {
+            // Started without a project: MynaCAD opens projects from MynaOps. With a file the hand-over needs no window.
+            var launch = new LaunchWindow(Program.Launch);
+            _window = launch;
+            ShellWindows.SetMain(_window);
+            _window.Closed += (_, _) => Exit();
+            launch.Show();
+            if (launch.HasFile(Program.Launch) && MynaOpsLauncher.Find() != null)
+            {
+                launch.Handover(Program.Launch);
+            }
+            return;
+        }
         _window = new MainWindow(Program.Launch);
         PerfLog.Phase("MainWindow built");
         ShellWindows.SetMain(_window);
