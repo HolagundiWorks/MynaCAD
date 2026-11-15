@@ -24,11 +24,11 @@ mod guard;
 pub mod is456;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod nativefile;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod projectsync;
 pub mod pointmod;
 pub mod pomodoro;
 pub mod projectplan;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod projectsync;
 pub mod prompt;
 mod protect;
 #[cfg(not(target_arch = "wasm32"))]

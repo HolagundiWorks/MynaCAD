@@ -382,7 +382,13 @@ fn probe_ok(path: &std::path::Path) -> Probe {
 
 fn header_with_levels(ids: &[&str]) -> Vec<u8> {
     // Ids are numbers in the real header; a text id is read too.
-    let levels: Vec<_> = ids.iter().map(|i| match i.parse::<u32>() { Ok(n) => json!({ "id": n, "name": i }), Err(_) => json!({ "id": i, "name": i }) }).collect();
+    let levels: Vec<_> = ids
+        .iter()
+        .map(|i| match i.parse::<u32>() {
+            Ok(n) => json!({ "id": n, "name": i }),
+            Err(_) => json!({ "id": i, "name": i }),
+        })
+        .collect();
     json!({ "state": "complete", "levels": levels }).to_string().into_bytes()
 }
 

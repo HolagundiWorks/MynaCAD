@@ -69,7 +69,8 @@ fn classify(e: &rusqlite::Error) -> Peek {
 }
 
 fn meta(conn: &Connection, key: &str) -> rusqlite::Result<Option<String>> {
-    match conn.query_row("SELECT substr(value, 1, ?2) FROM meta WHERE key = ?1", rusqlite::params![key, MAX_VALUE as i64], |r| r.get::<_, String>(0)) {
+    match conn.query_row("SELECT substr(value, 1, ?2) FROM meta WHERE key = ?1", rusqlite::params![key, MAX_VALUE as i64], |r| r.get::<_, String>(0))
+    {
         Ok(v) => Ok(Some(v)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
@@ -106,7 +107,9 @@ fn read(conn: &Connection) -> rusqlite::Result<Peek> {
     let project_id = meta(conn, "project_id")?.unwrap_or_default();
     let revision: i64 = meta(conn, "revision")?.and_then(|v| v.parse().ok()).unwrap_or(0);
     let last: Option<serde_json::Value> = meta(conn, "sync.last")?.and_then(|v| serde_json::from_str(&v).ok());
-    let text = |v: &Option<serde_json::Value>, k: &str| v.as_ref().and_then(|v| v.get(k)).and_then(|x| x.as_str()).map(|s| s.chars().take(64).collect::<String>());
+    let text = |v: &Option<serde_json::Value>, k: &str| {
+        v.as_ref().and_then(|v| v.get(k)).and_then(|x| x.as_str()).map(|s| s.chars().take(64).collect::<String>())
+    };
     let last_app = text(&last, "app");
     let last_time = text(&last, "time");
     let last_revision = last.as_ref().and_then(|v| v.get("revision")).and_then(|x| x.as_i64());

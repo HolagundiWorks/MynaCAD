@@ -980,7 +980,9 @@ impl Host {
             "autosave.status" => Ok(self.autosave.status_json(autosave_interval())),
             // Live sync (docs/live-sync.md): read only, never reloads; `ack` accepts the file as it is now.
             "project.sync" => match active_file(self) {
-                Some(path) => Ok(aad_engine::projectsync::status(std::path::Path::new(&path), params.get("ack").and_then(Value::as_bool).unwrap_or(false))),
+                Some(path) => {
+                    Ok(aad_engine::projectsync::status(std::path::Path::new(&path), params.get("ack").and_then(Value::as_bool).unwrap_or(false)))
+                }
                 None => Ok(serde_json::json!({ "state": "none", "text": "" })),
             },
             "autosave.now" => {

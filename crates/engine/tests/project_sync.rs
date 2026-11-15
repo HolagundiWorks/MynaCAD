@@ -19,7 +19,8 @@ fn cleanup(path: &std::path::Path) {
 fn house() -> Session {
     let mut s = Session::new();
     s.execute("drawing.units", &json!({"units": "mm", "mode": "metadata"})).unwrap();
-    s.execute("floors", &json!({"floors": [{"name": "Ground", "floorToFloor": 3.15, "ceiling": 3.0, "lintel": 2.1, "slab": 150, "beam": 450}]})).unwrap();
+    s.execute("floors", &json!({"floors": [{"name": "Ground", "floorToFloor": 3.15, "ceiling": 3.0, "lintel": 2.1, "slab": 150, "beam": 450}]}))
+        .unwrap();
     s.execute("takeoff.start", &json!({})).unwrap();
     s.execute("layer.current", &json!({"name": "MEASURE-FULLBRICK"})).unwrap();
     s.execute("line", &json!({"points": [[0, 0], [9000, 0]]})).unwrap();
@@ -139,7 +140,13 @@ fn missing_damaged_and_replaced_files_are_reported() {
 fn hostile_parameters_and_no_project_never_panic() {
     let mut s = Session::new();
     assert_eq!(s.execute("project.sync", &json!({})).unwrap()["state"], "none");
-    for p in [json!({"path": 5}), json!({"path": ""}), json!({"path": "\u{0}x.osp"}), json!({"ack": "yes"}), json!({"path": "C:/no/such/dir/x.osp", "ack": true})] {
+    for p in [
+        json!({"path": 5}),
+        json!({"path": ""}),
+        json!({"path": "\u{0}x.osp"}),
+        json!({"ack": "yes"}),
+        json!({"path": "C:/no/such/dir/x.osp", "ack": true}),
+    ] {
         let r = s.execute("project.sync", &p);
         assert!(r.is_ok(), "{p}: {r:?}");
     }

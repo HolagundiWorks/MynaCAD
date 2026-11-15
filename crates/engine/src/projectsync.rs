@@ -136,10 +136,8 @@ fn describe(state: &State, probe: Option<&Probe>) -> String {
 /// The sync status of the project file at `path` as JSON (the reply of `project.sync`). `ack` accepts the revision the file has now.
 pub fn status(path: &Path, ack: bool) -> Value {
     let peek = aad_odp::probe(path);
-    if ack {
-        if let Peek::Ok(p) = &peek {
-            note_opened(path, p.revision, &p.project_id);
-        }
+    if let (true, Peek::Ok(p)) = (ack, &peek) {
+        note_opened(path, p.revision, &p.project_id);
     }
     let mut accepted = accepted_of(path);
     // A file this program never opened or wrote (a path given by hand) has nothing to compare with: its current revision is the baseline.
