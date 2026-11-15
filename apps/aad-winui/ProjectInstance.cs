@@ -49,8 +49,19 @@ internal sealed class ProjectInstance : IDisposable
 
     public static string PipeName(string hash) => "MynaCAD." + hash;
 
-    public static string LeaseFolder() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "O-Studio", "leases");
+    /// <summary>The lease folder. <c>OSTUDIO_LEASE_DIR</c> moves only it, <c>OSTUDIO_LOCAL_DIR</c> moves the whole O-Studio local folder (test and hand-run hooks, as MynaOps honours them).</summary>
+    public static string LeaseFolder()
+    {
+        var lease = Environment.GetEnvironmentVariable("OSTUDIO_LEASE_DIR");
+        if (!string.IsNullOrWhiteSpace(lease))
+        {
+            return lease.Trim();
+        }
+        var local = Environment.GetEnvironmentVariable("OSTUDIO_LOCAL_DIR");
+        return !string.IsNullOrWhiteSpace(local)
+            ? Path.Combine(local.Trim(), "leases")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "O-Studio", "leases");
+    }
 
     /// <summary>Take the project: the mutex first, then the lease. A second start for the same project does not get it.</summary>
     public static ProjectInstance TryAcquire(string project)

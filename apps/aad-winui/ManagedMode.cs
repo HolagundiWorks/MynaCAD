@@ -354,7 +354,9 @@ public sealed partial class MainWindow
     private Task<object> HandlePipeRequest(JsonElement request)
     {
         var done = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var kind = request.TryGetProperty("request", out var k) && k.ValueKind == JsonValueKind.String ? k.GetString() ?? "" : "";
+        // `cmd` is the contract; `request` is accepted as a deprecated alias (package B's first spelling).
+        var kind = request.TryGetProperty("cmd", out var k) && k.ValueKind == JsonValueKind.String ? k.GetString() ?? ""
+            : request.TryGetProperty("request", out var legacy) && legacy.ValueKind == JsonValueKind.String ? legacy.GetString() ?? "" : "";
         var path = request.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() ?? "" : "";
         var save = request.TryGetProperty("save", out var sv) && sv.ValueKind == JsonValueKind.String ? sv.GetString() ?? "ask" : "ask";
         if (!DispatcherQueue.TryEnqueue(async () =>

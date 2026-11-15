@@ -19,10 +19,10 @@ public static class Program
             return true;
         }
         var project = launch.Project ?? "";
-        var reply = ProjectInstance.Forward(project, "{\"request\":\"activate\"}");
+        var reply = ProjectInstance.Forward(project, "{\"cmd\":\"activate\"}");
         foreach (var path in launch.Imports)
         {
-            var line = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { ["request"] = "import", ["path"] = path });
+            var line = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { ["cmd"] = "import", ["path"] = path });
             reply = ProjectInstance.Forward(project, line, 600000) ?? reply;
         }
         if (reply == null)
