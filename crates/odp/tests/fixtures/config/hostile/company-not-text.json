@@ -1,0 +1,15 @@
+{
+  "description": "A company field that is an object.",
+  "expect": "error",
+  "error_key": "config.team",
+  "keys": {
+    "team": {
+      "v": 1,
+      "company": {
+        "name": {
+          "a": 1
+        }
+      }
+    }
+  }
+}

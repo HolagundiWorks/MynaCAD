@@ -1,0 +1,11 @@
+{
+  "description": "v is 0.",
+  "expect": "error",
+  "error_key": "config.units",
+  "keys": {
+    "units": {
+      "v": 0,
+      "drawing_unit": "mm"
+    }
+  }
+}

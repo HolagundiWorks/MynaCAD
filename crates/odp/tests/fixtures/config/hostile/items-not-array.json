@@ -1,0 +1,12 @@
+{
+  "description": "items is a number.",
+  "expect": "error",
+  "error_key": "config.levels",
+  "keys": {
+    "levels": {
+      "v": 1,
+      "next_cid": 2,
+      "items": 5
+    }
+  }
+}

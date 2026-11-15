@@ -1,0 +1,8 @@
+{
+  "description": "config.project is a JSON string.",
+  "expect": "error",
+  "error_key": "config.project",
+  "keys": {
+    "project": "\"just text\""
+  }
+}

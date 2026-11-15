@@ -1,0 +1,15 @@
+{
+  "description": "The schema asks for a newer reader.",
+  "expect": "too_new",
+  "error_key": "config.schema",
+  "keys": {
+    "schema": {
+      "v": 1,
+      "min_reader": 2
+    },
+    "units": {
+      "v": 1,
+      "drawing_unit": "mm"
+    }
+  }
+}

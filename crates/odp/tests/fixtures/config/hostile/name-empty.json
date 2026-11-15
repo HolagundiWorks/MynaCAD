@@ -1,0 +1,19 @@
+{
+  "description": "A blank level name.",
+  "expect": "error",
+  "error_key": "config.levels",
+  "keys": {
+    "levels": {
+      "v": 1,
+      "next_cid": 2,
+      "items": [
+        {
+          "cid": 1,
+          "name": "   ",
+          "elevation_mm": 0,
+          "height_mm": 3000
+        }
+      ]
+    }
+  }
+}

@@ -55,6 +55,7 @@ mod pline_opts;
 mod plumbing;
 mod printblock;
 pub(crate) mod project;
+mod projconfig;
 mod projfile;
 mod projwizard;
 mod props;
@@ -281,6 +282,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(extract::specs());
         v.extend(scriptcmd::specs());
         v.extend(projfile::specs());
+        v.extend(projconfig::specs());
         v.extend(projwizard::specs());
         v.extend(typography::specs());
         v.extend(spatialq::specs());

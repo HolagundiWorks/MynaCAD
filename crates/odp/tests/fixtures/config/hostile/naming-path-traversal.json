@@ -1,0 +1,14 @@
+{
+  "description": "A file pattern that climbs out of the folder.",
+  "expect": "error",
+  "error_key": "config.naming",
+  "keys": {
+    "naming": {
+      "v": 1,
+      "patterns": {
+        "file": "..\\..\\Windows\\x",
+        "drawing_number": "{D}"
+      }
+    }
+  }
+}

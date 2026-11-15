@@ -1,0 +1,11 @@
+{
+  "description": "A negative revision.",
+  "expect": "error",
+  "error_key": "config.rev",
+  "keys": {
+    "rev": {
+      "v": 1,
+      "rev": -1
+    }
+  }
+}

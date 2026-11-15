@@ -1,0 +1,14 @@
+{
+  "description": "A layer set that does not exist.",
+  "expect": "error",
+  "error_key": "config.layer_sets",
+  "keys": {
+    "layer_sets": {
+      "v": 1,
+      "sets": [
+        "standard",
+        "secret"
+      ]
+    }
+  }
+}

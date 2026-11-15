@@ -2,6 +2,7 @@
 //!
 //! The file itself needs SQLite and is not built for the web; [`history`] (the version-history model) is, and only touches a file where SQLite exists.
 
+pub mod config;
 pub mod history;
 #[cfg(not(target_arch = "wasm32"))]
 mod project;

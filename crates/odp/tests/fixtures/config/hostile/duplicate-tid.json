@@ -1,0 +1,20 @@
+{
+  "description": "Two tabs with the same tid.",
+  "expect": "error",
+  "error_key": "config.tabs",
+  "keys": {
+    "tabs": {
+      "v": 1,
+      "items": [
+        {
+          "tid": 1,
+          "name": "A"
+        },
+        {
+          "tid": 1,
+          "name": "B"
+        }
+      ]
+    }
+  }
+}

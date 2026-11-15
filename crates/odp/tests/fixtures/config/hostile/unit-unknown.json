@@ -1,0 +1,11 @@
+{
+  "description": "A drawing unit that does not exist.",
+  "expect": "error",
+  "error_key": "config.units",
+  "keys": {
+    "units": {
+      "v": 1,
+      "drawing_unit": "furlong"
+    }
+  }
+}

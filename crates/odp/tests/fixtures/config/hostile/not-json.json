@@ -1,0 +1,8 @@
+{
+  "description": "A key that is not JSON.",
+  "expect": "error",
+  "error_key": "config.units",
+  "keys": {
+    "units": "{oops"
+  }
+}

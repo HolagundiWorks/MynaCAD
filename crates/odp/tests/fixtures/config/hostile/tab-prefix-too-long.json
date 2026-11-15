@@ -1,0 +1,17 @@
+{
+  "description": "A layer prefix of nine characters.",
+  "expect": "error",
+  "error_key": "config.tabs",
+  "keys": {
+    "tabs": {
+      "v": 1,
+      "items": [
+        {
+          "tid": 1,
+          "name": "A",
+          "layer_prefix": "ABCDEFGHI"
+        }
+      ]
+    }
+  }
+}

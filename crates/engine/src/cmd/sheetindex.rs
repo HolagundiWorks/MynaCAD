@@ -252,7 +252,10 @@ impl Index {
     }
 
     fn save(&self, d: &mut Drawing) {
-        if self.sheets.is_empty() && self.issues.is_empty() && self.tables.is_empty() {
+        // A numbering scheme that is not the default is kept even before the first sheet exists (the project configuration sets it).
+        let default_scheme = serde_json::to_value(Scheme::default()).ok();
+        let scheme_is_default = serde_json::to_value(&self.scheme).ok() == default_scheme;
+        if self.sheets.is_empty() && self.issues.is_empty() && self.tables.is_empty() && scheme_is_default {
             d.project.remove(KEY);
             return;
         }
@@ -487,6 +490,11 @@ fn parse_source(s: &Session, cmd: &str, v: &Value) -> Result<Source> {
 
 fn load(s: &Session) -> Result<Index> {
     Ok(Index::load(s.doc()?))
+}
+
+/// The numbering scheme the drawing has now (`{pattern, width, step, disciplines: [{code, name, start}]}`), the default when none was stored.
+pub(super) fn scheme_value(d: &Drawing) -> Value {
+    serde_json::to_value(Index::load(d).scheme).unwrap_or(Value::Null)
 }
 
 fn store(s: &mut Session, idx: &Index) -> Result<()> {

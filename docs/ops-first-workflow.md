@@ -1,6 +1,6 @@
 # The Ops-first workflow: MynaOps opens the project, MynaCAD is launched from it
 
-Status: **design, decided by the owner on 2026-11-15, with every open question of section 8 decided the same day (accept the recommendation); nothing in this document is implemented.** It is a contract and a staged plan. "Today" below
+Status: **design, decided by the owner on 2026-11-15, with every open question of section 8 decided the same day (accept the recommendation). Package C (the configuration schema and its libraries, section 10) is implemented on the branches `claude/ops-first-c-config-954af3` (MynaCAD) and `ops-first-c-config` (MynaOps), not merged; everything else in this document is not implemented.** It is a contract and a staged plan. "Today" below
 describes what the code does now (each claim names where it was read); "Planned" describes the target. Canonical copy: MynaOps `docs/ops-first-workflow.md`;
 MynaCAD carries an identical copy. Suite-wide decision record: `docs/SUITE.md` (section 0). Written without changing any code.
 
@@ -185,7 +185,7 @@ Inventory from the code and docs read for this review. "Config key" refers to se
 | Sheet numbering scheme | `sheet.scheme`, `sheetindex.*` | `config.sheets` |
 | Naming patterns for generated files and drawing numbers | `projectplan` (`ProjectConfig` in `project.json`: naming rules, floors, sets; command `project.plan` / `project.generate`; folder-and-manifest wizard "stays unbuilt") | `config.naming` (the typed model stays in the engine as the schema and validator; its unbuilt folder generator is outside this plan) |
 | Title-block data and company details | `companyfile`, `company.pack.import`, `sheet.titleblock`, `sheet.fields`, `sheet.template.*` | `config.titleblock` (project-wide field defaults) and `config.company` (the imported pack); per-sheet field values stay in the drawing |
-| Project-wide plot settings | plot style tables, page setup ([plot-styles.md](plot-styles.md)) | **Not inventoried in this review**: which plot settings are project-wide versus per-layout must be listed in stage C before `config.plot` is defined |
+| Project-wide plot settings | plot style tables, page setup ([plot-styles.md](plot-styles.md)) | **Inventoried in package C (2026-11-15), result: none is project-wide, so `config.plot` is not defined.** Read in the code: the page setup (`PageSetup`: device, paper, margins, plot area, scale, plot style table, lineweights, display plot styles) belongs to each layout (`pagesetup`, `layout.*`); the per-tab page size is `sheet.page` (key `pagesetup` in the drawing's project data, one entry per drawing tab, not project-wide); custom plot style tables are kept in the drawing (`Drawing::plot_style_tables`) next to the built-in ones, and layers carry a plot style name (`layer.set`); the `presentation` layer set assigns the built-in `presentation.stb` styles to its layers and is already covered by `config.layer_sets`; the current plot style for new objects (`CPLOTSTYLE`) is a drawing setting. There is no default page setup or default plot style table for new layouts, no project-level paper or scale. If the owner wants project-wide defaults (a paper size, a plot style table for new layouts), that is a new feature first (a default the layout commands read), then `config.plot` |
 | The side-panel **Project** tab (read-only labels plus "Edit project...") | status.md "Project Wizard (WinUI, one drawing)" | Stays as read-only display; "Edit project..." becomes "Edit in MynaOps" (opens MynaOps' Project settings through the pipe) |
 
 ### 3.2 What MynaCAD keeps
@@ -231,11 +231,12 @@ Drawing tools; layer **editing inside the configured sets** (layers can be creat
 | `config.units` | `{drawing_unit: "mm"\|"cm"\|"m"\|"in"\|"ft", locked: bool}` | Unit; `locked` is set by Ops once CAD reports content (`applied.cad.has_content`) |
 | `config.levels` | `{next_cid, one_per_floor, defaults:{height_mm, slab_mm, beam_mm, ceiling_mm, lintel_bottom_mm}, items:[{cid, name, code, elevation_mm, height_mm, slab_mm?, beam_mm?, ceiling_mm?, lintel_bottom_mm?}]}` ordered bottom to top; `cid` is **never reused** | The level list |
 | `config.layer_sets` | `{sets:["standard","permit"\|…]}` | Which `hcwlayers` sets exist |
-| `config.tabs` | `{items:[{tid, code, name, layer_prefix, layers:[…], blocks:[…]}]}` | Discipline tabs (sheet sets); `tid` never reused |
+| `config.tabs` | `{next_tid?, items:[{tid, code, name, layer_prefix, layers:[…], blocks:[…]}]}` | Discipline tabs (sheet sets); `tid` never reused (`next_tid` is optional: when absent, one more than the largest `tid`) |
 | `config.sheets` | `{scheme:{…sheet.scheme…}}` | Sheet numbering scheme. Whether sheet rows (the index) stay drawing data is the working assumption; only the scheme is configuration |
 | `config.naming` | `{patterns:{file, drawing_number}}` | Naming |
 | `config.titleblock` | `{fields:{…defaults…}}` | Project-wide title-block defaults |
-| `config.plot` | **Undefined until the stage-C inventory** (3.1) | |
+| `config.plot` | **Not defined: the inventory (3.1) found no project-wide plot setting** | |
+| *(drawing, not `.osp`)* `config.levelmap`, `config.tabmap`, `config.titleblock.defaults` | **MynaCAD**, keys of the drawing's project data (written with the drawing, not in the `.osp` meta) | `cid` to `LevelId`, `tid` to sheet set id (`{"v":1,"map":{"<id>":<id>}}`), and the title-block defaults it applied (no title-block command reads them yet) |
 | `config.applied.cad` | **MynaCAD, local**: `{"v":1,"rev":N,"time":"…","result":"ok"\|"partial"\|"failed","has_content":bool,"items":[{"key":"levels","status":"ok"\|"orphans","detail":"…"}]}` | Ops shows "MynaCAD has applied revision N" |
 | `config.proposal` | **MynaCAD, local, one-time**: what a legacy drawing already has (4.5) | Adoption |
 

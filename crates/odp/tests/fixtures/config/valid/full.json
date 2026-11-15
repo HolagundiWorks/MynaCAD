@@ -1,0 +1,161 @@
+{
+  "description": "Every part present: three levels, two tabs, two layer sets, a numbering scheme, naming, title block.",
+  "expect": "ok",
+  "levels": 3,
+  "tabs": 2,
+  "rev": 4,
+  "notes": 0,
+  "keys": {
+    "schema": {
+      "v": 1,
+      "min_reader": 1
+    },
+    "rev": {
+      "v": 1,
+      "rev": 4,
+      "app": "mynaops",
+      "time": "2026-11-15T09:30:12Z"
+    },
+    "project": {
+      "v": 1,
+      "title": "Hospet House",
+      "client": "R. Rao",
+      "owner": "R. Rao",
+      "location": "Hospet",
+      "address": "12 Station Road",
+      "pid": "HP-0042",
+      "siteArea": "240 sq m",
+      "plotUse": "Residential",
+      "authority": "HUDA",
+      "date": "2026-11-01",
+      "summary": "G+1 house",
+      "code": "HP42",
+      "persona": "Contractor"
+    },
+    "team": {
+      "v": 1,
+      "architect": "A. Kulkarni",
+      "engineer": "S. Naik",
+      "company": {
+        "name": "Human Centric Works",
+        "city": "Hospet"
+      }
+    },
+    "units": {
+      "v": 1,
+      "drawing_unit": "mm",
+      "locked": false
+    },
+    "levels": {
+      "v": 1,
+      "next_cid": 4,
+      "one_per_floor": true,
+      "defaults": {
+        "height_mm": 3000,
+        "slab_mm": 150,
+        "beam_mm": 450,
+        "ceiling_mm": 2850,
+        "lintel_bottom_mm": 2100
+      },
+      "items": [
+        {
+          "cid": 1,
+          "name": "Basement",
+          "code": "B1",
+          "elevation_mm": -3000,
+          "height_mm": 3000
+        },
+        {
+          "cid": 2,
+          "name": "Ground",
+          "code": "G",
+          "elevation_mm": 0,
+          "height_mm": 3000,
+          "slab_mm": 150,
+          "beam_mm": 450
+        },
+        {
+          "cid": 3,
+          "name": "First",
+          "code": "1",
+          "elevation_mm": 3000,
+          "height_mm": 3000,
+          "ceiling_mm": 2850,
+          "lintel_bottom_mm": 2100
+        }
+      ]
+    },
+    "layer_sets": {
+      "v": 1,
+      "sets": [
+        "standard",
+        "permit"
+      ]
+    },
+    "tabs": {
+      "v": 1,
+      "next_tid": 3,
+      "items": [
+        {
+          "tid": 1,
+          "code": "WD",
+          "name": "Working drawing",
+          "layer_prefix": "A-",
+          "layers": [
+            "A-*"
+          ],
+          "blocks": [
+            "A_*"
+          ]
+        },
+        {
+          "tid": 2,
+          "code": "EL",
+          "name": "Electrical",
+          "layer_prefix": "E-",
+          "layers": [
+            "E-*",
+            "A-WALL*"
+          ],
+          "blocks": [
+            "E_*"
+          ]
+        }
+      ]
+    },
+    "sheets": {
+      "v": 1,
+      "scheme": {
+        "pattern": "{D}-{N}",
+        "width": 3,
+        "step": 1,
+        "disciplines": [
+          {
+            "code": "A",
+            "name": "Architectural",
+            "start": 101
+          },
+          {
+            "code": "E",
+            "name": "Electrical",
+            "start": 201
+          }
+        ]
+      }
+    },
+    "naming": {
+      "v": 1,
+      "patterns": {
+        "file": "{code}-{level}-{discipline}",
+        "drawing_number": "{D}-{N}"
+      }
+    },
+    "titleblock": {
+      "v": 1,
+      "fields": {
+        "PROJECT": "Hospet House",
+        "CLIENT": "R. Rao"
+      }
+    }
+  }
+}
