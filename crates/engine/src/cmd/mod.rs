@@ -13,7 +13,6 @@ mod bridge;
 mod classify;
 pub mod clipboard;
 mod clipcmd;
-pub mod companion;
 mod companyfile;
 mod component;
 mod compose;
@@ -272,7 +271,6 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(geodb::specs());
         v.extend(param::specs());
         v.extend(smartblock::specs());
-        v.extend(companion::specs());
         v.extend(structure::specs());
         v.extend(symbols::specs());
         v.extend(bridge::specs());
