@@ -139,7 +139,9 @@ impl Host {
             return Ok(json!({ "state": "update", "text": "Update MynaCAD" }));
         }
         let rev = config.revision();
-        let applied = self.managed.as_ref().and_then(|m| m.applied).or_else(|| loaded.applied.as_ref().map(|a| a.rev));
+        // The first poll of a run always applies, whatever `config.applied.cad` says: the file's report can name a revision whose result was never
+        // saved with the drawing (closed or crashed before a save), and applying what the drawing already has changes nothing.
+        let applied = self.managed.as_ref().and_then(|m| m.applied);
         if applied == Some(rev) {
             if let Some(m) = self.managed.as_mut() {
                 m.applied = Some(rev);

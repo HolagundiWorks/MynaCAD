@@ -157,6 +157,7 @@ public sealed partial class MainWindow : Window
         // Sample only when asked and no drawing path was given (paths replace the empty session).
         _host = Native.Create(sample: _launch.Sample && _launch.Files.Count == 0);
         PerfLog.Phase("host created");
+        InitManagedHost();
         // Sync GPU paper with the suite preference before the child is embedded (default host is dark).
         if (_host != IntPtr.Zero)
         {
@@ -198,7 +199,8 @@ public sealed partial class MainWindow : Window
         ApplyShellTheme();
         PerfLog.Phase("ApplyShellTheme");
         Listen();
-        _ = OpenLaunchFiles();
+        ApplyManagedChrome();
+        _ = IsManaged ? OpenManagedProjectAsync() : OpenLaunchFiles();
         PerfLog.Phase("OpenLaunchFiles started");
         ApplyAccess();
         PerfLog.Phase("ApplyAccess");
@@ -571,7 +573,7 @@ public sealed partial class MainWindow : Window
 
     private void StartCommand(string id)
     {
-        if (_host == IntPtr.Zero)
+        if (_host == IntPtr.Zero || ManagedRefuses(id))
         {
             return;
         }
@@ -1071,6 +1073,10 @@ public sealed partial class MainWindow : Window
         }
         _accelAt = now;
         _accelLast = id;
+        if (ManagedRefuses(id))
+        {
+            return;
+        }
         if (id is "open" or "qsave" or "saveas")
         {
             _ = PickFile(id);
@@ -1814,7 +1820,13 @@ public sealed partial class MainWindow : Window
         RefreshChrome();
     }
 
-    private void OnNewDrawing(object sender, RoutedEventArgs e) => _ = NewDrawingReplacingAsync();
+    private void OnNewDrawing(object sender, RoutedEventArgs e)
+    {
+        if (!ManagedRefuses("new"))
+        {
+            _ = NewDrawingReplacingAsync();
+        }
+    }
 
     /// <summary>A new drawing replaces the open one (after offering to save it): MynaCAD holds one drawing.</summary>
     private async Task NewDrawingReplacingAsync()
@@ -1975,7 +1987,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task<bool> OpenFileAsync(string path)
+    private async Task<bool> OpenFileAsync(string path, bool managedProject = false)
     {
         var name = System.IO.Path.GetFileName(path);
         var opened = false;
@@ -1983,12 +1995,13 @@ public sealed partial class MainWindow : Window
         try
         {
             // A DWG or DXF that changed since it was imported, with saved edits in its working copy: the user chooses.
-            var mode = await AskSourceChangedAsync(path);
+            var mode = managedProject ? 0 : await AskSourceChangedAsync(path);
             if (mode < 0)
             {
                 return false;
             }
-            if (!Native.OpenStartWith(_host, path, mode))
+            // A managed host opens only its project, and only through its own call.
+            if (!(managedProject ? Native.OpenManagedStart(_host) : Native.OpenStartWith(_host, path, mode)))
             {
                 return false;
             }
@@ -2112,6 +2125,10 @@ public sealed partial class MainWindow : Window
         var hwnd = WindowNative.GetWindowHandle(this);
         if (id == "open")
         {
+            if (ManagedRefuses("open"))
+            {
+                return false;
+            }
             var picker = new FileOpenPicker();
             InitializeWithWindow.Initialize(picker, hwnd);
             picker.FileTypeFilter.Add(".osp");
@@ -2162,10 +2179,13 @@ public sealed partial class MainWindow : Window
         }
         var save = new FileSavePicker();
         InitializeWithWindow.Initialize(save, hwnd);
-        save.FileTypeChoices.Add("Project (drawing and take-off)", new List<string> { ".osp" });
+        if (!IsManaged)
+        {
+            save.FileTypeChoices.Add("Project (drawing and take-off)", new List<string> { ".osp" });
+        }
         save.FileTypeChoices.Add("DXF", new List<string> { ".dxf" });
         save.FileTypeChoices.Add("DWG", new List<string> { ".dwg" });
-        save.SuggestedFileName = "drawing";
+        save.SuggestedFileName = IsManaged ? System.IO.Path.GetFileNameWithoutExtension(_launch.Project ?? "drawing") : "drawing";
         var chosen = await save.PickSaveFileAsync();
         if (chosen == null)
         {
@@ -2203,6 +2223,11 @@ public sealed partial class MainWindow : Window
         var file = await picker.PickSingleFileAsync();
         if (file == null)
         {
+            return;
+        }
+        if (IsManaged)
+        {
+            await ImportPath(file.Path);
             return;
         }
         History.Text = "Importing " + file.Name + "...";
@@ -2921,6 +2946,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        PruneManagedMenus(menus);
         // Open, New and Save as stay available. MynaCAD does not hand the file to the launcher.
         foreach (var menu in menus)
         {
@@ -4683,7 +4709,11 @@ public sealed partial class MainWindow : Window
         Grid.SetColumn(archCreate, 1);
         setRow.Children.Add(setBox);
         setRow.Children.Add(archCreate);
-        stack.Children.Add(setRow);
+        if (!IsManaged)
+        {
+            // The architectural layer sets are configured in MynaOps in managed mode.
+            stack.Children.Add(setRow);
+        }
         return stack;
     }
 
@@ -4951,9 +4981,19 @@ public sealed partial class MainWindow : Window
                     Opacity = value.Length == 0 ? 0.55 : 1.0,
                 });
             }
-            var edit = Density.DialogAction("Edit project...", primary: true);
-            ToolTipService.SetToolTip(edit, "Opens the Project Wizard (File menu) to change these details");
-            edit.Click += (_, _) => StartCommand("project.wizard");
+            var edit = Density.DialogAction(IsManaged ? "Edit in MynaOps" : "Edit project...", primary: true);
+            ToolTipService.SetToolTip(edit, IsManaged ? "The project details are changed in MynaOps" : "Opens the Project Wizard (File menu) to change these details");
+            edit.Click += (_, _) =>
+            {
+                if (IsManaged)
+                {
+                    OnOpenOps(edit, new RoutedEventArgs());
+                }
+                else
+                {
+                    StartCommand("project.wizard");
+                }
+            };
             ProjectPanel.Children.Add(edit);
 
             ProjectPanel.Children.Add(Heading("Project"));
@@ -5912,6 +5952,11 @@ public sealed partial class MainWindow : Window
             if (_ticks % 96 == 0)
             {
                 UpdateSyncState();
+            }
+            // Offset from the sync probe: the project configuration (managed mode only).
+            if (_ticks % 96 == 48)
+            {
+                ManagedTick();
             }
             // Every ~4 ticks so hover rollover updates Properties / Layer / Blocks promptly.
             if (_ticks % 4 == 0)

@@ -405,6 +405,30 @@ internal static class Native
     /// 0 nothing loading, 1 reading, 2 opened and fitted, -1 failed (see LastError).
     public static int OpenPoll(IntPtr host) => aad_host_open_poll(host);
 
+    /// <summary>Make the host managed for a project file (docs/ops-first-workflow.md): other opens, project creation and configuration edits are refused. False when the path is not a project file (see LastError).</summary>
+    public static bool SetManaged(IntPtr host, string project, int opsPid)
+    {
+        var ptr = Marshal.StringToCoTaskMemUTF8(project);
+        try
+        {
+            return aad_host_set_managed(host, ptr, (uint)Math.Max(0, opsPid)) == 0;
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(ptr);
+        }
+    }
+
+    /// <summary>Start opening the managed project (the only open a managed host allows); poll with <see cref="OpenPoll"/>.</summary>
+    public static bool OpenManagedStart(IntPtr host) => aad_host_open_managed_start(host) == 0;
+
+    [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    private static extern int aad_host_set_managed(IntPtr host, IntPtr project, uint opsPid);
+
+    [DllImport("aad_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    private static extern int aad_host_open_managed_start(IntPtr host);
+
+
     /// <summary>What the open worker is doing now, one line; empty when nothing is being opened.</summary>
     public static string OpenProgress(IntPtr host) => ReadBuffer(aad_host_open_progress, host);
 

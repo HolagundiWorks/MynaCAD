@@ -201,9 +201,13 @@ public sealed partial class MainWindow
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
         menu.Items.Add(history);
         menu.Items.Add(new MenuFlyoutSeparator());
-        var delete = new MenuFlyoutItem { Text = "Delete level..." };
-        delete.Click += (_, _) => StartLevelForm("level.delete", level);
-        menu.Items.Add(delete);
+        if (!IsManaged)
+        {
+            // Levels are added and deleted in MynaOps in managed mode.
+            var delete = new MenuFlyoutItem { Text = "Delete level..." };
+            delete.Click += (_, _) => StartLevelForm("level.delete", level);
+            menu.Items.Add(delete);
+        }
         return menu;
     }
 
@@ -480,9 +484,12 @@ public sealed partial class MainWindow
             menu.Items.Add(item);
         }
         menu.Items.Add(new MenuFlyoutSeparator());
-        var newLevel = new MenuFlyoutItem { Text = "New level…" };
-        newLevel.Click += (_, _) => AskLevelForSelection();
-        menu.Items.Add(newLevel);
+        if (!IsManaged)
+        {
+            var newLevel = new MenuFlyoutItem { Text = "New level…" };
+            newLevel.Click += (_, _) => AskLevelForSelection();
+            menu.Items.Add(newLevel);
+        }
         var copy = new MenuFlyoutItem { Text = "Copy selection to level…" };
         copy.Click += (_, _) => ShowCopyToLevelMenu(targets);
         menu.Items.Add(copy);

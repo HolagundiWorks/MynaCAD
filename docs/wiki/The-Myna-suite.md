@@ -12,6 +12,7 @@
 
 ## How the apps connect
 
+- **MynaOps is the front door (Ops-first workflow, [design](../ops-first-workflow.md)).** MynaCAD's managed mode (`--managed --project`) opens only the project MynaOps names, applies the configuration (levels, layer sets, units) MynaOps writes into the `.osp`, keeps one MynaCAD per project, and has Import and Export instead of Open, New and Save As of project files. Started without a project it shows a launch screen that starts MynaOps. The MynaOps side is built by another work package.
 - **MynaCAD and MynaOps are installed together and share one local `.osp` project file per project** (SQLite). MynaCAD writes the take-off into it; MynaOps reads it. Changes to the `.osp` format are additive only (new meta keys or tables).
 - **MynaHub is independent of both.** It starts them by path and passes nothing: no sign-in, no ticket, no project. Project data reaches the company database only through MynaOps's CSV export, imported in MynaHub.
 - **The AI agent** (Olmo 3 7B through `llama-server`, loopback `127.0.0.1:8742`) is hosted by MynaOps, in a window or headless (`O-CoreOp.exe --ai-host`), and serves MynaOps and MynaCAD. MynaCAD starts the host when none answers.

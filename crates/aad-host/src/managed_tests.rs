@@ -131,6 +131,14 @@ fn managed_host_refuses_opening_applies_configuration_and_imports_inside_the_pro
     assert_eq!(host.control_one("app.save", &json!({ "path": out.to_string_lossy() }))["ok"], true);
     assert!(out.is_file());
     assert!(host.session.state().unwrap().path.as_deref().is_some_and(|p| same_file(p, &project)));
+    // A new run applies again at its first poll even though the file says revision 2 was applied: the report can name a revision whose result was
+    // never saved. What the drawing already has changes nothing.
+    let mut again = Host::create(false);
+    again.set_managed(&project.to_string_lossy(), None).unwrap();
+    open_managed(&mut again);
+    let first = again.config_poll(&json!({ "idle": true })).unwrap();
+    assert_eq!((first["state"].clone(), first["changed"].clone()), (json!("applied"), json!(false)), "{first}");
+    assert_eq!(names(&mut again), ["Ground", "Level 1", "Roof"]);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -199,5 +207,7 @@ fn stub_project() {
         json!([{ "cid": 1, "name": "Ground", "elevation_mm": 0.0, "height_mm": 3000.0 }, { "cid": 2, "name": "Level 1", "elevation_mm": 3000.0, "height_mm": 3000.0 },
                { "cid": 3, "name": "Roof", "elevation_mm": 6000.0, "height_mm": 1000.0 }])
     };
-    write_config(&path, &levels(items, if rev == "1" { 3 } else { 4 }));
+    if rev != "none" {
+        write_config(&path, &levels(items, if rev == "1" { 3 } else { 4 }));
+    }
 }

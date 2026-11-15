@@ -110,6 +110,10 @@ MynaCAD: a status text beside "Saved hh:mm" in the status bar, the command `proj
 
 The existing MynaOps 2 s poll (`ServedProject.PollAsync`) is reused: the status refresh runs inside it and the watcher only calls it earlier. The ops-level-ui `level_status.stale` header flag (fingerprint per level) is separate from the file-level stamp stale marker described above; MynaOps does not yet merge the two.
 
+### Configuration in managed mode
+
+A MynaCAD started by MynaOps also reads the `config.*` keys on a timer of its own (about every 3 s, offset from the `project.sync` probe by half a period) and applies a newer `config.rev` when the shell is idle: `project.config.poll` in `aad-host`, which calls `project.config.apply`. It never reloads the drawing. The first poll of a run always applies (idempotent), whatever `config.applied.cad` says. Details and what was run: [ops-first-workflow.md](ops-first-workflow.md) section 11.
+
 ### Run by hand
 
 Run on 2026-11-15 on the merged branches (MynaCAD `claude/osp-live-sync-aa35c6`, MynaOps `live-sync`, both with `main` merged). MynaCAD WinUI shell (debug build, `--control 47911`) and MynaOps (Release build) open on one test file `house.osp` (a drawing with one brick wall, saved with `saveas`, which records the take-off). Each app's status text was read through UI Automation (`ProjectSyncStatus`); MynaCAD's `project.sync` was also read over the control channel. Times are local.

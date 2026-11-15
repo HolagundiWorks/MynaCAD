@@ -95,6 +95,8 @@ the naming rules only for when DWG writing exists.
 
 ## Project Wizard for one drawing (built): new and edit
 
+In a MynaCAD started by MynaOps (managed mode, [ops-first-workflow.md](ops-first-workflow.md)) this wizard is not reachable: File > Project Wizard, the Welcome button, "Import company details" and the level and layer-set configuration windows are removed, the side-panel Project tab says "Edit in MynaOps", and the engine commands (`project.wizard`, `level.new`, `hcwlayers`, ...) are refused with "edited in MynaOps". The wizard and its commands are unchanged under `--standalone`.
+
 File > Project Wizard (`apps/aad-winui/ProjectWizardWindow.cs`, engine command `project.wizard`,
 `cmd/wizard.rs`) sets up a new single drawing in five pages: the project (name, client, location,
 site address, property ID, site area, plot use, authority, date, summary); the team and company
