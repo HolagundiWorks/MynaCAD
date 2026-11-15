@@ -1131,7 +1131,7 @@ impl Host {
             return Err("result is too large".into());
         }
         self.result = text;
-        // Overlay may change without a document revision (e.g. companion.preview ghost).
+        // Overlay may change without a document revision (e.g. the history.preview ghost).
         #[cfg(windows)]
         {
             self.paint_dirty = true;
