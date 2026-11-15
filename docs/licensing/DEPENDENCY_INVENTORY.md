@@ -1,7 +1,4 @@
-# Dynamo dependency inventory
+# Dependency inventory
 
-MynaCAD talks to **O-Dynamo** through a local pipe only. The tree here lists Rust crates and tools
-used by the shell and engine; it does not include Dynamo Core, LibG, ProtoGeometry, ForgeUnits, or
-Dynamo analytics packages.
-
-The shell does not launch `ODynamo.Host.exe`.
+The tree here lists Rust crates and tools used by the shell and engine; it does not include Dynamo Core, LibG, ProtoGeometry, ForgeUnits, or
+Dynamo analytics packages. The former O-Dynamo companion pipe was removed on 2026-11-15; MynaCAD has no Dynamo dependency.
