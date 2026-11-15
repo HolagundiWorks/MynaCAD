@@ -112,7 +112,7 @@ The existing MynaOps 2 s poll (`ServedProject.PollAsync`) is reused: the status 
 
 ### Configuration in managed mode
 
-A MynaCAD started by MynaOps also reads the `config.*` keys on a timer of its own (about every 3 s, offset from the `project.sync` probe by half a period) and applies a newer `config.rev` when the shell is idle: `project.config.poll` in `aad-host`, which calls `project.config.apply`. It never reloads the drawing. The first poll of a run always applies (idempotent), whatever `config.applied.cad` says. Details and what was run: [ops-first-workflow.md](ops-first-workflow.md) section 11.
+A MynaCAD started by MynaOps also reads the `config.*` keys on a timer of its own (about every 3 s, offset from the `project.sync` probe by half a period) and applies a newer `config.rev` when the shell is idle: `project.config.poll` in `aad-host`, which calls `project.config.apply`. It never reloads the drawing. The first poll of a run always applies (idempotent), whatever `config.applied.cad` says. Details and what was run: [ops-first-workflow.md](ops-first-workflow.md) section 12.
 
 ### Run by hand
 
