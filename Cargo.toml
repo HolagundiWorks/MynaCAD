@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
-exclude = ["apps/aad-winui"]
+exclude = ["apps/aad-winui", "apps/aad-winui-tests"]
 # default-members
 
 [workspace.package]
