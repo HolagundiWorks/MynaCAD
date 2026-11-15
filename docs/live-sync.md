@@ -1,6 +1,6 @@
 # Live sync of the shared project file (`.osp`)
 
-Status: **stage 1 (MynaCAD side) implemented and tested; MynaOps side and the two-app run are tracked in the sections marked as such below.**
+Status: **MynaCAD side (stage 1), MynaOps side (stage 2) and a hand run of both apps (stage 3) are done; see "Build plan and verification status" and "Run by hand" for exactly what was verified and what was not.**
 Scope: two programs on one computer (MynaCAD and MynaOps) that have the same `.osp` open. No network, no MynaHub, no Neon (that sync is a
 separate, paused MynaHub matter). The format stays **additive**: only new `meta` keys, no new table, no changed column.
 
@@ -104,10 +104,21 @@ MynaCAD: a status text beside "Saved hh:mm" in the status bar, the command `proj
 | Stage | Content | Status |
 |---|---|---|
 | 0 | This document | done |
-| 1 | `aad-odp`: `sync.last` and `sync.takeoff.*` in the commit, read-only `sync::probe`; engine `project.sync` with accepted-revision tracking; WinUI status text | see [status.md](status.md) |
-| 2 | MynaOps: debounced watcher, refresh of Take-off page and levels keeping the selection, stale marker, status text, `sync.last` on its writes | see MynaOps `docs/bridge/LIVE-SYNC.md` |
-| 3 | Run with both apps open on one test `.osp` | see "Run by hand" below |
+| 1 | `aad-odp`: `sync.last` and `sync.takeoff.*` in the commit, read-only `sync::probe`; engine `project.sync` (control channel, host method) with accepted-revision tracking; WinUI status text `SyncState` | Rust tests pass (odp 31, engine `project_sync` 4 + 3 unit); fmt, clippy `-D warnings`, `cargo xtask layers` clean; WinUI shell builds; status text not read in a window |
+| 2 | MynaOps (`Office.Shared`: `OdpSync`, `SyncStatusService`, `ProjectFileWatcher`; `sync.last` in `OdpFile.Write`; status text in the status strip; Take-off page accepts on refresh and shows the note) | 11 `OdpSync` xunit tests pass; `BBSApp` builds (Release x64) |
+| 3 | Both apps on one test `.osp` | see below |
+
+The existing MynaOps 2 s poll (`ServedProject.PollAsync`) is reused: the status refresh runs inside it and the watcher only calls it earlier. The ops-level-ui `level_status.stale` header flag (fingerprint per level) is separate from the file-level stamp stale marker described above; MynaOps does not yet merge the two.
 
 ### Run by hand
 
-(Filled in by stage 3 with what was actually seen.)
+Setup: MynaCAD WinUI shell (debug build) started with `--control 47911`, a drawing with one brick wall saved as `C:\Temp\sync-e2e\house.osp` (`saveas`, which records the take-off), MynaOps (Release build of the `live-sync` branch) opened on the same file. MynaOps read through UI Automation (`ProjectSyncStatus`), MynaCAD through the control channel (`project.sync`).
+
+| Step | Seen |
+|---|---|
+| MynaOps opens the file | status `Synced` |
+| MynaCAD adds a wall and runs `takeoff.record` (revision 4) | MynaCAD stays `Synced` (own write accepted); MynaOps within 0.7 s of the first look shows `Updated by MynaCAD at 08:52` (local time), and keeps it |
+| A second writer (a Python sqlite script standing in for MynaOps, writing `project_doc`, revision 5, `sync.last` app `mynaops`) | `project.sync` in MynaCAD: `updated`, `Updated by MynaOps at 03:23 UTC`; `ack` returns `synced` |
+
+Not verified: MynaOps pressing Ctrl+S did not raise a revision (nothing to save), so MynaOps' own `sync.last` write was only covered by the xunit test; the Take-off page refresh and Accept was not seen (the navigation item could not be selected through UI Automation); the MynaCAD shell status text was not read (that build predates the AutomationId edit and the shell exited once during the run, cause not found); locked, replaced and corrupt files were tested only in unit tests, not with both apps; the watcher's latency was not measured separately from the poll.
+
