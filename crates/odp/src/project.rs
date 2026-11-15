@@ -12,8 +12,12 @@ use sha2::{Digest, Sha256};
 
 #[path = "import.rs"]
 mod import;
+#[path = "sync.rs"]
+mod sync;
 #[path = "time.rs"]
 mod time;
+
+pub use sync::{Peek, Probe, SYNC_APP, TakeoffStamp, probe};
 
 pub use import::PDF_CHUNK;
 
@@ -677,6 +681,24 @@ impl Edit<'_> {
         Ok(done)
     }
 
+    /// The revision the file has once this group is committed: the new one when something was changed, else the one it started from.
+    pub fn revision_after(&self) -> i64 {
+        if self.changed { self.revision } else { self.revision - 1 }
+    }
+
+    /// Record that the take-off of `slot` reflects the file as of [`Self::revision_after`] (`sync.takeoff.<slot>`, see `docs/live-sync.md`). Local
+    /// data: it does not raise the revision by itself.
+    pub fn stamp_takeoff(&mut self, slot: u32, levels: &[String]) -> Result<()> {
+        let now = time::now_rfc3339();
+        let rev = self.revision_after();
+        let mut lv = serde_json::Map::new();
+        for id in levels {
+            lv.insert(id.clone(), serde_json::json!({ "revision": rev, "recorded": now }));
+        }
+        let v = serde_json::json!({ "revision": rev, "recorded": now, "levels": lv }).to_string();
+        self.set_local_meta(&format!("sync.takeoff.{slot}"), &v)
+    }
+
     /// Make the changes one revision. A group with no change leaves the revision as it was; local data alone is committed without a revision.
     pub fn commit(self) -> Result<i64> {
         if !self.changed {
@@ -688,6 +710,9 @@ impl Edit<'_> {
             return Ok(self.revision - 1);
         }
         self.tx.execute("UPDATE meta SET value = ?1 WHERE key = 'revision'", params![self.revision.to_string()])?;
+        // Who wrote this revision and when, in the same transaction, so a reader never sees a revision without it (docs/live-sync.md).
+        let last = serde_json::json!({ "app": SYNC_APP, "revision": self.revision, "time": time::now_rfc3339() }).to_string();
+        self.tx.execute("INSERT INTO meta (key, value) VALUES ('sync.last', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1", params![last])?;
         self.tx.commit()?;
         Ok(self.revision)
     }

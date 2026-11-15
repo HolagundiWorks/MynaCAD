@@ -19,8 +19,6 @@ const SELECTION_INK: Rgb = Rgb(0x4a, 0x8f, 0xff);
 const HOVER_INK: Rgb = Rgb(0x9c, 0xc6, 0xff);
 /// Rubber-band / command preview: cyan so the active geometry stands out from committed entities.
 const ACTIVE_INK: Rgb = Rgb(0x00, 0xe6, 0xff);
-/// Companion graph ghost (faded cyan; not selectable).
-const COMPANION_INK: Rgb = Rgb(0x5a, 0xb8, 0xd4);
 /// History preview: added (blue), removed (red), changed (amber).
 const HISTORY_ADDED: Rgb = Rgb(0x4a, 0x8f, 0xff);
 const HISTORY_REMOVED: Rgb = Rgb(0xe0, 0x55, 0x55);
@@ -141,25 +139,6 @@ pub fn mesh(
                 );
                 tint(&mut list, ACTIVE_INK);
             }
-        }
-        // Companion evaluate/subscribe preview: faded, never selectable (Handle 0).
-        let ghost = session.companion_ghost();
-        if !ghost.is_empty() {
-            let mut ghost_list = aad_render::build_entities(
-                &state.doc,
-                ghost.iter(),
-                &aad_render::Options {
-                    tolerance: 0.2 / scale,
-                    min_dash: 2.0 / scale,
-                    text: false,
-                    fill: false,
-                    lineweights: false,
-                    view_height: view.height,
-                    ..Default::default()
-                },
-            );
-            tint(&mut ghost_list, COMPANION_INK);
-            append_display(&mut list, ghost_list);
         }
         // History milestone preview: added blue, removed red, changed amber.
         let hist = session.history_ghost();
@@ -738,32 +717,5 @@ mod tests {
         };
         let built = mesh(&session, Some(&cursor), Rgb(0, 0, 0), 600, Vec2::ZERO, Some("Endpoint"), 800, false, 24.0);
         assert!(built.line_vertices() > 0 || built.quad_instances() > 0 || built.tri_vertices() > 0, "crosshair and snap marker must emit geometry");
-    }
-
-    #[test]
-    fn companion_ghost_adds_overlay_geometry() {
-        let mut session = Session::new();
-        session
-            .execute(
-                "companion.preview",
-                &serde_json::json!({
-                    "result": {
-                        "lines": [{"x0": 0.0, "y0": 0.0, "x1": 100.0, "y1": 0.0, "layer": "A-WALL"}],
-                        "circles": [],
-                        "arcs": []
-                    }
-                }),
-            )
-            .unwrap();
-        assert_eq!(session.companion_ghost().len(), 1);
-        let cursor = Cursor { aim: Vec2::ZERO, raw: Some(Vec2::ZERO), snap: None, track: None, hot: None, hover: None, warm_grip: None };
-        let with_ghost = mesh(&session, Some(&cursor), Rgb(0, 0, 0), 600, Vec2::ZERO, None, 800, false, 24.0);
-        session.execute("companion.preview", &serde_json::json!({ "result": null })).unwrap();
-        let without = mesh(&session, Some(&cursor), Rgb(0, 0, 0), 600, Vec2::ZERO, None, 800, false, 24.0);
-        assert!(
-            with_ghost.line_vertices() + with_ghost.quad_instances() + with_ghost.tri_vertices()
-                > without.line_vertices() + without.quad_instances() + without.tri_vertices(),
-            "ghost preview must add overlay strokes"
-        );
     }
 }

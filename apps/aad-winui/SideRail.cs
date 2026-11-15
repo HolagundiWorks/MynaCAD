@@ -11,7 +11,6 @@ namespace Aad.WinUi;
 /// The rail on the right edge: one vertical title per side panel (Properties, Layers, Blocks,
 /// Project, History, Revisions). It is always visible, open or collapsed. A title opens its
 /// panel and only that panel; clicking the title of the open panel collapses the dock to the rail.
-/// The Dynamo companion Graph editor is a separate window (Window &gt; Graph), not a rail panel.
 /// </summary>
 public sealed partial class MainWindow
 {

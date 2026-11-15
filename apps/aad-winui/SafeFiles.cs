@@ -14,6 +14,7 @@ namespace Aad.WinUi;
 public sealed partial class MainWindow
 {
     private string _saveStateKey = "";
+    private string _syncStateKey = "";
 
     /// <summary>The JSON result of an application method, or null when it failed (the reason is Native.LastError).</summary>
     private JsonElement? AppCall(string method, object? args = null)
@@ -145,6 +146,46 @@ public sealed partial class MainWindow
         {
             AutomationProperties.SetLiveSetting(SaveState, AutomationLiveSetting.Polite);
         }
+    }
+
+    /// <summary>
+    /// The status text of the shared project file: "Synced", "Updated by MynaOps at 14:32", "Take-off out of date", "Locked" and so on
+    /// (docs/live-sync.md). The host only reads the file; the user decides whether to reopen it. Clicking is not needed: the text is
+    /// the notice, and its tooltip says what to do.
+    /// </summary>
+    private void UpdateSyncState()
+    {
+        if (AppCall("project.sync") is not { } r)
+        {
+            return;
+        }
+        var state = Str(r, "state");
+        var text = Str(r, "text");
+        var when = Str(r, "lastTime");
+        if (state == "updated" && DateTimeOffset.TryParse(when, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var utc))
+        {
+            var who = Str(r, "lastApp") switch { "mynaops" => "MynaOps", "mynacad" => "MynaCAD", _ => "" };
+            text = who.Length > 0 ? "Updated by " + who + " at " + utc.ToLocalTime().ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) : "Updated elsewhere";
+        }
+        var key = state + ":" + text;
+        if (key == _syncStateKey)
+        {
+            return;
+        }
+        _syncStateKey = key;
+        SyncState.Text = state == "none" ? "" : text;
+        ToolTipService.SetToolTip(SyncState, state switch
+        {
+            "updated" => "The project file was changed by another program. Your drawing on screen is unchanged. Save keeps your drawing; reopen the file to see the other change.",
+            "outofdate" => "The drawing was saved after the take-off was recorded. Record the take-off again.",
+            "locked" => "Another program holds the project file right now. This is checked again every few seconds.",
+            "replaced" => "The project file was replaced by another copy (a restore). Reopen it before saving.",
+            "unreadable" => "The project file cannot be read: " + Str(r, "reason"),
+            "missing" => "The project file is not where it was.",
+            _ => null,
+        });
+        SyncState.Visibility = SyncState.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        AutomationProperties.SetLiveSetting(SyncState, state is "updated" or "replaced" or "unreadable" ? AutomationLiveSetting.Assertive : AutomationLiveSetting.Polite);
     }
 
     /// <summary>The autosave interval and the number of backups from the shell preferences (shell.json: autosaveSeconds, backupCount).</summary>

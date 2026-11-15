@@ -42,10 +42,7 @@
     <x:Double x:Key="WelcomeMaxWidth">520</x:Double>
     <x:Double x:Key="BusyCardMinWidth">280</x:Double>
     <x:Double x:Key="BusyRingSize">40</x:Double>
-    <x:Double x:Key="GraphCanvasWidth">720</x:Double>
-    <x:Double x:Key="GraphCanvasHeight">520</x:Double>
     <x:Double x:Key="WindowMinWidthWide">640</x:Double>
-    <x:Double x:Key="WindowMinHeightGraph">480</x:Double>
     <x:Double x:Key="HistoryPanelMinWidth">360</x:Double>
     <x:Double x:Key="HistoryPanelMinHeight">420</x:Double>
     <x:Double x:Key="HistoryListMaxHeight">200</x:Double>

@@ -27,6 +27,8 @@ pub mod nativefile;
 pub mod pointmod;
 pub mod pomodoro;
 pub mod projectplan;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod projectsync;
 pub mod prompt;
 mod protect;
 #[cfg(not(target_arch = "wasm32"))]
@@ -533,8 +535,6 @@ pub struct Session {
     pub plot_request: Option<PlotRequest>,
     /// Node results of the last parametric evaluation (`param.*`); disposable, never saved.
     pub param_cache: aad_param::Cache,
-    /// O-Dynamo companion pipe state (`companion.*`); disposable, never saved.
-    pub companion: cmd::companion::CompanionState,
     /// History milestone preview overlay (`history.preview`); disposable, never saved.
     pub history_preview: Option<cmd::history::HistoryPreviewState>,
     /// Open 2D block editor (`bedit` / `refedit`); `None` when not editing.
@@ -598,7 +598,6 @@ impl Session {
             clipboard_source: None,
             plot_request: None,
             param_cache: aad_param::Cache::default(),
-            companion: cmd::companion::CompanionState::default(),
             history_preview: None,
             block_edit: None,
         }
@@ -1051,11 +1050,6 @@ impl Session {
         let Some(r) = &self.running else { return Vec::new() };
         let common = self.current_common();
         r.machine.preview(self, cursor).into_iter().map(|k| Entity { handle: Handle(0), common: common.clone(), kind: k }).collect()
-    }
-
-    /// Companion graph preview for the canvas ghost overlay (not selectable).
-    pub fn companion_ghost(&self) -> Vec<Entity> {
-        cmd::companion::preview_entities(&self.companion)
     }
 
     /// History milestone diff overlay (added / removed / changed); not selectable.

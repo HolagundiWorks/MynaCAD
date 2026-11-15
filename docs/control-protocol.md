@@ -43,7 +43,7 @@ The server waits up to 60 s for the app to answer a request. After that it repli
 | `cmdline.script` | `{text}` | Run a multi-line script (like `.scr` files). |
 | `cmdline.key` | `{key: "enter"\|"escape"}` | Press Enter or Escape. Replies like `cmdline.input`: the state, `output`, and `error` when Enter was refused. |
 | `cmdline.state` | | Current prompt, keywords, accepted input kinds, history tail. |
-| `engine.execute` | `{command, params}` | Run any command with JSON parameters. Never opens a dialog. Includes `companion.*` (Windows named-pipe bridge to O-Dynamo; see [architecture/DYNAMO_INTEGRATION.md](architecture/DYNAMO_INTEGRATION.md)). |
+| `engine.execute` | `{command, params}` | Run any command with JSON parameters. Never opens a dialog. |
 | `engine.commands` | | Every command: id, label, menu path, shortcut, aliases, params doc, enabled. |
 | `drawing.inspect` | `{entities?, limit?}` | Drawing summary (counts, extents, layers, styles, blocks, layouts, selection, undo) and entities with handles and geometry. |
 | `ui.inspect` | | UI state, canvas rect, view, cursor; on WinUI also `shell: "winui"`. Both shells report `perf` with `buildMs`, `meshMs`, `prims`, `rings`, `meshBytes` (egui also `frameMs`, `drawMs`, `renderer`). |

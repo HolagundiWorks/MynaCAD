@@ -25,7 +25,7 @@
 | **MynaUI** | Shared WinUI themes, marks and chrome (`O.Ui` assembly; repo `MynaUI`; **Hcw.Ui / hcw-ui retired**) | | `MynaUI` | `O.Ui` |
 | **Myna3D** | Planned, not built | Grove `#166040` | `Myna3D` (folder; was `O-Form`; the app was named MynaMod before 2026-11-11) | |
 
-The former **O-Dynamo** companion (a Dynamo fork) was removed from the suite: MynaCAD builds and runs without it. Its optional hook (the `ODRAFT_GRAPH` build flag when a sibling `O-Dynamo` folder exists, and the `ODraft.Dynamo` pipe behind `companion.*`) stays in MynaCAD, inactive. Its checkout and GitHub repository were removed (2026-11-11).
+The former **O-Dynamo** companion (a Dynamo fork) was removed from the suite: MynaCAD builds and runs without it. Its checkout and GitHub repository were removed (2026-11-11) and its inactive hook in MynaCAD (the `companion.*` commands, the `ODraft.Dynamo` pipe, the host ghost overlay, the WinUI Graph window and the `ODRAFT_GRAPH` build flag) was removed on 2026-11-15.
 
 **Suite wire (implementation, not user-facing):** shared state lives under `%LOCALAPPDATA%\O-Studio\` (`suite.json`, `active-project.json`, `appearance.json`, `neon.env`, `selected-project.json`, `ai\auth.token`, `ai\host.json`, `ai\host.log`). MynaHub starts MynaOps, MynaCAD and Myna3D by path and passes **nothing** in their environment (no company, no ticket, no project, no AI settings). Project file meta format id is **`osp`** v1; the active-project pointer uses **`studio-active-project`** v1. Constants: `Office.Shared.SuiteWire` (.NET), `Osas.Core.SuiteWire` (MynaHub).
 
