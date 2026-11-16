@@ -468,3 +468,32 @@ Built (branch `claude/ops-first-b-cad-7ebf70`): `aad-host` `managed.rs` (host po
 **Not run / not seen:** the **Open MynaOps** click on the launch screen and the `--import-pick` hand-over (they would start the installed MynaOps; the launcher code compiles); the import dialog and the File menu as pixels (the menu was read as UI Automation names); drag-and-drop; the recovery question after a crash in managed mode; a real MynaOps (package A) against a real MynaCAD; the layer mapper offered after an import; a drawing in millimetres (the stub is in inches, so apply reports `units` as refused, as designed); `cargo xtask ci` as a whole (the wasm check was not run). Another agent's cleanup killed one of the test processes during the run (shared process name `ODraft.WinUi`); the run was repeated. A `NullReferenceException` in `CommandChrome.ShowBar` was logged to `%TEMP%\aad-winui.log` around the time a managed window closed after `close {save:"save"}` (the same activation order as the existing quit path); the process ended normally; not investigated.
 
 **Left for later packages:** sync buttons (D), `import.<n>.*` provenance and the `before-reimport` backup, a progress worker for a big import, MynaOps-side restore (A), removal of `ActiveProjectPointer` (E), the shortcut and Hub tile (E).
+
+## 13. Package F: the end-to-end run with the real apps (test plan, written 2026-11-16 before the run)
+
+**Why.** Package A ran against a stub MynaCAD (`BBSDesktop/tests/e2e/CadStub`) and package B against stand-in processes. The real MynaOps and the real MynaCAD have not run together. This section is the plan; section 14 records what was seen.
+
+**Set-up (nothing of the installed apps is used or changed).** MynaCAD: `cargo build -p aad-host` (`CARGO_BUILD_JOBS=2`, own `CARGO_TARGET_DIR` on C:) and `dotnet build apps/aad-winui` (Debug, x64, own output folder), `aad_host.dll` copied beside `ODraft.WinUi.exe`. MynaOps: `dotnet build BBSDesktop/BBSApp` from a worktree of its own (branch `ops-first-f-e2e`). Isolation: `OSTUDIO_LOCAL_DIR` and `OSTUDIO_LEASE_DIR` (both apps read them; MynaCAD in `ProjectInstance`), `OSTUDIO_CAD_EXE` points MynaOps at the freshly built MynaCAD, a project folder under `C:\Temp`. MynaCAD's loopback control channel (`--control`) is the observation channel for the drawing; MynaOps' `.osp` (SQLite) is read by a small script for files and meta keys; UI Automation (UIA) reads and drives both windows. Screenshots are looked at, never committed.
+
+**How each step is observed.** UIA = names/automation ids/texts of the window; CTRL = MynaCAD control channel (`level.list`, `layer.list`, `drawing.inspect`, `engine.execute`); FILE = the `.osp` and `leases` folder (meta keys, rows, lock files, process list).
+
+| # | Step | Expected | Observed by |
+|---|---|---|---|
+| 1 | Start MynaOps, create a project in the wizard (details, levels, a layer set) | `.osp` with `config.schema`, `config.rev`, the levels and layer set, `.ops.lock`; Home shows path and levels | UIA, FILE |
+| 2 | Home > Open MynaCAD (real exe via `OSTUDIO_CAD_EXE`) | MynaCAD starts with `--managed --project --ops-pid`, no launch screen, window `MynaCAD - <name>.osp`; `level.list` equals the wizard's levels, layers equal the layer set; `.cad.lock` held; Home says MynaCAD is open | UIA, CTRL, FILE |
+| 3 | In MynaOps add a level and rename one, Save | `config.rev` increases; within the poll interval (about 3 s plus idle) MynaCAD shows the new and renamed level (`level.list`, level bar); `config.applied.cad` reports the revision | FILE, CTRL, UIA |
+| 4 | Draw in MynaCAD (lines on two levels), `takeoff.record` (all levels), save | `takeoff_header` / `takeoff_row` written; MynaOps' take-off page lists the per-level summary within its poll interval | CTRL, FILE, UIA |
+| 5 | Start MynaCAD with no arguments; then start it twice for the same project | No arguments: launch screen only. Second start for a project that runs: exit code 0, no second window, the first window is activated | UIA, process list |
+| 6 | Import a DXF in MynaCAD (pipe `import` and the Import menu) | The entities land in the project drawing; no `.osp`, `.backups` or other file appears beside the source DXF | CTRL, FILE |
+| 7 | Database offline then online; Compact and Restore while MynaCAD is open | Offline asks MynaCAD to close, leases released, WAL folded; Compact/Restore refused or gated while `.cad.lock` is held; online takes the lease back | UIA, FILE |
+| 8 | AI Stop then Start in MynaOps | MynaCAD (managed) shows no AI of its own and does not start the AI host; MynaOps status `AI: off` / on | UIA, port 8742 |
+| 9 | Close MynaOps with MynaCAD open (close-both question); in another run close MynaCAD with MynaOps open | Question names MynaCAD; Close both ends both with no lease left; closing MynaCAD alone leaves MynaOps showing "MynaCAD is not running" and the lease gone | UIA, FILE |
+| 10 | Kill MynaCAD (`taskkill /f`) with unsaved work and an autosave, start again from MynaOps | No stale lease (the lock vanishes with the process); MynaOps can open MynaCAD again; the recovery question is asked and restores the autosave | UIA, FILE |
+| 11 | Adopt a legacy project (a drawing with levels but no `config.*`, made by `tests/e2e/make-legacy-osp.py`) | MynaCAD does not edit it; MynaOps offers Adopt; after Adopt MynaCAD opens it with the drawing's levels bound by `cid` | UIA, FILE, CTRL |
+| 12 | While both apps are open: lock the file exclusively from a script; replace the file (copy another `.osp` over it) | No crash in either app; MynaCAD status shows Locked / Project file was replaced per live-sync.md; the drawing is not reloaded under the user | UIA, logs |
+
+**Known leftover to investigate.** A `NullReferenceException` logged in `CommandChrome.ShowBar` (`%TEMP%\aad-winui.log`) when a managed window closes after `close {save:"save"}`.
+
+**Rules of the run.** Each defect: its expected behaviour is written into this document first, then fixed with a regression test where the layer allows (Rust for engine/host/odp, xunit for C#), committed by file name. A step is reported only as *seen*, *not seen* (could not be driven or observed, with the reason) or *fixed*. Out of scope: MynaHub, the mobile app, installers, packages D and E, two machines, network shares.
+
+**Clean-up after the run.** Delete `C:\Temp\f-e2e` (cargo target, builds, project folder, logs), the junction `MynaOps\.claude\worktrees\MynaUI`, and any process or lease file the run left; list what was removed in section 14.
