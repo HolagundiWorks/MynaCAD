@@ -1,6 +1,6 @@
 # The Ops-first workflow: MynaOps opens the project, MynaCAD is launched from it
 
-Status: **design, decided by the owner on 2026-11-15, with every open question of section 8 decided the same day (accept the recommendation). Package C (the configuration schema and its libraries, section 10) is implemented on the branches `claude/ops-first-c-config-954af3` (MynaCAD) and `ops-first-c-config` (MynaOps), not merged; Package A (MynaOps side: project home, Open and New project, the create-project wizard, the lease, Open MynaCAD, AI Start/Stop, database online/offline, the Adopt page, the close-both question) is implemented on the branch `claude/ops-first-a-ops-5f6ed0` (MynaOps), not merged, see section 11 for what was run; package B (MynaCAD managed mode, section 12) is implemented on the branch `claude/ops-first-b-cad-7ebf70`, not merged; everything else in this document is not implemented.** It is a contract and a staged plan. "Today" below
+Status: **design, decided by the owner on 2026-11-15, with every open question of section 8 decided the same day (accept the recommendation). Package C (the configuration schema and its libraries, section 10) is implemented on the branches `claude/ops-first-c-config-954af3` (MynaCAD) and `ops-first-c-config` (MynaOps), not merged; Package A (MynaOps side: project home, Open and New project, the create-project wizard, the lease, Open MynaCAD, AI Start/Stop, database online/offline, the Adopt page, the close-both question) is implemented on the branch `claude/ops-first-a-ops-5f6ed0` (MynaOps), not merged, see section 11 for what was run; package B (MynaCAD managed mode, section 12) is implemented on the branch `claude/ops-first-b-cad-7ebf70`, not merged; package D (Realtime sync on/off and Sync now, section 15) and package F (the real two-app run, section 14) are merged on main; package E (adoption entry points, `.osp` association, pointer removal, AI host rule, section 16) is implemented on the branches `claude/ops-first-e-cad` (MynaCAD) and `ops-first-e-ops` (MynaOps), not merged, see 16.10 for what was run; everything else in this document is not implemented.** It is a contract and a staged plan. "Today" below
 describes what the code does now (each claim names where it was read); "Planned" describes the target. Canonical copy: MynaOps `docs/ops-first-workflow.md`;
 MynaCAD carries an identical copy. Suite-wide decision record: `docs/SUITE.md` (section 0). Written without changing any code.
 
@@ -613,3 +613,113 @@ Not run or not seen: Restore from the manager page; the Open MynaOps button and 
 **Not seen / not run / left:** one MynaCAD instance stopped applying configuration on its ticks (`Configuration update waiting` stayed, also with sync on) after a sequence of Sync now requests from MynaOps over the pipe; a fresh instance and repeats of similar steps did not reproduce it, so the cause is not known (the shell's idle test is the suspect; nothing is logged for it); the tooltip and pointer-hover probes (UI Automation cannot hover; the probe was seen through the pipe `status` request instead); the watcher-driven poll while off in MynaOps (covered by the gate in `ServedProject.PollAsync` and the counter test, not observed separately); MynaOps' real Levels save as the second writer (a Rust stub wrote the configuration); `cargo xtask ci` as a whole; the Release MynaOps. Not changed: the Levels page of MynaOps still does not read `config.*` back (14.3): it edits the AQC floor list with its own elevations and is not a small change, so it stays listed.
 
 **Out of scope.** A shared switch, persisting the state, timer saves, any change of `config.*`, the lease, the launch code, autosave, MynaHub. The Levels page reading `config.*` back (14.3) is attempted separately and only if small.
+
+## 16. Package E: adoption, `.osp` association, entry points (design, written 2026-11-16 before the code)
+
+**What.** Package E finishes the workflow of section 1: a project file is opened by double-clicking it (MynaOps), a drawing handed to MynaCAD ends in MynaOps, the old pointer file is gone, and an existing project (a MynaCAD-made `.osp`, a `.dxf`/`.dwg`) becomes a configured project with no change to its drawing. **Why.** Without it an upgrade leaves MynaCAD as the default `.osp` verb (the installer's `createvalueifdoesntexist`), `--import-pick` has no receiver in MynaOps (MynaCAD already sends it, 2.4), and `active-project.json` is still written by one app and read by the other although the leases replace it (2.3). Decisions Q1 to Q12 are settled (section 8) and are not reopened; where section 8 and an earlier remark differ, section 8 wins.
+
+### 16.1 Decisions applied (from section 8, nothing new decided)
+
+| Item | Applied as |
+|---|---|
+| Q2 (no scratchpad) | MynaCAD without `--managed` or `--standalone` never opens a project; every file argument ends in MynaOps. `--standalone` stays hidden (tests, `aad-cli`, MCP, developers) |
+| Q9 (shortcut and Hub tile) | **Both stay and lead to the launch screen**, which starts MynaOps (2.4). The installer keeps the MynaCAD Start-menu and desktop shortcuts, which pass no argument. No MynaHub change is needed for this (the Hub passes nothing); see 16.7 for the text MynaHub's own docs need |
+| Q10 (AI host) | The headless AI host is started by MynaCAD only for `--standalone` and, in a managed run, **only after MynaOps has closed** (the user then asked a question and nothing hosts the agent). While MynaOps runs, a managed MynaCAD never starts it (it says `stopped in MynaOps` or `ready (MynaOps)`). Package B suppressed the start in the MynaOps-closed state too; that deviation from Q10 is corrected here: host method `host.opsclosed {closed}` (the shell calls it when `MynaOps closed` appears or goes away) switches the suppression |
+| Q7, Q12 | Unchanged; adoption keeps every level id (`cid = LevelId`) |
+
+### 16.2 The `.osp` association (MynaOps owns it)
+
+MynaOps' installer `O-CoreOp.iss` registers, per user (`HKCU\Software\Classes`): `.osp` = `OSAS.Project`, `OSAS.Project\shell` default verb `open`, `shell\open` labelled **Open** (command: `O-CoreOp.exe "%1"`). The MynaCAD verb is not written any more. On **upgrade** the entries are written without `createvalueifdoesntexist` (so the value is rewritten whatever an earlier install left), and the verbs of earlier installs are removed: `shell\ocoreop` (**Open in MynaOps**, now redundant) is deleted with `deletekey`; `shell\open` is overwritten (it was **Open in MynaCAD**). MynaCAD registers nothing in the registry: no `.osp`, `.dwg` or `.dxf` association exists in the MynaCAD repository or in the installer (searched in this package: `Software\Classes`, `OSAS.Project`, `.iss`, `.wxs`, `packaging/`). A user who chose **Always use** for MynaCAD earlier holds a `UserChoice` key that the installer cannot rewrite (Windows protects it); that user's double-click still ends in MynaOps, because MynaCAD forwards an `.osp` argument to MynaOps (16.3). The installer script is checked by reading; building it needs Inno Setup and the suite stage (`build-installer.ps1`), which is only done if a build is cheap (see the result in 16.10).
+
+### 16.3 What MynaCAD does with a file argument (no `--managed`)
+
+| Argument | Action |
+|---|---|
+| none | Launch screen with **Open MynaOps** (as before) |
+| `*.osp` | Starts MynaOps with that path as its argument (MynaOps opens the project, adopting it first when needed) and exits. MynaCAD never opens it. A running MynaOps is used instead of starting a second one (16.4) |
+| `*.dwg`, `*.dxf` | Starts MynaOps with `--import-pick "<file>"`; MynaOps asks where it goes (16.5) |
+| anything else | The launch screen with the text "MynaCAD opens projects from MynaOps" (no handover) |
+
+The managed policy (`app.open` and the others, 3.3) and the **Open a backup copy** item are unchanged; `--standalone` is unchanged.
+
+### 16.4 MynaOps: one instance receives the request (`StartupRequest`, `OpsInstance`)
+
+MynaOps has no single-instance rule today (a second `O-CoreOp.exe` would be a second window with no project). It gets a small named pipe `\\.\pipe\MynaOps.<user hash>` (current user only; JSON lines `{"cmd":"open","path":...}`, `{"cmd":"import-pick","path":...}`, `{"cmd":"activate"}`; reply `{"ok":true}`). `Program.Main` parses the command line (`StartupRequest.Parse`: a project path to open, a drawing to import, or nothing); when a request is present and a running MynaOps answers on the pipe, it forwards the request and exits with code 0 without starting WinUI. Otherwise it starts as today and handles the request after the window is up. Each request is bounded (path at most 4096 characters, no NUL, absolute, existing file, extension checked) and a bad request is answered `ok:false`, never a crash. Q6 stays true: a second project is opened in the same window by the usual **leave the current project** questions (one project per MynaOps window).
+
+### 16.5 `--import-pick` in MynaOps (2.4)
+
+A drawing (`.dwg`/`.dxf`) handed to MynaOps opens a dialog **Import "<name>"**:
+
+1. **Import into the current project** (offered only when a project is open and online): asks MynaCAD to import it (`MynaCadLauncher.OpenAsync(project, import)`: the activation pipe `import` when MynaCAD runs, else a managed start with `--import`). The converted copy lands inside the project's `.osp` (3.4); no file appears beside the source.
+2. **New project from this file**: the create-project wizard (suggested name = the file name; the suggested folder is the last used projects folder, never the drawing's folder, because nothing may be written beside the source), then **Open MynaCAD** with `--import`.
+3. **Cancel**: nothing happens.
+
+The file is checked first (exists, extension). MynaOps never reads the drawing.
+
+### 16.6 The active-project pointer is removed (migration)
+
+| Piece | Change |
+|---|---|
+| MynaCAD `ActiveProjectPointer.cs` and its two call sites (`PublishActiveProject`, `MainWindow` close) | Deleted. MynaCAD no longer writes `%LOCALAPPDATA%\O-Studio\active-project.json` |
+| MynaOps `Office.Shared/ActiveProject.cs` | Deleted; `ProjectDatabase.OpenElsewhere` loses the marker and tests, in this order, the CAD lease, another MynaOps' lease, **any process holding the file** (this last test also covers an older MynaCAD that has no lease, so Compact and Restore stay refused while an unmigrated MynaCAD runs); `ActiveProject.SamePath` moves to `ProjectDatabase.SamePath` |
+| `SuiteWire.ActiveProjectFormat` / `IsActiveProjectFormat` | Kept as constants for one release (MynaHub's `Osas.Core.SuiteWire` mirrors them and is not edited here); nothing reads the file |
+| Leftover file | The pointer carries no data of its own (a derived hint: the path of the open drawing), so nothing is lost by dropping it. MynaOps deletes a stale `active-project.json` at start (`LegacyFiles.RemoveActiveProjectPointer`, best effort, never throws) so no file keeps telling a story that nothing maintains. An older MynaCAD that still runs may rewrite it; it is ignored |
+| Docs | `SUITE.md` (the copies in these two repos; the MynaHub one is a request, 16.7), `PROJECT-FILE.md`, `live-sync.md` and `status.md` stop naming the pointer as live |
+
+### 16.7 Requests for MynaHub (Codex; not edited here)
+
+- `installer/suite/README.md` states that double-clicking an `.osp` opens MynaCAD and that "Open in MynaOps" is the right-click verb. It becomes: double-click and **Open** open the project in MynaOps; MynaCAD has no `.osp` verb.
+- MynaHub `docs/SUITE.md`, `docs/PROJECT-SELECTION-DESIGN.md`, `docs/ODP-PROJECT-FILE-AND-SYNC.md`, `docs/MIGRATION-OSP.md` and `docs/testing/PLAN-INTEGRATION.md` still describe the active-project pointer as written by MynaCAD and read by MynaOps. It no longer exists; `Osas.Core.SuiteWire.ActiveProjectFormat` can go in a later MynaHub release.
+- The Hub's MynaCAD tile and the status-row start need no change (Q9 keeps them; they pass no argument).
+
+### 16.8 Adoption end to end (4.5, already built by A and F; what E adds and checks)
+
+Built earlier: the Adopt window, `ProjectAdoption.Propose/Adopt` (a `manual` backup first; `config.*` only), **Read the drawing in MynaCAD** (D8). E adds the entries that lead to it: `.osp` double-click and `--import-pick` (16.2 to 16.5), and verifies the whole path with the real apps:
+
+1. A project file made by MynaCAD alone (levels, no `config.*`): the double-click path (`O-CoreOp.exe "<osp>"`) opens the Adopt window; nothing is written before **Adopt**; **Read the drawing in MynaCAD** fills in the levels; **Adopt** leaves the `drawing` row hash identical and makes a `manual` backup; **Open MynaCAD** binds the levels by `cid` (no orphans); the take-off bridge records and MynaOps shows it.
+2. A legacy file started directly in a managed MynaCAD shows **Adopt this project in MynaOps first** (B, seen again).
+3. A DXF/DWG: `ODraft.WinUi.exe plan.dxf` hands over to MynaOps (`--import-pick`), **New project from this file** creates a configured project and MynaCAD imports the drawing into it; nothing appears beside `plan.dxf`.
+4. A file with a working-copy history (`source.*` keys, a `<name>.osp` made beside a `.dwg` by an older MynaCAD) adopts like any `.osp`; its `source.*` keys stay untouched (they describe the whole-file working copy, 3.4) and the project's drawing row is not rewritten.
+
+The `nativefile` beside-the-source path (File > Open of a `.dwg` creating `<name>.osp`) is unreachable in a managed run (policy, B) and in the launch-screen run (no open); it stays as the import engine and for `--standalone`, so there is no UI to remove in E.
+
+### 16.9 Areas, acceptance, out of scope
+
+- **Areas.** MynaCAD: `apps/aad-winui/{ActiveProjectPointer.cs (deleted), MainWindow.xaml.cs, LaunchWindow.cs, MynaOpsLauncher.cs, ManagedMode.cs}`, `crates/aad-host/src/{lib.rs,managed.rs,managed_tests.rs}`, docs (this file, `status.md`, `NATIVE-OPEN.md`, `PROJECT-FILE.md`, `SUITE.md`, `live-sync.md`, wiki pages). MynaOps: `BBSDesktop/installer/O-CoreOp.iss`, `Office.Shared/{StartupRequest.cs, OpsInstance.cs, LegacyFiles.cs, ActiveProject.cs (deleted), ProjectDatabase.cs}`, `BBSApp/{Program.cs, App.xaml.cs, MainWindow.Project.cs, MainWindow.xaml.cs, Views/NewProjectWindow.cs, Views/ProjectDatabasePage.cs}`, `Office.Shared.Tests`, docs (this file, `PROJECT-FILE.md`, `SUITE.md`, `PACKAGING.md`).
+- **Acceptance.** (1) The installer script registers `Open` = MynaOps and deletes `ocoreop`, with no MynaCAD verb. (2) `ODraft.WinUi.exe x.osp` and `x.dxf` start MynaOps (or the running one) and exit; MynaCAD shows no project. (3) MynaOps parses and forwards the startup requests (tests, including hostile text). (4) No program writes or reads `active-project.json`; Compact and Restore still refuse while a lease or any process holds the file (tests). (5) A managed MynaCAD whose MynaOps has closed allows the AI host start; while MynaOps runs it does not (host test). (6) The adoption cases of 16.8 run by hand with the real apps, with the `drawing` row hash compared.
+- **Out of scope.** MynaHub and ArchiMan; the schema; the sync code; the drawing engine; `UserChoice` rewriting; a `.dwg`/`.dxf` association (none exists; adding one would be a new feature); two machines; network shares; a scratchpad project (Q2).
+
+### 16.10 What was built and what was run (2026-11-16, branches `claude/ops-first-e-cad` in MynaCAD and `ops-first-e-ops` in MynaOps, from main 2c51d69 / 2349edf)
+
+**Built.**
+
+- MynaOps installer `O-CoreOp.iss`: `.osp` default verb **Open** = MynaOps, written without `createvalueifdoesntexist`, `shell\ocoreop` deleted, no MynaCAD verb. Shortcuts unchanged (Q9).
+- MynaOps `Office.Shared`: `StartupRequest` (command line and pipe requests, hostile text bounded), `OpsInstance` (per-user pipe, `TryForward`), `LegacyFiles.RemoveActiveProjectPointer`; `ActiveProject.cs` deleted, `ProjectDatabase.OpenElsewhere` without the marker, `ProjectDatabase.SamePath`. `BBSApp`: `Program.Main` forwards a request to a running MynaOps and exits, `App` starts the pipe, removes the stale pointer file and handles the start request, `MainWindow.Project` has `ImportPickAsync` (**Import into project / New project / Cancel**), `NewProjectAsync(suggestedName, importDrawing)` (the wizard named after the drawing, then MynaCAD opens the new project with `--import`), `HandleStartupRequest`. Button labels are short because the dialog truncated the long ones (seen in the first run).
+- MynaCAD: `FileHandover` (a `.osp` goes to MynaOps as a path, a `.dwg`/`.dxf` as `--import-pick`, anything else keeps the launch screen), `MynaOpsLauncher.Open(file)`, `LaunchWindow`; `ActiveProjectPointer.cs` and its call sites deleted; host method `host.opsclosed {closed}` (`managed.rs`) and the shell call in `SetOpsGone` (Q10: the AI host may be started by MynaCAD only after MynaOps closed).
+
+**Run.**
+
+- MynaCAD (`CARGO_BUILD_JOBS=2`, own target folder on C:): `cargo fmt --check`; `cargo clippy -p aad-odp -p aad-engine -p aad-host --all-targets -- -D warnings`; `cargo test -p aad-host` (86 passed, 9 ignored; the new `a_managed_host_starts_the_ai_host_only_after_mynaops_closed` among them), `cargo test -p aad-odp` (43 passed, 1 ignored), `cargo test -p aad-engine` (every test binary; no failure line; the per-binary counts were not kept); `cargo xtask layers`, `assets`, `ui`, `licenses --check`, `wasm` (all ok); `dotnet test apps/aad-winui-tests` (13 passed, 3 of them new `FileHandoverTests`: classification, hostile text, arguments); `dotnet build apps/aad-winui` (0 warnings). `cargo xtask ci` as a whole was not run.
+- MynaOps: `dotnet test BBSDesktop/Office.Shared.Tests` (261 passed; new `StartupRequestTests`: parsing, hostile text, pipe forwarding round trip, nobody running, bad requests never reach the handler, pointer removal), `AQC.CadImport.Tests` (110 passed), `dotnet build BBSApp` (Release, 0 errors). The installer script compiled with Inno Setup (`ISCC /DWithCad`, dummy sources, output in a scratch folder: `MynaOpsCAD-Setup-1.0.0.exe` produced; the setup was **not executed**, so the registry result is read from the script, not observed).
+- **Both real apps by hand** (`BBSDesktop/tests/e2e/uia-ops-first-e.ps1`; Release MynaOps and Debug MynaCAD with `aad_host.dll` from the branch, scratch `OSTUDIO_LOCAL_DIR`, UI Automation, the MynaCAD control channel and read-only SQLite; final run 29 PASS, 0 FAIL):
+
+| Step | Seen |
+|---|---|
+| Project made by MynaCAD alone | `--standalone` MynaCAD with a line and two levels saved `Legacy.osp`; no `config.*`; a stale `active-project.json` planted in the scratch folder |
+| `O-CoreOp.exe Legacy.osp` (the double-click command) | MynaOps opened the **Adopt project settings** window; nothing written before Adopt; the stale pointer file was gone a few seconds after start |
+| Second `O-CoreOp.exe Legacy.osp` | exit code 0, still one MynaOps process, no second window |
+| **Read the drawing in MynaCAD**, then Adopt | MynaCAD wrote `config.proposal`; the window listed 3 levels (the drawing's implicit Level 1 and the two made with `level.new`); Adopt wrote `config.*`; the `drawing` row's `sha256` and bytes were identical; one `manual` backup first |
+| Open MynaCAD | managed MynaCAD: `level.list` = Level 1, Ground, First; `config.applied.cad` result `ok`; `takeoff.record` + save wrote the take-off header |
+| `ODraft.WinUi.exe plan.dxf` (no `--managed`) | MynaCAD exited at once; MynaOps showed **Import plan.dxf** with the three choices; nothing appeared beside `plan.dxf` |
+| **New project** in that dialog | the leave-the-project question ("MynaCAD has the open project") first, then the wizard with name and file name `plan`; cancelling created nothing |
+| `ODraft.WinUi.exe Legacy.osp` | MynaCAD exited; the only MynaCAD is the managed one |
+| Close both | MynaCAD and MynaOps both ended, no lease held |
+| Legacy file directly in a managed MynaCAD (separate run) | dialog "MynaCAD cannot open this project": "Adopt this project in MynaOps first..."; `config.proposal` written, `config.schema` still absent |
+
+Defects found by the runs and fixed: the first run's dialog truncated its two long button labels; the wizard's file name was empty when the project name was preset (the name's `TextChanged` did not fill it before the first read), now set with the name. Run-script defects (a path hash of lock files counted as leases, a `*.osp` filter matching `.osp-wal`) were corrected in the script.
+
+**Not run / not seen.** The installer was compiled but never run: an upgrade from an installed version, the real registry values, and the **Always use** `UserChoice` case are unverified. The import itself into a new project (the wizard was only opened and cancelled; the full create path is in `uia-ops-first.ps1`, package A) and **Import into project** were not clicked; the pipe `import` into a running MynaCAD was seen in package F. A `.dwg` was not used (a DXF stood in). `host.opsclosed` was run as a host unit test, and the shell call was compiled; the AI host start itself after MynaOps closed was not observed. The MynaOps window was not looked at beyond the screenshots of the Adopt window and the import dialog. Two MynaOps on two PCs, network shares: out of scope. `cargo xtask ci` as a whole and the MynaOps installer build (`build-installer.ps1`, which needs the published app and the model) were not run.
+
+**Known limits left.** MynaOps still has no single-instance rule for a start without a file (two plain starts give two windows); only requests carrying a file are forwarded. The `.osp` verb registry result and MynaHub's own `.osp` text (16.7) await the MynaHub owner. `ProjectDatabase.MynaCadRunning()` is unused now and left in place (public API). The Levels page limits of 14.3 are unchanged.
+
+**Clean-up.** Removed after the run: `C:\Temp\e-pkg-target` (cargo target), `C:\Temp\e-pkg-out` (builds, run folders, logs), `C:\Temp\e-inno`, the `artifacts` folder made in the MynaOps worktree for the installer compile, and the junction `MynaOps\.claude\worktrees\MynaUI`.

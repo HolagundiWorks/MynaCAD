@@ -173,7 +173,6 @@ public sealed partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
-            ActiveProjectPointer.Set(null);
             TearDownShell();
         };
         Activated += (_, _) =>
@@ -2115,9 +2114,6 @@ public sealed partial class MainWindow : Window
         _docPaths[System.IO.Path.GetFileNameWithoutExtension(path)] = path;
         _docPaths[System.IO.Path.GetFileName(path)] = path;
     }
-
-    /// <summary>Publish the active drawing so MynaOps can find the same project file (the pointer; a project file needs no server).</summary>
-    private void PublishActiveProject(string? drawing) => ActiveProjectPointer.Set(drawing);
 
     private string? ActiveDrawingPath(DocTab? active) =>
         active is null ? null
@@ -6417,7 +6413,6 @@ public sealed partial class MainWindow : Window
         _documents.AddRange(state.Documents);
         var active = _documents.FirstOrDefault(doc => doc.Active);
         Title = active == null || active.Title.Length == 0 ? "MynaCAD" : "MynaCAD \u2014 " + active.Title + (active.Dirty ? " *" : "");
-        PublishActiveProject(ActiveDrawingPath(active));
         var key = string.Join("\n", _documents.Select(doc => doc.Index + ":" + doc.Title + ":" + doc.Source + ":" + doc.Dirty + ":" + doc.Active));
         if (key == _docKey)
         {

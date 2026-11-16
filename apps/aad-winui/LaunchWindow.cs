@@ -6,7 +6,7 @@ namespace Aad.WinUi;
 
 /// <summary>
 /// What MynaCAD shows when it is started without a project (docs/ops-first-workflow.md, section 2.4, decision Q2: no scratchpad): it asks the user to start
-/// MynaOps, hands over and exits. A file argument (a drawing or a project) is passed to MynaOps as <c>--import-pick</c> and MynaCAD exits without a window.
+/// MynaOps, hands over and exits. A project file (<c>.osp</c>) is passed to MynaOps to open and a drawing as <c>--import-pick</c> (see <see cref="FileHandover"/>); MynaCAD then exits without a window.
 /// </summary>
 internal sealed class LaunchWindow : Window
 {
@@ -60,7 +60,7 @@ internal sealed class LaunchWindow : Window
     /// <summary>Start (or raise) MynaOps; on success MynaCAD is done, because the MynaCAD that MynaOps starts is the real one.</summary>
     internal void Handover(LaunchArgs launch)
     {
-        var file = launch.Files.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f));
+        var file = launch.Files.FirstOrDefault(f => FileHandover.Classify(f) != HandoverKind.None);
         var problem = MynaOpsLauncher.Open(file != null ? Path.GetFullPath(file) : null);
         if (problem != null)
         {
@@ -70,5 +70,5 @@ internal sealed class LaunchWindow : Window
         Close();
     }
 
-    internal bool HasFile(LaunchArgs launch) => launch.Files.Any(f => !string.IsNullOrWhiteSpace(f));
+    internal bool HasFile(LaunchArgs launch) => launch.Files.Any(f => FileHandover.Classify(f) != HandoverKind.None);
 }

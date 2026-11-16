@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Tests of shell code that has no WinUI dependency (the path hash of the project lease). The source file is linked, not copied. -->
+  <!-- Tests of shell code that has no WinUI dependency (the path hash of the project lease, the file hand-over). The source files are linked, not copied. -->
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\aad-winui\ProjectInstance.cs" Link="ProjectInstance.cs" />
+    <Compile Include="..\aad-winui\FileHandover.cs" Link="FileHandover.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
