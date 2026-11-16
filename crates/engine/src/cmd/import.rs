@@ -32,7 +32,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("import", "Import...", run_import)
             .menu(&["File", "Import..."])
-            .params("{path: a .dxf .dwg .pdf .svg .png .jpg .jpeg .tif or .tiff file, at?: [x, y] (lower left of the imported page or picture, default [0, 0]; not used by dxf and dwg), scale?: drawing mm per paper mm (svg, pdf; default 1), page?: 1 (pdf), layer?: name (svg and raster; default \"SVG-IMPORT\" or \"RASTER-IMPORT\"), dpi?: pixels per inch of a raster (default 96), threshold?: 0-255, pixels darker than this are lines (raster, default 128), invert?: bool (raster: light lines on a dark ground)} → {kind, layer?, objects, widthMm, heightMm, warnings}. One undo step."),
+            .params("{path: a .dxf .dwg .pdf .svg .png .jpg .jpeg .tif or .tiff file, at?: [x, y] (lower left of the imported page or picture, default [0, 0]; not used by dxf and dwg), scale?: drawing mm per paper mm (svg, pdf; default 1), page?: 1 (pdf), layer?: name (svg and raster; default \"SVG-IMPORT\" or \"RASTER-IMPORT\"), dpi?: pixels per inch of a raster (default 96), threshold?: 0-255, pixels darker than this are lines (raster, default 128), invert?: bool (raster: light lines on a dark ground), level?: level name or id (default the active level; the active level is kept)} → {kind, layer?, objects, widthMm, heightMm, warnings}. One undo step."),
     ]
 }
 
@@ -47,7 +47,32 @@ fn kind_of(path: &str) -> Option<&'static str> {
     })
 }
 
+/// `level` (name or id): the objects land on that level instead of the active one. The active level is restored afterwards, also when the import
+/// fails (ops-first-workflow.md section 15, L5).
 fn run_import(s: &mut Session, p: &Value) -> Result<Value> {
+    let Some(level) = p.get("level").filter(|v| !v.is_null()).cloned() else { return import_to_active(s, p) };
+    if !(level.is_string() || level.is_u64()) {
+        return Err(bad("import", "`level` is a level name or id"));
+    }
+    let listed = s.execute("level.list", &json!({}))?;
+    let levels = listed["levels"].as_array().cloned().unwrap_or_default();
+    let named = |l: &Value| match &level {
+        Value::String(n) => l["name"].as_str().is_some_and(|x| x.eq_ignore_ascii_case(n.trim())),
+        other => l["id"] == *other,
+    };
+    if listed["implicit"] == true || !levels.iter().any(named) {
+        return Err(bad("import", format!("`level` {level} is not a level of this drawing")));
+    }
+    let before = levels.iter().find(|l| l["active"] == true).map(|l| l["id"].clone());
+    s.execute("level.activate", &json!({ "level": level }))?;
+    let result = import_to_active(s, p);
+    if let Some(id) = before {
+        let _ = s.execute("level.activate", &json!({ "level": id }));
+    }
+    result
+}
+
+fn import_to_active(s: &mut Session, p: &Value) -> Result<Value> {
     #[cfg(target_arch = "wasm32")]
     {
         let _ = (s, p);

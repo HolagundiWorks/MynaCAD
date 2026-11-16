@@ -166,7 +166,11 @@ fn layer_counts(d: &Drawing) -> BTreeMap<String, (String, usize)> {
 
 /// A layer the mapper has nothing to do with: layer 0, Defpoints, an xref's layer, or a built-in layer.
 pub(crate) fn is_builtin(name: &str) -> bool {
-    protected(name) || super::geodb::standard_layer_names().iter().any(|s| s.eq_ignore_ascii_case(name)) || dest_of(name).is_some()
+    protected(name)
+        || super::geodb::standard_layer_names().iter().any(|s| s.eq_ignore_ascii_case(name))
+        || dest_of(name).is_some()
+        // The take-off layers are MynaCAD's own (`takeoff.start`): never a foreign drawing's layers (ops-first-workflow.md section 15, L1).
+        || name.to_ascii_uppercase().starts_with("MEASURE-")
 }
 
 /// The built-in layer a source layer probably stands for, with the reason. The more specific

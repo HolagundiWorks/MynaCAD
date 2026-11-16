@@ -541,3 +541,42 @@ fn level_assignment_and_marks_survive_a_save_and_reopen_in_a_project_file() {
     assert_eq!(e.common.layer, "MEASURE-FULLBRICK");
     assert_eq!(e.common.takeoff.as_ref().map(|m| m.kind), Some(TakeoffKind::ExtWall), "the mark is kept");
 }
+
+/// L1 (ops-first-workflow.md section 15): the take-off layers are MynaCAD's own, so the mapper never lists them.
+#[test]
+fn the_mapper_does_not_list_the_take_off_layers() {
+    let mut s = foreign_session();
+    for (layer, y) in [("MEASURE-TABLE", 10.0), ("MEASURE-LABELS", 11.0), ("measure-fullbrick", 12.0)] {
+        line_on(&mut s, layer, y);
+    }
+    let r = s.execute("layermap", &json!({ "suggest": true })).unwrap();
+    let layers = r["layers"].as_array().unwrap();
+    assert!(layers.iter().any(|l| l["name"] == "WALL-A"), "a foreign layer is still listed: {r}");
+    assert!(!layers.iter().any(|l| l["name"].as_str().is_some_and(|n| n.to_ascii_uppercase().starts_with("MEASURE-"))), "{r}");
+}
+
+/// L5 (ops-first-workflow.md section 15): `import` can name the level the objects land on, and leaves the active level as it was.
+#[test]
+fn an_import_can_name_the_level_it_lands_on() {
+    install_io();
+    let mut src = Session::new();
+    line_on(&mut src, "A-WALL", 0.0);
+    line_on(&mut src, "A-WALL", 1.0);
+    let path = std::env::temp_dir().join(format!("myna-import-level-{}.dxf", std::process::id())).to_string_lossy().to_string();
+    src.execute("saveas", &json!({ "path": path })).unwrap();
+    let mut s = Session::new();
+    s.execute("level.new", &json!({ "name": "First", "first": "Ground", "elevation": 3000, "height": 3000 })).unwrap();
+    s.execute("level.activate", &json!({ "level": "Ground" })).unwrap();
+    assert!(s.execute("import", &json!({ "path": path, "level": "Nope" })).is_err());
+    assert!(s.execute("import", &json!({ "path": path, "level": 3.5 })).is_err());
+    assert_eq!((level_objects(&mut s, "Ground"), level_objects(&mut s, "First")), (0, 0), "a refused import changes nothing");
+    s.execute("import", &json!({ "path": path, "level": "First" })).unwrap();
+    assert_eq!((level_objects(&mut s, "Ground"), level_objects(&mut s, "First")), (0, 2));
+    let active =
+        s.execute("level.list", &json!({})).unwrap()["levels"].as_array().unwrap().iter().find(|l| l["active"] == true).unwrap()["name"].clone();
+    assert_eq!(active, "Ground", "the active level is kept");
+    s.execute("import", &json!({ "path": path })).unwrap();
+    assert_eq!((level_objects(&mut s, "Ground"), level_objects(&mut s, "First")), (2, 2), "without `level` it lands on the active one");
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(format!("{path}.aadrev.json"));
+}
