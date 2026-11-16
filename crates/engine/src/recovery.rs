@@ -82,6 +82,10 @@ pub struct Manifest {
     /// The DWG or DXF the drawing was imported from, when its file is a working copy.
     pub source: Option<String>,
     pub entities: usize,
+    /// For a project file (`.osp`): the stored hash of its drawing when the snapshot was taken. Another program writes other tables of the shared
+    /// file all the time (MynaOps' heartbeat), so the file's time says nothing; the drawing is what a later save changes (ops-first-workflow.md
+    /// section 14, D7). `None` for any other file and in older manifests.
+    pub drawing_sha: Option<String>,
     parts: Vec<PartRef>,
 }
 
@@ -120,6 +124,12 @@ fn file_ns(path: &str) -> u64 {
             .map_or(0, |d| u64::try_from(d.as_nanos()).unwrap_or(u64::MAX))
     };
     ns(path).max(ns(&format!("{path}-wal")))
+}
+
+/// The stored hash of the drawing in a project file (`.osp`), `None` for any other path or when it cannot be read.
+fn project_drawing_sha(path: &str) -> Option<String> {
+    let p = Path::new(path);
+    p.extension().is_some_and(|e| e.eq_ignore_ascii_case("osp")).then(|| aad_odp::drawing_sha(p)).flatten()
 }
 
 fn io_err(what: &Path, e: std::io::Error) -> String {
@@ -243,6 +253,7 @@ impl Store {
             title: facts.title.clone(),
             source: facts.source.clone(),
             entities: facts.entities,
+            drawing_sha: facts.path.as_deref().and_then(project_drawing_sha),
             parts: refs,
         };
         let text = serde_json::to_vec(&manifest).map_err(|e| format!("recovery: {e}"))?;
@@ -310,8 +321,11 @@ pub fn scan(root: &Path) -> Vec<Found> {
             let _ = std::fs::remove_dir_all(&dir);
             continue;
         };
-        // Something to restore unless the file was written after the snapshot (it was saved later, so the snapshot is older than it).
+        // Something to restore unless the file was written after the snapshot (it was saved later, so the snapshot is older than it). A project
+        // file that other programs write is judged by its drawing instead of its time.
+        let drawing_now = manifest.drawing_sha.as_ref().and_then(|_| manifest.path.as_deref().and_then(project_drawing_sha));
         let newer_than_file = match manifest.path.as_deref().map(file_ns) {
+            _ if manifest.drawing_sha.is_some() && drawing_now.is_some() => drawing_now == manifest.drawing_sha,
             None | Some(0) => true,
             Some(now) if now == manifest.file_ns => true,
             Some(now) if manifest.saved_ns > 0 => now < manifest.saved_ns,
@@ -509,6 +523,37 @@ mod tests {
         let found = scan(tmp.path());
         assert!(!found.iter().find(|x| x.id == "rec-k").unwrap().newer_than_file);
         assert!(!found.iter().find(|x| x.id == "rec-k2").unwrap().newer_than_file, "the file changed after this one too");
+    }
+
+    /// D7: another program writing the shared project file (a different table) does not make a snapshot stale; saving the drawing does.
+    #[test]
+    fn a_project_snapshot_is_judged_by_its_drawing_not_by_the_file_time() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("House.osp");
+        let mut odp = aad_odp::Odp::create(&file, "House").unwrap();
+        {
+            let mut edit = odp.edit().unwrap();
+            edit.put_drawing("House.dxf", "dxf", b"first").unwrap();
+            edit.commit().unwrap();
+        }
+        let d = drawing(10);
+        let mut store = Store::create(tmp.path(), "k").unwrap();
+        let mut f = facts(&d);
+        f.path = Some(file.to_string_lossy().into_owned());
+        store.write(&f, &Encoder::default().encode(&d).unwrap()).unwrap();
+        drop(store);
+        assert!(scan(tmp.path()).first().unwrap().manifest.drawing_sha.is_some());
+        // The other program's heartbeat: a local meta key, hours after the snapshot would be the same.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        odp.set_local_meta(&[("session.holder", "{}")]).unwrap();
+        assert!(scan(tmp.path()).first().unwrap().newer_than_file, "a write to another table must not discard the snapshot");
+        // The drawing is saved afterwards: the snapshot is older than it.
+        {
+            let mut edit = odp.edit().unwrap();
+            edit.put_drawing("House.dxf", "dxf", b"second").unwrap();
+            edit.commit().unwrap();
+        }
+        assert!(!scan(tmp.path()).first().unwrap().newer_than_file);
     }
 
     #[test]

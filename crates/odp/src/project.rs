@@ -17,7 +17,7 @@ mod sync;
 #[path = "time.rs"]
 mod time;
 
-pub use sync::{Peek, Probe, SYNC_APP, TakeoffStamp, probe};
+pub use sync::{Peek, Probe, SYNC_APP, TakeoffStamp, drawing_sha, probe};
 
 pub use import::PDF_CHUNK;
 
