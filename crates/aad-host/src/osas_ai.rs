@@ -21,6 +21,8 @@ const ENV_AI_HOST: &str = "OSTUDIO_AI_HOST";
 const ENV_AI_PORT: &str = "OSTUDIO_AI_PORT";
 /// Moves the agent's state folder (token, `host.json`); MynaOps honours the same variable.
 const ENV_AI_DIR: &str = "OSTUDIO_AI_DIR";
+/// Moves the whole `O-Studio` local folder (tests and hand runs); the agent state is its `ai` folder unless `OSTUDIO_AI_DIR` says otherwise.
+const ENV_LOCAL_DIR: &str = "OSTUDIO_LOCAL_DIR";
 /// Names the MynaOps program to start (`O-CoreOp.exe`) instead of looking for it.
 const ENV_AI_HOST_EXE: &str = "OSTUDIO_AI_HOST_EXE";
 /// `0` stops this client from starting MynaOps.
@@ -33,11 +35,21 @@ const START_GRACE: Duration = Duration::from_secs(45);
 /// A failed or unanswered start is not repeated sooner than this.
 const RESTART_AFTER: Duration = Duration::from_secs(60);
 
+/// The agent's state folder: `OSTUDIO_AI_DIR`, else `ai` under `OSTUDIO_LOCAL_DIR` (the scratch-folder hook MynaOps honours for all its local state),
+/// else `%LOCALAPPDATA%\O-Studioi` (ops-first-workflow.md section 14, D5).
 fn data_dir() -> PathBuf {
-    if let Some(dir) = std::env::var_os(ENV_AI_DIR).filter(|d| !d.is_empty()) {
+    let var = |name: &str| std::env::var_os(name).filter(|d| !d.is_empty());
+    resolve_data_dir(var(ENV_AI_DIR), var(ENV_LOCAL_DIR), var("LOCALAPPDATA"))
+}
+
+fn resolve_data_dir(ai_dir: Option<std::ffi::OsString>, local_dir: Option<std::ffi::OsString>, local_app_data: Option<std::ffi::OsString>) -> PathBuf {
+    if let Some(dir) = ai_dir {
         return PathBuf::from(dir);
     }
-    std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join("O-Studio").join("ai")
+    if let Some(dir) = local_dir {
+        return PathBuf::from(dir).join("ai");
+    }
+    local_app_data.map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join("O-Studio").join("ai")
 }
 
 fn token() -> Option<String> {
@@ -412,15 +424,24 @@ pub fn chat(messages: &[Message], max_tokens: u32) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_agent_folder_follows_the_scratch_folder_hook() {
+        use std::ffi::OsString;
+        let o = |s: &str| Some(OsString::from(s));
+        assert_eq!(resolve_data_dir(o("C:/ai"), o("C:/scratch"), o("C:/users/a/local")), PathBuf::from("C:/ai"));
+        assert_eq!(resolve_data_dir(None, o("C:/scratch"), o("C:/users/a/local")), PathBuf::from("C:/scratch").join("ai"));
+        assert_eq!(resolve_data_dir(None, None, o("C:/users/a/local")), PathBuf::from("C:/users/a/local").join("O-Studio").join("ai"));
+    }
     use super::*;
 
     #[test]
     fn mynaops_is_looked_for_beside_mynacad_and_in_the_install_folder() {
-        let exe = Path::new(r"C:\Users\a\AppData\Local\Programs\O-Draft\ODraft.WinUi.exe");
-        let local = Path::new(r"C:\Users\a\AppData\Local");
+        let exe = Path::new(r"C:/users/a/local\Programs\O-Draft\ODraft.WinUi.exe");
+        let local = Path::new(r"C:/users/a/local");
         let list = host_exe_candidates(None, None, Some(exe), Some(local));
         // installed together, the sibling folder and the install folder are the same place: listed once
-        assert_eq!(list, vec![PathBuf::from(r"C:\Users\a\AppData\Local\Programs\O-CoreOp\O-CoreOp.exe")]);
+        assert_eq!(list, vec![PathBuf::from(r"C:/users/a/local\Programs\O-CoreOp\O-CoreOp.exe")]);
         let list = host_exe_candidates(
             Some(r" D:\dev\O-CoreOp.exe "),
             Some(r"E:\x\O-CoreOp.exe"),
@@ -433,7 +454,7 @@ mod tests {
                 PathBuf::from(r"D:\dev\O-CoreOp.exe"),
                 PathBuf::from(r"E:\x\O-CoreOp.exe"),
                 PathBuf::from(r"D:\build\O-CoreOp\O-CoreOp.exe"),
-                PathBuf::from(r"C:\Users\a\AppData\Local\Programs\O-CoreOp\O-CoreOp.exe"),
+                PathBuf::from(r"C:/users/a/local\Programs\O-CoreOp\O-CoreOp.exe"),
             ]
         );
         assert!(host_exe_candidates(Some(""), Some("  "), None, None).is_empty());

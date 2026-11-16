@@ -23,7 +23,12 @@ internal static class MynaOpsLauncher
         }
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var state = Environment.GetEnvironmentVariable("OSTUDIO_AI_DIR");
-        var hostJson = Path.Combine(string.IsNullOrWhiteSpace(state) ? Path.Combine(local, "O-Studio", "ai") : state, "host.json");
+        // The same order as the AI client in aad-host and as MynaOps: OSTUDIO_AI_DIR, then ai under OSTUDIO_LOCAL_DIR, then the default folder.
+        var scratch = Environment.GetEnvironmentVariable("OSTUDIO_LOCAL_DIR");
+        var stateDir = !string.IsNullOrWhiteSpace(state) ? state
+            : !string.IsNullOrWhiteSpace(scratch) ? Path.Combine(scratch, "ai")
+            : Path.Combine(local, "O-Studio", "ai");
+        var hostJson = Path.Combine(stateDir, "host.json");
         try
         {
             if (File.Exists(hostJson) && new FileInfo(hostJson).Length < 65536)
