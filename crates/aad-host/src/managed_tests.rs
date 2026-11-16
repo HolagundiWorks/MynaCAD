@@ -279,3 +279,81 @@ fn saving_a_multi_level_drawing_keeps_every_levels_take_off_rows() {
     assert_eq!(rows(&project), first, "a second save must not delete the rows of the levels that are not active");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Package D (`docs/ops-first-workflow.md` section 15): with realtime sync off the detector reads nothing and applies nothing, the changes wait
+/// and are counted by one probe, writing is not paused, and Sync now flushes and then applies.
+#[test]
+fn realtime_sync_off_pauses_the_detector_and_sync_now_flushes_then_applies() {
+    let dir = std::env::temp_dir().join(format!("aad-host-syncctl-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let project = dir.join("house.osp");
+    let mut maker = Host::create(false);
+    maker.execute("drawing.units", &json!({ "units": "mm", "mode": "metadata" })).unwrap();
+    maker.execute("line", &json!({ "points": [[0.0, 0.0], [3000.0, 0.0]] })).unwrap();
+    maker.execute("saveas", &json!({ "path": project.to_string_lossy() })).unwrap();
+    let two = json!([{ "cid": 1, "name": "Ground", "elevation_mm": 0.0, "height_mm": 3000.0 }, { "cid": 2, "name": "First", "elevation_mm": 3000.0, "height_mm": 3000.0 }]);
+    write_config(&project, &levels(two, 3));
+
+    let mut host = Host::create(false);
+    host.set_managed(&project.to_string_lossy(), None).unwrap();
+    open_managed(&mut host);
+    assert_eq!(host.config_poll(&json!({ "idle": true })).unwrap()["state"], "applied");
+    assert_eq!(host.app("project.sync", &json!({})).unwrap()["state"], "synced");
+    let on = host.app("sync.status", &json!({})).unwrap();
+    assert_eq!((on["sync"]["on"].clone(), on["sync"]["text"].clone(), on["sync"]["waiting"].clone()), (json!(true), json!(""), json!(0)), "{on}");
+
+    // Off: one probe counts the waiting changes (none), then nothing is read.
+    let off = host.app("sync.set", &json!({ "on": false })).unwrap();
+    assert_eq!((off["sync"]["on"].clone(), off["sync"]["text"].clone()), (json!(false), json!("Sync off")), "{off}");
+    assert!(host.app("sync.set", &json!({})).is_err(), "on is required");
+    let reads = off["sync"]["detectorReads"].as_u64().unwrap();
+
+    // MynaOps renames a level and adds one while sync is off.
+    let three = json!([{ "cid": 1, "name": "Ground", "elevation_mm": 0.0, "height_mm": 3000.0 }, { "cid": 2, "name": "Level 1", "elevation_mm": 3000.0, "height_mm": 3000.0 },
+                       { "cid": 3, "name": "Roof", "elevation_mm": 6000.0, "height_mm": 1000.0 }]);
+    write_config(&project, &levels(three, 4));
+    for _ in 0..3 {
+        assert_eq!(host.app("project.sync", &json!({})).unwrap()["state"], "paused");
+        let poll = host.app("project.config.poll", &json!({ "idle": true })).unwrap();
+        assert_eq!((poll["state"].clone(), poll["text"].clone()), (json!("paused"), json!("Sync off")), "{poll}");
+    }
+    assert_eq!(names(&mut host), ["Ground", "First"], "nothing was applied");
+    // The detector's own counter did not move: no read of the file by the detector while off.
+    let counted = host.sync_json(false);
+    assert_eq!(counted["detectorReads"].as_u64(), Some(reads), "{counted}");
+
+    // Looking costs exactly one probe, and the other app's write is counted.
+    let looked = host.app("sync.status", &json!({})).unwrap();
+    assert_eq!(looked["sync"]["detectorReads"].as_u64(), Some(reads + 1), "{looked}");
+    let waiting = looked["sync"]["waiting"].as_i64().unwrap();
+    assert!(waiting >= 1, "{looked}");
+    assert_eq!(looked["sync"]["text"], crate::syncctl::off_text(waiting));
+
+    // Writing is never paused: an edit and a save work while sync is off.
+    host.execute("line", &json!({ "points": [[0.0, 0.0], [0.0, 1000.0]] })).unwrap();
+    assert!(host.session.state().unwrap().is_dirty());
+    // Sync now: flush (the save), then apply the waiting configuration, though the switch is off.
+    let now = host.app("sync.now", &json!({})).unwrap();
+    assert_eq!(now["flushed"], true, "{now}");
+    // (The drawing is dirty again here: applying the configuration is an edit. The flush came first.)
+    assert_eq!(now["config"]["state"], "applied", "{now}");
+    assert_eq!(names(&mut host), ["Ground", "Level 1", "Roof"]);
+    assert_eq!(now["sync"]["on"], false, "Sync now does not switch on");
+    assert_eq!(now["sync"]["waiting"], 0, "Sync now took what was waiting: {now}");
+    assert_eq!(now["sync"]["text"], "Sync off");
+    // The shell saves by itself first and then asks with flush:false: the host flushes nothing.
+    assert_eq!(host.app("sync.now", &json!({ "flush": false })).unwrap()["flushed"], false);
+    // Asked to flush, the configuration edit just applied is saved too; then there is nothing left to flush.
+    assert_eq!(host.app("sync.now", &json!({})).unwrap()["flushed"], true);
+    assert_eq!(host.app("sync.now", &json!({})).unwrap()["flushed"], false);
+
+    // On again: the ticks run and read the file.
+    let on = host.app("sync.set", &json!({ "on": true })).unwrap();
+    assert_eq!(on["sync"]["text"], "");
+    let before = on["sync"]["detectorReads"].as_u64().unwrap();
+    assert_ne!(host.app("project.sync", &json!({})).unwrap()["state"], "paused");
+    assert_eq!(host.config_poll(&json!({ "idle": true })).unwrap()["state"], "current");
+    assert!(host.sync_json(false)["detectorReads"].as_u64().unwrap() >= before + 2);
+    let _ = std::fs::remove_dir_all(&dir);
+}

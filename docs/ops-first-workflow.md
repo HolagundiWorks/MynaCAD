@@ -552,3 +552,64 @@ Not run or not seen: Restore from the manager page; the Open MynaOps button and 
 - The layer-mapping panel offers MynaCAD's own take-off layers (MEASURE-TABLE, MEASURE-LABELS) as foreign layers at the open of a project that has them.
 - An import (pipe or menu) lands on the active level with no level chooser; not changed.
 - MynaOps started with a project path once opened "Untitled Project" (step 11); not reproduced.
+
+## 15. Package D: Realtime sync on/off and Sync now (design, written 2026-11-16 before the code)
+
+**What.** Section 2.6 defined the two controls. This section fixes the contract both apps are built to. Two independent switches (Q3), one per app, each shown in both apps. **Realtime sync off** pauses incoming detection and refresh on that side and nothing else: writing is never paused, no timer saves (Q4), the lease, `config.*` and the file format are untouched. **Sync now** does one flush, then one refresh, whatever the switch says. The switch is a per-run state of the process: it is on at every start, and is not saved in the `.osp`.
+
+**Why.** A user who is drawing or editing a bill may not want the other app's changes to arrive under the cursor (a configuration apply in MynaCAD, a take-off refresh in MynaOps). Off queues them; they are read when the user presses Sync now or switches on.
+
+**The shared vocabulary.**
+
+| Word | Meaning |
+|---|---|
+| `on` | Realtime sync: the incoming probe, the configuration poll (MynaCAD), the 2 s poll and the file watcher (MynaOps) run as in live-sync.md |
+| `off` | None of them reads the project file. The status text is `Sync off`, or `Sync off - n changes waiting` when the count is known |
+| `waiting` (n) | How many revisions the file is ahead of the revision this program last accepted (`meta.revision` minus the accepted one, never negative; 0 when the file was replaced, is locked or unreadable). A configuration change by MynaOps is one revision, so it counts. **Computed by exactly one read-only probe when the user looks** (a switch to off, a Sync now, the button's tooltip opening, a `status` or `sync.status` request), never by polling |
+| `flushed` | Sync now saved unsaved work first (the normal save, nothing new) |
+
+**Contract in MynaCAD.**
+
+- Host methods (`aad-host` `syncctl.rs`, reachable from the shell and the control channel like `project.sync` and `project.config.poll`; they are not engine commands, because the switch is host state, so the command line and MCP do not get them: section 2.6 said they would, and this corrects it): `sync.set {on}`, `sync.now {flush?, idle?}`, `sync.status`. Reply object `sync` = `{on, waiting, text, detectorReads}`. `detectorReads` counts the file reads made by the detector (`project.sync` probe, configuration poll, the waiting probe) since the start of the run: it is the counter the acceptance test uses.
+- While off, `project.sync` and `project.config.poll` return `{state:"paused", text:"Sync off"}` without opening the file; nothing is applied. A configuration revision written meanwhile stays pending (`applied` is not advanced).
+- `sync.set {on:true}` resumes: the next 3 s ticks run as before and apply the pending configuration when idle.
+- `sync.now`: when `flush` is not false and a document has unsaved changes, it saves (the normal save, waiting for it); then it runs the configuration poll (forced, `idle` as given, default idle) and a forced probe with `ack`: **the file as it is now is accepted**, so nothing is left waiting and the flush save does not look like another program's change. It returns `{flushed, sync, config: <poll reply>, project: <probe reply>}`. The shell button saves asynchronously first (the usual save path), then calls `sync.now {flush:false, idle:true}` (a press of the button counts as idle); a `sync.now` from MynaOps over the pipe uses the shell's own idle test, like the tick.
+- Shell: two compact buttons in the status row beside the sync text, shown in managed mode only: **Sync: on / Sync: off** (automation id `SyncToggle`) and **Sync now** (`SyncNowButton`); the status text (`ProjectSyncStatus`) shows `Sync off` / `Sync off - 2 changes waiting`.
+- Pipe (`ProjectInstance`/`ManagedMode`): `sync.set` and `sync.now` stop answering "not available yet"; they answer `{"ok":true,"sync":{...}}` (`sync.now` also `flushed`). `status` gains `sync: {on, waiting, text}`. `sync.now` may take as long as a save: MynaOps waits up to 60 s for its reply; `sync.set` and `status` are fast.
+
+**Contract in MynaOps.**
+
+- `SyncStatusService`: `RealtimeOn` (default true), `SetRealtime(bool)`, `WaitingAsync(path)` (one probe: revisions ahead of the accepted one), `DetectorReads` (counter), `SyncNowAsync(path)` (one forced poll and refresh, which also raises the Take-off page refresh through `ServedProject.Changed`). `ServedProject.PollAsync` returns without reading while off unless forced; the 2 s timer and the watcher then do nothing observable. The status text becomes `Sync off` or `Sync off - n changes waiting`; the underlying state (`Updated by MynaCAD ...`) is kept for the tooltip.
+- Ribbon, Project group: **Realtime sync** toggle and **Sync now**. Sync now = flush (the existing project save if the record has unsaved edits), then a forced poll and refresh, then the file as it is now is accepted. It does not touch MynaCAD; the Home card's **Sync MynaCAD now** does that.
+- Project home, the "Sync with MynaCAD" card: MynaOps' own state, **Sync now**, and a MynaCAD row (shown only while `.cad.lock` is held): `MynaCAD: Sync on|off - n changes waiting`, a toggle that sends `sync.set`, and **Sync MynaCAD now** that sends `sync.now`. The state comes from the pipe `status` reply when the card is shown, refreshed once per press and on each Home refresh (about every 2 s of the existing poll; one pipe round trip, not a file read).
+- `CadRequest.SyncSet/SyncNow/Status` and `ICadPipe` already exist (package A); the launcher gains `SyncSetAsync`, `SyncNowAsync`, `StatusAsync` returning typed replies.
+
+**Areas touched.** MynaCAD: `crates/aad-host/src/{lib.rs,managed.rs}` (new `sync` state and methods), `crates/engine/src/projectsync.rs` (a `pending` helper), `apps/aad-winui/{MainWindow.xaml,SafeFiles.cs,ManagedMode.cs}`, docs. MynaOps: `Office.Shared/{SyncStatusService.cs,MynaCadLauncher.cs}`, `BBSApp/Services/Odp/ServedProject.cs`, `BBSApp/MainWindow*.cs` (ribbon), `BBSApp/Views/ProjectHomePage.cs`, `Office.Shared.Tests`, docs.
+
+**Acceptance.** (1) With sync off the detector reads the file zero times (counter test in the host and in `Office.Shared.Tests`) and applies nothing; on resumes. (2) A configuration revision written while MynaCAD is off is not applied by the ticks and is applied by `sync.now`; with sync on it is applied by the tick. (3) `waiting` counts revisions written by the other app and is read by one probe. (4) Sync now flushes unsaved work, then refreshes, in both apps, and updates the text. (5) The pipe requests answer as above; MynaOps sends them when MynaCAD is open. (6) Both apps run by hand on one `.osp`; what was seen is recorded below.
+
+**Built and run (2026-11-16, branches `claude/ops-first-d-cad` in MynaCAD, `ops-first-d-sync` in MynaOps, from main c3857b3 / 6e40fec).**
+
+- MynaCAD: `crates/aad-host/src/syncctl.rs` (switch, counter, `sync.set`, `sync.now`, `sync.status`, gated `project.sync`), the gate in `managed.rs` `config_poll`, `projectsync::pending` in the engine; shell: `SyncToggle` and `SyncNowButton` in the status row (managed mode only), `ApplyConfigReply` split out of `ManagedTick`, the pipe `sync.set`, `sync.now`, and `status` with a `sync` object, `Sync off - n changes waiting` in the status text (`paused` state).
+- MynaOps: `SyncStatusService` (`RealtimeOn`, `SetRealtimeAsync`, `ShowOffAsync`, `WaitingAsync`, `DetectorReads`, `AllowDetect`, `OffText`), `SyncState.Paused`, `ServedProject.PollAsync(path, force)` gated, `CadSyncState` and `MynaCadLauncher.SyncStatusAsync/SetSyncAsync/SyncNowAsync`, `MainWindow.Sync.cs`, ribbon Project group entries `Ribbon.SyncToggle` and `Ribbon.SyncNow`, Home card controls `Home.SyncToggle`, `Home.SyncNow`, `Home.CadSyncState`, `Home.CadSyncToggle`, `Home.CadSyncNow`.
+- Tests added: host `realtime_sync_off_pauses_the_detector_and_sync_now_flushes_then_applies` (counter does not move while off, one probe per look, apply held back and applied by Sync now, flush before apply, nothing left waiting, writing works while off, switching on resumes); MynaOps `OdpSyncTests.Realtime_off_pauses_the_detector_counts_waiting_with_one_probe_and_sync_now_reads_once`, `The_off_text_uses_the_words_of_both_apps`, `MynaCadLauncherTests.Sync_replies_are_read_from_the_sync_object`.
+- Counting note: `waiting` is the file's revision minus the accepted one. A save by the program made after another program's write is counted too, until Sync now accepts the file.
+
+**Seen with the real apps (Debug MynaCAD shell and `aad_host.dll`, Debug MynaOps build, one stub project made by the ignored host test `stub_project`, driven by UI Automation and the control channel; `OSTUDIO_LOCAL_DIR`, `OSTUDIO_CAD_EXE`, `AAD_CONTROL_PORT`, `AAD_RECOVERY_DIR` in scratch folders; a second writer, the stub writing a `config.*` revision, stood in for MynaOps' Levels save).**
+
+| Step | Seen |
+|---|---|
+| MynaOps Home and ribbon | Ribbon Project group shows `Realtime sync: on` and `Sync now`; the Home card shows `Home.SyncState`, the two buttons, and, after Open MynaCAD, the MynaCAD row `MynaCAD: realtime sync on` with `MynaCAD sync: on` and `Sync MynaCAD now` |
+| MynaCAD button | `SyncToggle` read `Sync: on`; pressing it gave `Sync: off` and the status text `Sync off`; MynaOps' card followed within one refresh (`MynaCAD: Sync off`, toggle `MynaCAD sync: off`) |
+| Off, configuration written elsewhere | Levels stayed Ground, First for 9 s; the text became `Sync off - 1 change waiting` once the other app looked (its status request: one probe); Sync now then applied the new levels (Ground, Level 1, Roof) and the text went to `Sync off` |
+| On | Switching on showed `Synced`; with sync on a new configuration revision was applied within about 8 s with no click (fresh instance) |
+| MynaOps switches MynaCAD | The Home toggle turned MynaCAD's sync off and on; `Sync MynaCAD now` over the pipe saved the dirty drawing (the title lost its `*`) and applied a waiting configuration |
+| MynaOps own switch | Off: `Sync off - 30 changes waiting` in the status strip and on Home (30 = MynaCAD's saves it had not accepted); a write by another program while off changed nothing in 6 s; Sync now: `Sync off`; on: `Synced` |
+
+**Defects found by the run and fixed here:** (1) after Sync now with sync off the count of waiting changes stayed (MynaCAD never accepted the file): `sync.now` now accepts it, with a test assertion; (2) the Sync now button passed the shell's idle test, which was false right after the save, so the configuration was held back and its note was wiped by the next paused tick: a button press counts as idle, and a paused tick no longer clears the note.
+
+**Checks run (2026-11-16):** `cargo fmt --check`; `cargo clippy -p aad-odp -p aad-engine -p aad-host --all-targets -- -D warnings`; `cargo test -p aad-host` (85 passed, 9 ignored), `-p aad-odp`, `-p aad-engine --lib` (383 passed), `-p aad-engine --test project_sync` (4); `cargo xtask layers`, `assets`, `ui`, `licenses --check`, `wasm` (all ok); in MynaOps `dotnet test Office.Shared.Tests` (253 passed) and `AQC.CadImport.Tests` (110 passed); `dotnet build` of the MynaCAD shell (0 warnings) and of `BBSApp` (succeeded; its warnings are older ones).
+
+**Not seen / not run / left:** one MynaCAD instance stopped applying configuration on its ticks (`Configuration update waiting` stayed, also with sync on) after a sequence of Sync now requests from MynaOps over the pipe; a fresh instance and repeats of similar steps did not reproduce it, so the cause is not known (the shell's idle test is the suspect; nothing is logged for it); the tooltip and pointer-hover probes (UI Automation cannot hover; the probe was seen through the pipe `status` request instead); the watcher-driven poll while off in MynaOps (covered by the gate in `ServedProject.PollAsync` and the counter test, not observed separately); MynaOps' real Levels save as the second writer (a Rust stub wrote the configuration); `cargo xtask ci` as a whole; the Release MynaOps. Not changed: the Levels page of MynaOps still does not read `config.*` back (14.3): it edits the AQC floor list with its own elevations and is not a small change, so it stays listed.
+
+**Out of scope.** A shared switch, persisting the state, timer saves, any change of `config.*`, the lease, the launch code, autosave, MynaHub. The Levels page reading `config.*` back (14.3) is attempted separately and only if small.

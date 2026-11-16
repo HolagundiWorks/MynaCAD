@@ -220,6 +220,7 @@ public sealed partial class MainWindow
     private void ShowManagedStatus()
     {
         var text = _opsGone ? "MynaOps closed" : _managedStateText;
+        ShowSyncButtons();
         if (ManagedState.Text != text)
         {
             ManagedState.Text = text;
@@ -254,7 +255,7 @@ public sealed partial class MainWindow
         return root == null || VisualTreeHelper.GetOpenPopupsForXamlRoot(root).Count == 0;
     }
 
-    /// <summary>About every three seconds, and once after the open: read the configuration revision and apply a newer one when idle (the host checks the engine).</summary>
+    /// <summary>About every three seconds, and once after the open: read the configuration revision and apply a newer one when idle (the host checks the engine). Paused while realtime sync is off (the host answers <c>paused</c>).</summary>
     private void ManagedTick(bool first = false)
     {
         if (!IsManaged || _host == IntPtr.Zero || _managedPollBusy || _managedAdoptShown && !first)
@@ -274,38 +275,144 @@ public sealed partial class MainWindow
             {
                 return;
             }
-            var state = Str(r, "state");
-            var text = Str(r, "text");
-            var key = state + ":" + Str(r, "rev") + ":" + text;
-            if (state == "unadopted" && !_managedAdoptShown)
-            {
-                _ = ShowManagedProblem("Adopt this project in MynaOps first. It has levels and settings that MynaOps has not taken over yet.");
-                return;
-            }
-            _managedStateText = state is "waiting" or "update" or "unreadable" or "failed" ? text : "";
-            ShowManagedStatus();
-            if (state == "applied" && key != _managedStateKey)
-            {
-                _managedStateKey = key;
-                _docKey = "";
-                _panelKey = "";
-                var detail = "";
-                if (r.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
-                {
-                    detail = string.Join("; ", items.EnumerateArray().Where(i => Str(i, "status") != "ok").Select(i => Str(i, "key") + ": " + Str(i, "detail")));
-                }
-                History.Text = "Project configuration applied (revision " + Str(r, "rev") + ")" + (detail.Length > 0 ? ". " + detail : ".");
-                RefreshChrome();
-                AfterCommand();
-            }
-            else if (state == "failed")
-            {
-                History.Text = "The project configuration was not applied: " + Str(r, "reason");
-            }
+            ApplyConfigReply(r);
         }
         finally
         {
             _managedPollBusy = false;
+        }
+    }
+
+    /// <summary>What a configuration poll (or the <c>config</c> part of Sync now) found: show it, and refresh the shell when a revision was applied.</summary>
+    private void ApplyConfigReply(JsonElement r)
+    {
+        var state = Str(r, "state");
+        if (state == "paused")
+        {
+            // Realtime sync is off: the tick has nothing to say, and what Sync now reported stays.
+            return;
+        }
+        var text = Str(r, "text");
+        var key = state + ":" + Str(r, "rev") + ":" + text;
+        if (state == "unadopted" && !_managedAdoptShown)
+        {
+            _ = ShowManagedProblem("Adopt this project in MynaOps first. It has levels and settings that MynaOps has not taken over yet.");
+            return;
+        }
+        _managedStateText = state is "waiting" or "update" or "unreadable" or "failed" ? text : "";
+        ShowManagedStatus();
+        if (state == "applied" && key != _managedStateKey)
+        {
+            _managedStateKey = key;
+            _docKey = "";
+            _panelKey = "";
+            var detail = "";
+            if (r.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+            {
+                detail = string.Join("; ", items.EnumerateArray().Where(i => Str(i, "status") != "ok").Select(i => Str(i, "key") + ": " + Str(i, "detail")));
+            }
+            History.Text = "Project configuration applied (revision " + Str(r, "rev") + ")" + (detail.Length > 0 ? ". " + detail : ".");
+            RefreshChrome();
+            AfterCommand();
+        }
+        else if (state == "failed")
+        {
+            History.Text = "The project configuration was not applied: " + Str(r, "reason");
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------ realtime sync on/off and Sync now (package D)
+
+    private bool _syncOn = true;
+    private string _syncOffText = "Sync off";
+
+    /// <summary>Take the <c>sync</c> object of a host reply ({on, waiting, text}) into the buttons and the status text; returns it for the pipe reply.</summary>
+    private JsonElement? ApplySyncReply(JsonElement r)
+    {
+        if (!r.TryGetProperty("sync", out var sync) || sync.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+        _syncOn = !(sync.TryGetProperty("on", out var on) && on.ValueKind == JsonValueKind.False);
+        var text = Str(sync, "text");
+        _syncOffText = text.Length > 0 ? text : "Sync off";
+        ShowSyncButtons();
+        _syncStateKey = "";
+        UpdateSyncState();
+        return sync;
+    }
+
+    private void ShowSyncButtons()
+    {
+        var shown = IsManaged ? Visibility.Visible : Visibility.Collapsed;
+        SyncToggle.Visibility = shown;
+        SyncNowButton.Visibility = shown;
+        SyncToggle.Content = _syncOn ? "Sync: on" : "Sync: off";
+    }
+
+    private object SetSync(bool on)
+    {
+        if (AppCall("sync.set", new Dictionary<string, object> { ["on"] = on }) is not { } r)
+        {
+            return new { ok = false, error = "MynaCAD could not change realtime sync" };
+        }
+        var sync = ApplySyncReply(r);
+        if (on)
+        {
+            // Resumed: a configuration written meanwhile is applied at the next idle moment, at once if idle.
+            ManagedTick();
+        }
+        return new { ok = true, sync };
+    }
+
+    /// <summary>Sync now: save unsaved work the usual way, then one forced read of the file and a pending configuration (whatever the switch says). A press of the button counts as idle; a request from MynaOps waits for an idle moment like the tick.</summary>
+    private async Task<object> SyncNowAsync(bool byUser)
+    {
+        var flushed = false;
+        _syncNowOk = false;
+        if (_documents.Any(d => d.Dirty))
+        {
+            if (!await SaveFileAsync(null))
+            {
+                return new { ok = false, error = "Not synced: " + Native.LastError(_host) };
+            }
+            flushed = true;
+        }
+        if (AppCall("sync.now", new Dictionary<string, object> { ["flush"] = false, ["idle"] = byUser || ShellIdle() }) is not { } r)
+        {
+            return new { ok = false, error = "MynaCAD could not read the project file" };
+        }
+        var sync = ApplySyncReply(r);
+        if (r.TryGetProperty("config", out var config) && config.ValueKind == JsonValueKind.Object)
+        {
+            ApplyConfigReply(config);
+        }
+        _syncNowOk = true;
+        return new { ok = true, flushed, sync };
+    }
+
+    private bool _syncNowOk;
+
+    private void OnSyncToggle(object sender, RoutedEventArgs e)
+    {
+        var reply = SetSync(!_syncOn);
+        History.Text = _syncOn ? "Realtime sync is on." : "Realtime sync is off. Saving is not paused.";
+        _ = reply;
+    }
+
+    private async void OnSyncNow(object sender, RoutedEventArgs e)
+    {
+        History.Text = "Syncing...";
+        _ = await SyncNowAsync(byUser: true);
+        History.Text = _syncNowOk ? "Synced." : "Sync now did not finish.";
+    }
+
+    /// <summary>The user looks at the Sync button: while sync is off, one probe says how many changes are waiting.</summary>
+    private void OnSyncPointer(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (!_syncOn && AppCall("sync.status") is { } r)
+        {
+            ApplySyncReply(r);
         }
     }
 
@@ -361,11 +468,12 @@ public sealed partial class MainWindow
             : request.TryGetProperty("request", out var legacy) && legacy.ValueKind == JsonValueKind.String ? legacy.GetString() ?? "" : "";
         var path = request.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() ?? "" : "";
         var save = request.TryGetProperty("save", out var sv) && sv.ValueKind == JsonValueKind.String ? sv.GetString() ?? "ask" : "ask";
+        bool? on = request.TryGetProperty("on", out var o) && o.ValueKind is JsonValueKind.True or JsonValueKind.False ? o.GetBoolean() : null;
         if (!DispatcherQueue.TryEnqueue(async () =>
         {
             try
             {
-                done.TrySetResult(await RunPipeRequest(kind, path, save));
+                done.TrySetResult(await RunPipeRequest(kind, path, save, on));
             }
             catch (Exception e) when (e is IOException or InvalidOperationException or JsonException or UnauthorizedAccessException)
             {
@@ -378,7 +486,7 @@ public sealed partial class MainWindow
         return done.Task;
     }
 
-    private async Task<object> RunPipeRequest(string kind, string path, string save)
+    private async Task<object> RunPipeRequest(string kind, string path, string save, bool? on)
     {
         switch (kind)
         {
@@ -414,10 +522,12 @@ public sealed partial class MainWindow
                     dirty = _documents.Any(d => d.Dirty),
                     opsClosed = _opsGone,
                     configuration = _managedStateText,
+                    sync = AppCall("sync.status") is { } st ? ApplySyncReply(st) : null,
                 };
             case "sync.set":
+                return on is { } want ? SetSync(want) : new { ok = false, error = "sync.set needs on: true or false" };
             case "sync.now":
-                return new { ok = false, error = "not available yet (work package D)" };
+                return await SyncNowAsync(byUser: false);
             default:
                 return new { ok = false, error = "unknown request" };
         }

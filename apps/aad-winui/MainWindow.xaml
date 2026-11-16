@@ -395,6 +395,8 @@
                 </Border>
                 <TextBlock x:Name="ControlPort" Visibility="Collapsed" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Control channel" />
                 <TextBlock x:Name="SyncState" Visibility="Collapsed" Style="{StaticResource StatusTextStyle}" AutomationProperties.AutomationId="ProjectSyncStatus" />
+                <Button x:Name="SyncToggle" Visibility="Collapsed" Content="Sync: on" Click="OnSyncToggle" PointerEntered="OnSyncPointer" Style="{StaticResource CompactButtonStyle}" AutomationProperties.AutomationId="SyncToggle" ToolTipService.ToolTip="Realtime sync: when off, MynaCAD stops looking for changes made in MynaOps. Saving is never paused." />
+                <Button x:Name="SyncNowButton" Visibility="Collapsed" Content="Sync now" Click="OnSyncNow" Style="{StaticResource CompactButtonStyle}" AutomationProperties.AutomationId="SyncNowButton" ToolTipService.ToolTip="Save unsaved work, then read the project file once and apply a waiting configuration." />
                 <TextBlock x:Name="ManagedState" Visibility="Collapsed" Style="{StaticResource StatusTextStyle}" AutomationProperties.AutomationId="ManagedStatus" />
                 <Button x:Name="OpenOpsButton" Visibility="Collapsed" Content="Open MynaOps" Click="OnOpenOps" Style="{StaticResource CompactButtonStyle}" AutomationProperties.AutomationId="OpenMynaOps" />
                 <TextBlock x:Name="SaveState" Visibility="Collapsed" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Save status" />

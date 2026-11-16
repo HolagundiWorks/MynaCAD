@@ -171,6 +171,16 @@ pub fn status(path: &Path, ack: bool) -> Value {
     out
 }
 
+/// How many revisions the file at `path` is ahead of the one this program accepted: the changes waiting while realtime sync is off. One read only
+/// probe. 0 when nothing was accepted yet, the project differs (replaced), or the file cannot be read. (A save of this program made after another
+/// program's write is counted too: the accepted revision does not move past an outside write.)
+pub fn pending(path: &Path) -> i64 {
+    match (aad_odp::probe(path), accepted_of(path)) {
+        (Peek::Ok(p), Some(a)) if a.project_id == p.project_id || a.project_id.is_empty() => (p.revision - a.revision).max(0),
+        _ => 0,
+    }
+}
+
 fn run_sync(s: &mut Session, p: &Value) -> Result<Value> {
     let path = match p.get("path").and_then(Value::as_str) {
         Some(x) => x.to_string(),

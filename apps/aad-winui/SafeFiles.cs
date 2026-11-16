@@ -162,6 +162,10 @@ public sealed partial class MainWindow
         var state = Str(r, "state");
         var text = Str(r, "text");
         var when = Str(r, "lastTime");
+        if (state == "paused")
+        {
+            text = _syncOffText;
+        }
         if (state == "updated" && DateTimeOffset.TryParse(when, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var utc))
         {
             var who = Str(r, "lastApp") switch { "mynaops" => "MynaOps", "mynacad" => "MynaCAD", _ => "" };
@@ -176,6 +180,7 @@ public sealed partial class MainWindow
         SyncState.Text = state == "none" ? "" : text;
         ToolTipService.SetToolTip(SyncState, state switch
         {
+            "paused" => "Realtime sync is off. Changes made in MynaOps wait until you press Sync now or switch sync on. Saving is not paused.",
             "updated" => "The project file was changed by another program. Your drawing on screen is unchanged. Save keeps your drawing; reopen the file to see the other change.",
             "outofdate" => "The drawing was saved after the take-off was recorded. Record the take-off again.",
             "locked" => "Another program holds the project file right now. This is checked again every few seconds.",
