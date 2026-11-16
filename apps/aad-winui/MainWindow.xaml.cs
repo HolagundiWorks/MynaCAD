@@ -2225,13 +2225,23 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        var importLevel = await ChooseImportLevelAsync(file.Name);
+        if (importLevel is null)
+        {
+            return;
+        }
         if (IsManaged)
         {
-            await ImportPath(file.Path);
+            await ImportPath(file.Path, importLevel);
             return;
         }
         History.Text = "Importing " + file.Name + "...";
-        var args = JsonSerializer.Serialize(new Dictionary<string, object> { ["path"] = file.Path });
+        var importArgs = new Dictionary<string, object> { ["path"] = file.Path };
+        if (importLevel.Length > 0)
+        {
+            importArgs["level"] = importLevel;
+        }
+        var args = JsonSerializer.Serialize(importArgs);
         if (Native.Execute(_host, "import", args) != 0)
         {
             History.Text = Native.LastError(_host);

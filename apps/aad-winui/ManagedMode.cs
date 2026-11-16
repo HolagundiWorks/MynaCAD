@@ -422,7 +422,60 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Import a file into the project (File > Import, <c>--import</c> and the pipe): the converted copy becomes content of the project's drawing, and nothing is written beside the source.</summary>
-    private async Task<string> ImportPath(string path)
+    /// <summary>
+    /// File &gt; Import asks which level the objects land on when the drawing has several (ops-first-workflow.md section 15, L5). Returns the level
+    /// name, "" when the drawing has no named levels (the import is as before), or null when the user cancelled.
+    /// </summary>
+    private async Task<string?> ChooseImportLevelAsync(string fileName)
+    {
+        if (_host == IntPtr.Zero || Native.Execute(_host, "level.list", "{}") != 0)
+        {
+            return "";
+        }
+        var names = new List<string>();
+        var selected = 0;
+        try
+        {
+            using var parsed = JsonDocument.Parse(Native.ReadResult(_host));
+            var reply = parsed.RootElement;
+            if (!reply.TryGetProperty("levels", out var list) || list.ValueKind != JsonValueKind.Array || list.GetArrayLength() < 2
+                || reply.TryGetProperty("implicit", out var implicitLevel) && implicitLevel.ValueKind == JsonValueKind.True)
+            {
+                return "";
+            }
+            foreach (var l in list.EnumerateArray())
+            {
+                if (l.TryGetProperty("name", out var n) && n.GetString() is { Length: > 0 } name)
+                {
+                    if (l.TryGetProperty("active", out var a) && a.ValueKind == JsonValueKind.True)
+                    {
+                        selected = names.Count;
+                    }
+                    names.Add(name);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return "";
+        }
+        var box = new ComboBox { ItemsSource = names, SelectedIndex = selected, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var body = new StackPanel { Spacing = Density.SpaceSm };
+        body.Children.Add(new TextBlock { Text = "Put the objects of " + fileName + " on this level:", TextWrapping = TextWrapping.WrapWholeWords, FontSize = Density.FontBody });
+        body.Children.Add(box);
+        var dlg = new ContentDialog
+        {
+            Title = "Import to which level?",
+            Content = body,
+            PrimaryButtonText = "Import",
+            CloseButtonText = "Cancel",
+            XamlRoot = Content.XamlRoot,
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        return await dlg.ShowAsync() == ContentDialogResult.Primary ? box.SelectedItem as string ?? "" : null;
+    }
+
+    private async Task<string> ImportPath(string path, string? level = null)
     {
         var outcome = "";
         if (_host == IntPtr.Zero)
@@ -435,7 +488,12 @@ public sealed partial class MainWindow
         try
         {
             await Task.Yield();
-            var args = JsonSerializer.Serialize(new Dictionary<string, object> { ["path"] = path });
+            var importArgs = new Dictionary<string, object> { ["path"] = path };
+            if (!string.IsNullOrWhiteSpace(level))
+            {
+                importArgs["level"] = level;
+            }
+            var args = JsonSerializer.Serialize(importArgs);
             if (Native.Execute(_host, "import", args) != 0)
             {
                 outcome = Native.LastError(_host);
@@ -473,12 +531,13 @@ public sealed partial class MainWindow
             : request.TryGetProperty("request", out var legacy) && legacy.ValueKind == JsonValueKind.String ? legacy.GetString() ?? "" : "";
         var path = request.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() ?? "" : "";
         var save = request.TryGetProperty("save", out var sv) && sv.ValueKind == JsonValueKind.String ? sv.GetString() ?? "ask" : "ask";
+        var level = request.TryGetProperty("level", out var lv) && lv.ValueKind == JsonValueKind.String ? lv.GetString() : null;
         bool? on = request.TryGetProperty("on", out var o) && o.ValueKind is JsonValueKind.True or JsonValueKind.False ? o.GetBoolean() : null;
         if (!DispatcherQueue.TryEnqueue(async () =>
         {
             try
             {
-                done.TrySetResult(await RunPipeRequest(kind, path, save, on));
+                done.TrySetResult(await RunPipeRequest(kind, path, save, on, level));
             }
             catch (Exception e) when (e is IOException or InvalidOperationException or JsonException or UnauthorizedAccessException)
             {
@@ -491,7 +550,7 @@ public sealed partial class MainWindow
         return done.Task;
     }
 
-    private async Task<object> RunPipeRequest(string kind, string path, string save, bool? on)
+    private async Task<object> RunPipeRequest(string kind, string path, string save, bool? on, string? level = null)
     {
         switch (kind)
         {
@@ -508,7 +567,7 @@ public sealed partial class MainWindow
                     return new { ok = false, error = "import needs the absolute path of an existing file" };
                 }
                 ActivateWindow();
-                var message = await ImportPath(path);
+                var message = await ImportPath(path, level);
                 return message.StartsWith("Imported ", StringComparison.Ordinal) ? new { ok = true, message } : new { ok = false, error = message };
             case "close":
                 if (save is not ("ask" or "save" or "discard"))
