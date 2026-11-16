@@ -86,6 +86,19 @@ fn mm_to_m(mm: f64) -> f64 {
     mm / 1000.0
 }
 
+/// The time for `config.applied.cad`. `aad_odp::now_utc` needs SQLite and does not exist on the web, where a project file is never written
+/// (the wasm check, ops-first-workflow.md section 14).
+fn now_utc() -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        aad_odp::now_utc()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        String::new()
+    }
+}
+
 /// Metres in one drawing unit; a drawing whose unit is not set counts as millimetres (what `level.setup` assumes).
 fn unit_m(d: &Drawing) -> f64 {
     crate::annot::drawing_unit(d).map_or(0.001, |u| u.metres())
@@ -169,7 +182,7 @@ fn run_apply(s: &mut Session, p: &Value) -> Result<Value> {
         let msg = e.to_string();
         rep.add("config", "failed", msg.clone());
         if let Some(path) = recording {
-            let applied = Applied { v: 1, rev, time: aad_odp::now_utc(), result: "failed".into(), has_content: content, items: rep.collapse() };
+            let applied = Applied { v: 1, rev, time: now_utc(), result: "failed".into(), has_content: content, items: rep.collapse() };
             let _ = record_applied(path, &applied);
         }
         return Err(bad(CMD, format!("the configuration was not applied and the drawing is unchanged: {msg}")));
@@ -180,7 +193,7 @@ fn run_apply(s: &mut Session, p: &Value) -> Result<Value> {
     let changed = !Arc::ptr_eq(&original, &s.state()?.doc);
     let mut recorded = false;
     if let Some(path) = recording {
-        let applied = Applied { v: 1, rev, time: aad_odp::now_utc(), result: result.into(), has_content: content, items: items.clone() };
+        let applied = Applied { v: 1, rev, time: now_utc(), result: result.into(), has_content: content, items: items.clone() };
         record_applied(path, &applied).map_err(|e| bad(CMD, format!("the configuration was applied but the result could not be recorded: {e}")))?;
         recorded = true;
     }
@@ -713,7 +726,7 @@ fn build_proposal(d: &Drawing) -> Proposal {
         .and_then(|v| serde_json::from_value::<cfg::Scheme>(v).ok());
     Proposal {
         v: 1,
-        time: aad_odp::now_utc(),
+        time: now_utc(),
         has_content: has_content(d),
         drawing_unit: crate::annot::drawing_unit(d).map(|u| u.name().to_string()),
         levels,
