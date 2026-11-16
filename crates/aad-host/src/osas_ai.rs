@@ -42,7 +42,11 @@ fn data_dir() -> PathBuf {
     resolve_data_dir(var(ENV_AI_DIR), var(ENV_LOCAL_DIR), var("LOCALAPPDATA"))
 }
 
-fn resolve_data_dir(ai_dir: Option<std::ffi::OsString>, local_dir: Option<std::ffi::OsString>, local_app_data: Option<std::ffi::OsString>) -> PathBuf {
+fn resolve_data_dir(
+    ai_dir: Option<std::ffi::OsString>,
+    local_dir: Option<std::ffi::OsString>,
+    local_app_data: Option<std::ffi::OsString>,
+) -> PathBuf {
     if let Some(dir) = ai_dir {
         return PathBuf::from(dir);
     }
