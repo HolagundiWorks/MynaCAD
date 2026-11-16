@@ -67,12 +67,14 @@ internal static class MynaOpsLauncher
     }
 
     /// <summary>
-    /// Start MynaOps, or bring the running one to the front (without a file). <paramref name="importPick"/> is a drawing to offer for import
-    /// (<c>--import-pick</c>). Returns null when it worked, otherwise what to tell the user.
+    /// Start MynaOps, or bring the running one to the front (without a file). <paramref name="file"/> is a project to open (passed as it is) or a
+    /// drawing to offer for import (<c>--import-pick</c>), see <see cref="FileHandover.ArgumentsFor"/>; a running MynaOps takes the request itself
+    /// (the second process forwards it, docs/ops-first-workflow.md 16.4). Returns null when it worked, otherwise what to tell the user.
     /// </summary>
-    public static string? Open(string? importPick = null)
+    public static string? Open(string? file = null)
     {
-        if (importPick == null && BringToFront())
+        var handover = FileHandover.ArgumentsFor(file);
+        if (handover.Count == 0 && BringToFront())
         {
             return null;
         }
@@ -84,10 +86,9 @@ internal static class MynaOpsLauncher
         try
         {
             var info = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) ?? "" };
-            if (importPick != null)
+            foreach (var a in handover)
             {
-                info.ArgumentList.Add("--import-pick");
-                info.ArgumentList.Add(importPick);
+                info.ArgumentList.Add(a);
             }
             using var started = Process.Start(info);
             return null;

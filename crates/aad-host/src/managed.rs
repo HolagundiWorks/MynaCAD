@@ -25,6 +25,8 @@ pub struct Managed {
     pub applied: Option<u64>,
     /// `config.proposal` was offered for an unadopted project in this run.
     pub proposed: bool,
+    /// MynaOps has closed (the shell says so): only then may MynaCAD start the headless AI host (docs/ops-first-workflow.md 16.1, Q10).
+    pub ops_closed: bool,
 }
 
 fn has_key(p: &Value, keys: &[&str]) -> bool {
@@ -95,6 +97,23 @@ impl Host {
     pub fn open_managed_start(&mut self) -> Result<(), String> {
         let project = self.managed.as_ref().map(|m| m.project.to_string_lossy().into_owned()).ok_or("the host is not managed")?;
         self.open_start_inner(&project, aad_engine::nativefile::OnChanged::Keep)
+    }
+
+    /// `host.opsclosed {closed}`: the shell reports that MynaOps ended (or is back). While MynaOps runs a managed MynaCAD never starts the AI host;
+    /// after it ended, the host may be started by a question (Q10). Returns `{managed, closed, aiAutostart}`; ignored when not managed.
+    pub(crate) fn ops_closed(&mut self, params: &Value) -> Value {
+        let closed = params.get("closed").and_then(Value::as_bool).unwrap_or(false);
+        if let Some(m) = self.managed.as_mut() {
+            m.ops_closed = closed;
+        }
+        let allowed = self.ai_autostart_allowed();
+        crate::osas_ai::suppress_autostart(self.managed.is_some() && !allowed);
+        json!({ "managed": self.managed.is_some(), "closed": closed && self.managed.is_some(), "aiAutostart": allowed })
+    }
+
+    /// Whether this host may start the AI host: a standalone host always, a managed one only after MynaOps closed.
+    pub(crate) fn ai_autostart_allowed(&self) -> bool {
+        self.managed.as_ref().is_none_or(|m| m.ops_closed)
     }
 
     /// `host.managed`: whether the host is managed and for which project.

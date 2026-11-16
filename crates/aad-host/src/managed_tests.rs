@@ -163,6 +163,34 @@ fn an_unadopted_project_is_not_configured_by_the_host() {
 }
 
 #[test]
+fn a_managed_host_starts_the_ai_host_only_after_mynaops_closed() {
+    let dir = std::env::temp_dir().join(format!("aad-opsclosed-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    // a standalone host always may
+    let mut alone = Host::create(false);
+    assert!(alone.ai_autostart_allowed());
+    assert_eq!(alone.ops_closed(&json!({ "closed": true }))["managed"], false);
+    // a managed host may not while MynaOps runs
+    let project = dir.join("house.osp");
+    let mut maker = Host::create(false);
+    maker.execute("line", &json!({ "points": [[0.0, 0.0], [10.0, 0.0]] })).unwrap();
+    maker.execute("saveas", &json!({ "path": project.to_string_lossy() })).unwrap();
+    let mut host = Host::create(false);
+    host.set_managed(&project.to_string_lossy(), None).unwrap();
+    assert!(!host.ai_autostart_allowed());
+    assert_eq!(host.ops_closed(&json!({ "closed": true }))["aiAutostart"], true);
+    assert!(host.ai_autostart_allowed());
+    // MynaOps is back (re-attach): the host is not started by MynaCAD again
+    assert_eq!(host.ops_closed(&json!({ "closed": false }))["aiAutostart"], false);
+    // hostile parameters never panic and mean "not closed"
+    for bad in [json!(null), json!(1), json!("x"), json!({ "closed": "yes" }), json!({ "closed": null })] {
+        assert_eq!(host.ops_closed(&bad)["aiAutostart"], false);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn hostile_managed_parameters_never_panic() {
     for command in ["open", "level.set", "project", "saveas", "qsave", "level.import", "", "\u{0}", "project.config.apply"] {
         for params in [

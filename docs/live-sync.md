@@ -19,7 +19,7 @@ drawing, or cloud sync of the project between computers), this is not that; thos
 | MynaCAD | none | Never looked at the file after open; no "changed elsewhere" notice |
 | MynaCAD writes | `write_project` (save: drawing, structural details, native model), `OdpSink::save` (`takeoff.record`: header, rows, annotated PDF) | MynaCAD autosave writes only to the recovery folder, never the `.osp` ([AUTOSAVE-BACKUP.md](AUTOSAVE-BACKUP.md)) |
 | MynaOps writes | `SetProjectDoc` (File > Save: the project record) | Nothing else in production code (`SetTakeoffRow` / `SetDrawing` are used by tests) |
-| Replace under a running app | MynaOps Project database: Compact (`VACUUM`), Restore (rename a backup over the file) | Both are refused while the file is open elsewhere (active-project pointer, handle check) |
+| Replace under a running app | MynaOps Project database: Compact (`VACUUM`), Restore (rename a backup over the file) | Both are refused while the file is open elsewhere (the leases, handle check; the active-project pointer was removed in package E) |
 
 ## Who owns what (single writer per table)
 

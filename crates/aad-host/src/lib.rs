@@ -1001,6 +1001,7 @@ impl Host {
             }
             "autosave.status" => Ok(self.autosave.status_json(autosave_interval())),
             "host.managed" => Ok(self.managed_info()),
+            "host.opsclosed" => Ok(self.ops_closed(params)),
             "project.config.poll" => self.config_poll(params),
             // Live sync (docs/live-sync.md): read only, never reloads; `ack` accepts the file as it is now.
             "project.sync" => Ok(self.project_sync(params, false)),
@@ -3061,6 +3062,7 @@ fn is_app_method(method: &str) -> bool {
             | "sync.now"
             | "sync.status"
             | "host.managed"
+            | "host.opsclosed"
             | "project.config.poll"
             | "autosave.now"
             | "recovery.list"

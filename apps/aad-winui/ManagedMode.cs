@@ -213,6 +213,11 @@ public sealed partial class MainWindow
     private void SetOpsGone(bool gone)
     {
         _opsGone = gone;
+        // Q10: the AI host may be started by MynaCAD only while MynaOps is closed (docs/ops-first-workflow.md 16.1).
+        if (_host != IntPtr.Zero)
+        {
+            AppCall("host.opsclosed", new Dictionary<string, object> { ["closed"] = gone });
+        }
         ShowManagedStatus();
     }
 
