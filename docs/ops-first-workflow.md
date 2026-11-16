@@ -497,3 +497,11 @@ Built (branch `claude/ops-first-b-cad-7ebf70`): `aad-host` `managed.rs` (host po
 **Rules of the run.** Each defect: its expected behaviour is written into this document first, then fixed with a regression test where the layer allows (Rust for engine/host/odp, xunit for C#), committed by file name. A step is reported only as *seen*, *not seen* (could not be driven or observed, with the reason) or *fixed*. Out of scope: MynaHub, the mobile app, installers, packages D and E, two machines, network shares.
 
 **Clean-up after the run.** Delete `C:\Temp\f-e2e` (cargo target, builds, project folder, logs), the junction `MynaOps\.claude\worktrees\MynaUI`, and any process or lease file the run left; list what was removed in section 14.
+
+## 14. Package F: what was seen and what was fixed (2026-11-16)
+
+Each defect is stated here as the expected behaviour first; the fix and its test follow in the same section once written.
+
+**D1. A project made by MynaOps has no drawing yet.** The wizard writes `config.*` and no `drawing` row (the drawing is MynaCAD's table, 2.2). Expected: a managed MynaCAD opens such a project as an empty drawing tied to the project file, applies the configuration (levels, layer sets, units) before the first frame, and the first save creates the `drawing` row (DXF, the project's default format). It must not report "holds no drawing yet". Seen with the real apps: step 2 failed with the dialog "MynaCAD cannot open this project: ... holds no drawing yet", leaving an unrelated `Drawing1` behind it. Package B's test used a project that already had a drawing, so it did not show.
+
+**D2. Renaming a level on MynaOps' Levels page deleted it and made a new one.** `ConfigPublisher.Merge` matched page levels to `config.levels` by name, so a rename gave the old `cid` away (the level and its objects would be dropped in MynaCAD, 4.4) and a new `cid` was made. Expected: a page level keeps the `cid` it was seeded from or published under, whatever its name; a level with no known `cid` (a project document saved before this change) is matched by name as before; a level the page adds gets the next `cid`, which the page then remembers (`LevelDef.ConfigCid`, saved in the project document as `config_cid`). Seen in step 3 of the real run: First Floor (cid 2) renamed "Level 1" gave items cid 1, 4, 5, 3.
