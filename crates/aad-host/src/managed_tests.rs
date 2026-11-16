@@ -239,3 +239,43 @@ fn managed_host_opens_a_project_with_no_drawing_yet() {
     assert_eq!(aad_odp::Odp::open(&project).unwrap().drawing_names().unwrap().len(), 1);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// D3 (ops-first-workflow.md section 14): saving a drawing with several levels into its project records every level, so a save never deletes the
+/// rows an earlier `levels: "all"` record wrote for the levels that are not active.
+#[test]
+fn saving_a_multi_level_drawing_keeps_every_levels_take_off_rows() {
+    let dir = std::env::temp_dir().join(format!("aad-host-saveall-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let project = dir.join("house.osp");
+    let mut h = Host::create(false);
+    h.execute("drawing.units", &json!({ "units": "mm", "mode": "metadata" })).unwrap();
+    h.execute("takeoff.start", &json!({})).unwrap();
+    h.execute("layer.current", &json!({ "name": "MEASURE-FULLBRICK" })).unwrap();
+    h.execute("line", &json!({ "points": [[0, 0], [9000, 0]] })).unwrap();
+    h.execute("level.new", &json!({ "name": "First", "first": "Ground" })).unwrap();
+    h.execute("level.activate", &json!({ "level": "First" })).unwrap();
+    h.execute("layer.current", &json!({ "name": "MEASURE-FULLBRICK" })).unwrap();
+    h.execute("line", &json!({ "points": [[0, 0], [5000, 0]] })).unwrap();
+    h.execute("level.activate", &json!({ "level": "Ground" })).unwrap();
+    h.execute("takeoff.brick", &json!({ "table": false })).unwrap();
+    h.execute("saveas", &json!({ "path": project.to_string_lossy() })).unwrap();
+    let rows = |p: &Path| -> Vec<String> {
+        let mut levels: Vec<String> = aad_odp::Odp::open(p)
+            .unwrap()
+            .takeoff_as_records()
+            .unwrap()
+            .into_iter()
+            .filter(|(id, _)| id >> 56 == 3)
+            .filter_map(|(_, payload)| serde_json::from_slice::<Value>(&payload).ok())
+            .filter_map(|r| r["level"].as_str().map(str::to_string))
+            .collect();
+        levels.sort();
+        levels
+    };
+    let first = rows(&project);
+    assert!(first.contains(&"Ground".to_string()) && first.contains(&"First".to_string()), "{first:?}");
+    h.execute("qsave", &json!({})).unwrap();
+    assert_eq!(rows(&project), first, "a second save must not delete the rows of the levels that are not active");
+    let _ = std::fs::remove_dir_all(&dir);
+}

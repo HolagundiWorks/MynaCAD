@@ -709,7 +709,11 @@ fn record_takeoff_if_any(s: &mut Session) {
     if !worth {
         return;
     }
-    match s.execute("takeoff.record", &serde_json::json!({ "annotate": false })) {
+    // A drawing with several levels is recorded for all of them: an active-level-only record would delete the rows of the other levels that an
+    // earlier `levels: "all"` record wrote (ops-first-workflow.md section 14, D3).
+    let several = s.doc().is_ok_and(|d| d.levels.len() > 1);
+    let params = if several { serde_json::json!({ "annotate": false, "levels": "all" }) } else { serde_json::json!({ "annotate": false }) };
+    match s.execute("takeoff.record", &params) {
         Ok(v) => {
             let slot = v.get("slot").and_then(|n| n.as_u64()).unwrap_or(0);
             s.echo(format!("Take-off recorded for MynaOps (slot {slot})."));
