@@ -425,10 +425,10 @@ pub fn open_for_edit(path: &str, on_changed: OnChanged, progress: &dyn Fn(&str))
         // tied to the file, and the first save writes the `drawing` row (ops-first-workflow.md, section 14, D1).
         let empty = aad_odp::Odp::open(src).ok().and_then(|odp| odp.drawing_names().ok()).is_some_and(|names| names.is_empty());
         let read = if empty {
-            if let Ok(odp) = aad_odp::Odp::open(src) {
-                if let Ok(m) = odp.meta() {
-                    crate::projectsync::note_opened(src, m.revision, &m.project_id);
-                }
+            if let Ok(odp) = aad_odp::Odp::open(src)
+                && let Ok(m) = odp.meta()
+            {
+                crate::projectsync::note_opened(src, m.revision, &m.project_id);
             }
             ProjectDrawing { drawing: Drawing::default(), native: false, fallback: None }
         } else {
