@@ -421,7 +421,19 @@ pub fn open_for_edit(path: &str, on_changed: OnChanged, progress: &dyn Fn(&str))
     if crate::cmd::file::is_container(path) {
         progress(&format!("Opening {}", file_name(src)));
         let t = Instant::now();
-        let read = read_project(path)?;
+        // A project MynaOps made holds its configuration and no drawing yet (the drawing is MynaCAD's table): it opens as an empty drawing
+        // tied to the file, and the first save writes the `drawing` row (ops-first-workflow.md, section 14, D1).
+        let empty = aad_odp::Odp::open(src).ok().and_then(|odp| odp.drawing_names().ok()).is_some_and(|names| names.is_empty());
+        let read = if empty {
+            if let Ok(odp) = aad_odp::Odp::open(src)
+                && let Ok(m) = odp.meta()
+            {
+                crate::projectsync::note_opened(src, m.revision, &m.project_id);
+            }
+            ProjectDrawing { drawing: Drawing::default(), native: false, fallback: None }
+        } else {
+            read_project(path)?
+        };
         let mut info = OpenInfo { native: path.to_string(), action: "project".into(), from_native: read.native, ..OpenInfo::default() };
         info.ms.insert("read".into(), ms(t));
         if let Ok(odp) = aad_odp::Odp::open(src) {

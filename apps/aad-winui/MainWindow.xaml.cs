@@ -178,6 +178,10 @@ public sealed partial class MainWindow : Window
         };
         Activated += (_, _) =>
         {
+            if (_shellClosing)
+            {
+                return;
+            }
             PlaceChild();
             PlaceCommandBar();
         };
@@ -2351,8 +2355,9 @@ public sealed partial class MainWindow : Window
             if (quit)
             {
                 // Close owned tool / chrome windows before the shell HWND disappears.
-                _chrome?.Close();
+                var quitChrome = _chrome;
                 _chrome = null;
+                quitChrome?.Close();
                 ShellWindows.CloseAllOwned();
                 _allowClose = true;
                 Close();
@@ -2672,8 +2677,10 @@ public sealed partial class MainWindow : Window
         }
         _shellClosing = true;
         _timer?.Stop();
-        _chrome?.Close();
+        // Closing the bar window raises Activated on this window; `_chrome` must already be gone then (NullReferenceException in ShowBar, section 14, D6).
+        var chrome = _chrome;
         _chrome = null;
+        chrome?.Close();
         ShellWindows.CloseAllOwned();
         _layersWindow = null;
         _calc = null;

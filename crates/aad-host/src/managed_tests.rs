@@ -211,3 +211,71 @@ fn stub_project() {
         write_config(&path, &levels(items, if rev == "1" { 3 } else { 4 }));
     }
 }
+
+/// D1 (ops-first-workflow.md section 14): a project as the MynaOps wizard leaves it has a configuration and no drawing row. A managed host opens it
+/// as an empty drawing tied to the file, applies the levels, and the first save writes the drawing.
+#[test]
+fn managed_host_opens_a_project_with_no_drawing_yet() {
+    let dir = std::env::temp_dir().join(format!("aad-host-nodrawing-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let project = dir.join("new.osp");
+    drop(aad_odp::Odp::create(&project, "new").unwrap());
+    let two = json!([{ "cid": 1, "name": "Ground", "elevation_mm": 0.0, "height_mm": 3000.0 }, { "cid": 2, "name": "First", "elevation_mm": 3000.0, "height_mm": 3000.0 }]);
+    write_config(&project, &levels(two, 3));
+    assert!(aad_odp::Odp::open(&project).unwrap().drawing_names().unwrap().is_empty());
+
+    let mut host = Host::create(false);
+    host.set_managed(&project.to_string_lossy(), Some(1)).unwrap();
+    open_managed(&mut host);
+    let state = host.config_poll(&json!({ "idle": true })).unwrap();
+    assert!(matches!(state["state"].as_str(), Some("applied") | Some("current")), "{state}");
+    assert_eq!(names(&mut host), vec!["Ground", "First"]);
+    host.execute("line", &json!({ "points": [[0.0, 0.0], [1000.0, 0.0]] })).unwrap();
+    host.save_start(None).unwrap();
+    while host.save_poll().unwrap() == 1 {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(aad_odp::Odp::open(&project).unwrap().drawing_names().unwrap().len(), 1);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// D3 (ops-first-workflow.md section 14): saving a drawing with several levels into its project records every level, so a save never deletes the
+/// rows an earlier `levels: "all"` record wrote for the levels that are not active.
+#[test]
+fn saving_a_multi_level_drawing_keeps_every_levels_take_off_rows() {
+    let dir = std::env::temp_dir().join(format!("aad-host-saveall-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let project = dir.join("house.osp");
+    let mut h = Host::create(false);
+    h.execute("drawing.units", &json!({ "units": "mm", "mode": "metadata" })).unwrap();
+    h.execute("takeoff.start", &json!({})).unwrap();
+    h.execute("layer.current", &json!({ "name": "MEASURE-FULLBRICK" })).unwrap();
+    h.execute("line", &json!({ "points": [[0, 0], [9000, 0]] })).unwrap();
+    h.execute("level.new", &json!({ "name": "First", "first": "Ground" })).unwrap();
+    h.execute("level.activate", &json!({ "level": "First" })).unwrap();
+    h.execute("layer.current", &json!({ "name": "MEASURE-FULLBRICK" })).unwrap();
+    h.execute("line", &json!({ "points": [[0, 0], [5000, 0]] })).unwrap();
+    h.execute("level.activate", &json!({ "level": "Ground" })).unwrap();
+    h.execute("takeoff.brick", &json!({ "table": false })).unwrap();
+    h.execute("saveas", &json!({ "path": project.to_string_lossy() })).unwrap();
+    let rows = |p: &Path| -> Vec<String> {
+        let mut levels: Vec<String> = aad_odp::Odp::open(p)
+            .unwrap()
+            .takeoff_as_records()
+            .unwrap()
+            .into_iter()
+            .filter(|(id, _)| id >> 56 == 3)
+            .filter_map(|(_, payload)| serde_json::from_slice::<Value>(&payload).ok())
+            .filter_map(|r| r["level"].as_str().map(str::to_string))
+            .collect();
+        levels.sort();
+        levels
+    };
+    let first = rows(&project);
+    assert!(first.contains(&"Ground".to_string()) && first.contains(&"First".to_string()), "{first:?}");
+    h.execute("qsave", &json!({})).unwrap();
+    assert_eq!(rows(&project), first, "a second save must not delete the rows of the levels that are not active");
+    let _ = std::fs::remove_dir_all(&dir);
+}

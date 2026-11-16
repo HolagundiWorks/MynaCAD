@@ -137,3 +137,12 @@ fn read(conn: &Connection) -> rusqlite::Result<Peek> {
     }
     Ok(Peek::Ok(Probe { project_id, revision, last_app, last_revision, last_time, drawing_revision, takeoff }))
 }
+
+/// The stored hash of a project's first drawing (the one MynaCAD edits), read without a lock a writer would wait for. `None` when the file cannot be
+/// read, has no drawing yet, or is not a project. Crash recovery uses it to tell "the drawing was saved after the snapshot" from "another program
+/// wrote some other table of the shared file" (ops-first-workflow.md section 14, D7).
+pub fn drawing_sha(path: &Path) -> Option<String> {
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX).ok()?;
+    conn.busy_timeout(std::time::Duration::from_millis(BUSY_MS)).ok()?;
+    conn.query_row("SELECT sha256 FROM drawing ORDER BY created, name LIMIT 1", [], |r| r.get::<_, String>(0)).ok()
+}

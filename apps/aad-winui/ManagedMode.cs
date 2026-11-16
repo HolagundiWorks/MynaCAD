@@ -155,6 +155,8 @@ public sealed partial class MainWindow
         ManagedTick(first: true);
         if (_managedAdoptShown)
         {
+            // An unadopted project: MynaCAD has written its proposal and says so, but MynaOps must still be able to ask it to close (section 14, D8).
+            ProjectInstance.Current?.StartServer(HandlePipeRequest);
             return;
         }
         AfterCommand();
@@ -384,6 +386,10 @@ public sealed partial class MainWindow
                 ActivateWindow();
                 return new { ok = true };
             case "import":
+                if (_managedAdoptShown)
+                {
+                    return new { ok = false, error = "this project is not adopted in MynaOps yet" };
+                }
                 if (path.Length == 0 || path.Length > 4096 || path.Contains('\0') || !Path.IsPathRooted(path) || !File.Exists(path))
                 {
                     return new { ok = false, error = "import needs the absolute path of an existing file" };

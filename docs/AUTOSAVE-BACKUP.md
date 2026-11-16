@@ -143,3 +143,7 @@ On Working Drawing.dwg (26 210 entities): backup 27 ms, save 1.27 s, snapshots 4
   covered by the host tests (`the_status_line_reports_saves_autosaves_and_failures`, `backups_are_listed_and_restored_through_the_app_methods`,
   `a_killed_host_leaves_a_snapshot_the_next_start_restores`).
 - Saving on OneDrive or a network folder was not tested.
+
+## Crash recovery of a project file shared with MynaOps
+
+A project (`.osp`) is written by two programs: MynaOps refreshes `session.holder` every 30 seconds and MynaCAD writes `config.applied.cad`, so the file's time says nothing about the drawing. A snapshot of a project file therefore records the stored hash of the project's drawing (`drawingSha` in the manifest) and `recovery.list` offers it while that hash is unchanged; a changed hash means the drawing was saved after the snapshot and the snapshot is discarded. A manifest without `drawingSha` (older) and any other file keep the file-time rule. Test: `recovery::tests::a_project_snapshot_is_judged_by_its_drawing_not_by_the_file_time`. Found by the Ops-first end-to-end run ([ops-first-workflow.md](ops-first-workflow.md) section 14, D7).

@@ -763,9 +763,10 @@ pub(crate) fn collect(s: &mut Session, p: &Value) -> Result<Collected> {
     Ok(Collected { root, warnings, drawing_id: id, items, counts })
 }
 
-/// Metres to whole millimetres, or `None` for a value that is not a finite number.
-fn metres_to_mm(m: f64) -> Option<f64> {
-    m.is_finite().then(|| mm(m * 1000.0))
+/// Drawing units to whole millimetres (`unit_m` metres per drawing unit), or `None` for a value that is not a finite number. A level's elevation
+/// and height are kept in drawing units (`level.setup`, `project.config.apply`), not metres (ops-first-workflow.md section 14, D4).
+fn du_to_mm(du: f64, unit_m: f64) -> Option<f64> {
+    (du.is_finite() && unit_m.is_finite()).then(|| mm(du * unit_m * 1000.0))
 }
 
 /// Adds the optional named-level fields (`id`, `elevation_mm`, `config_id`) to the header's `levels` list when the drawing has explicit levels (`level.*`).
@@ -775,13 +776,15 @@ fn add_level_ids(d: &aad_doc::Drawing, list: &mut Vec<Value>) {
     // The project configuration's level ids (`cid`, MynaOps' own) the drawing's levels are bound to (`config.levelmap`): `config_id` is added next to `id`.
     let bound: std::collections::BTreeMap<u32, u32> =
         d.project.get(aad_odp::config::KEY_LEVELMAP).map(|t| aad_odp::config::levelmap_from_text(t)).unwrap_or_default();
+    // Metres in one drawing unit; a drawing whose unit is not set counts as millimetres (what `project.config.apply` assumes).
+    let unit_m = crate::annot::drawing_unit(d).map_or(0.001, |u| u.metres());
     for l in d.levels.iter().take(aad_doc::MAX_LEVELS) {
         let pos = list.iter().position(|v| v["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(&l.name)));
         let entry = match pos {
             Some(i) => &mut list[i],
             None => {
                 let mut o = json!({ "name": l.name });
-                if let Some(h) = metres_to_mm(l.height) {
+                if let Some(h) = du_to_mm(l.height, unit_m) {
                     o["height_mm"] = json!(h);
                 }
                 list.push(o);
@@ -793,7 +796,7 @@ fn add_level_ids(d: &aad_doc::Drawing, list: &mut Vec<Value>) {
         if let Some((cid, _)) = bound.iter().find(|(_, lid)| **lid == l.id.0) {
             entry["config_id"] = json!(cid);
         }
-        if let Some(e) = metres_to_mm(l.elevation) {
+        if let Some(e) = du_to_mm(l.elevation, unit_m) {
             entry["elevation_mm"] = json!(e);
         }
     }

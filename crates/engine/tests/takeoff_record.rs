@@ -632,7 +632,7 @@ fn a_drawing_without_levels_writes_no_level_ids() {
 fn named_levels_give_every_row_a_level_id_and_the_header_lists_the_levels() {
     let mut s = session("mm");
     scene(&mut s);
-    let made = s.execute("level.new", &json!({"name": "First", "elevation": 3.15, "height": 3.0, "first": "Ground"})).unwrap();
+    let made = s.execute("level.new", &json!({"name": "First", "elevation": 3150.0, "height": 3000.0, "first": "Ground"})).unwrap();
     let first_id = made["id"].as_u64().unwrap();
     let ground_id = made["levels"].as_array().unwrap().iter().find(|l| l["name"] == "Ground").unwrap()["id"].as_u64().unwrap();
     assert_ne!(first_id, ground_id);

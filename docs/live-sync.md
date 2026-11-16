@@ -128,3 +128,7 @@ Run on 2026-11-15 on the merged branches (MynaCAD `claude/osp-live-sync-aa35c6`,
 | The file overwritten with text | both apps `Project file unreadable` (`file is not a database`); both stayed responsive |
 
 Not verified: a real MynaOps File > Save raising a revision (Ctrl+S sent to the window wrote nothing in an earlier attempt; the xunit test covers `sync.last` on `OdpFile` writes); the Take-off page reloading and accepting the file, and the level picker keeping its selection (the nav item could not be selected through UI Automation); the status tooltips; watcher latency apart from the poll; MynaCAD saving after a `replaced` state (it still writes only its own tables and the shell tooltip tells the user to reopen); a restore or Compact done from the MynaOps Project database page. The MynaCAD shell exited once in an earlier run (cause not found); it did not in this run.
+
+### Seen with the real apps (Ops-first package F, 2026-11-16)
+
+With MynaOps and MynaCAD both running on one project: a configuration revision written by MynaOps was applied by MynaCAD about 3 s later; a take-off recorded by MynaCAD appeared in MynaOps' per-level summary after the Take-off page was opened; a lock held by another process showed `Locked` in both; the file overwritten in place by another project's file showed `Project file was replaced` in both and the open drawing was not reloaded. Details and the defects found: [ops-first-workflow.md](ops-first-workflow.md) section 14.
