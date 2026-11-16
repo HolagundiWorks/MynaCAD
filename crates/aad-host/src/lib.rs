@@ -24,6 +24,7 @@ mod overlay;
 mod panels;
 #[cfg(windows)]
 mod surface;
+mod syncctl;
 #[cfg(windows)]
 mod window;
 
@@ -615,6 +616,8 @@ pub struct Host {
     geodb_job: Option<std::sync::mpsc::Receiver<aad_engine::cmd::geodb::BuildDone>>,
     /// Managed mode (MynaOps owns the project); `None` is the standalone behaviour.
     managed: Option<managed::Managed>,
+    /// Realtime sync switch and detector read counter (`syncctl.rs`).
+    sync: syncctl::Control,
 }
 
 /// A drawing read by the open worker: flattened and ready, with the project file it is edited in.
@@ -746,6 +749,7 @@ impl Host {
             open_progress: Arc::new(std::sync::Mutex::new(String::new())),
             open_info: String::new(),
             saving: None,
+            sync: syncctl::Control::default(),
             plotting: None,
             frame: FrameCache::default(),
             control_io: None,
@@ -999,12 +1003,10 @@ impl Host {
             "host.managed" => Ok(self.managed_info()),
             "project.config.poll" => self.config_poll(params),
             // Live sync (docs/live-sync.md): read only, never reloads; `ack` accepts the file as it is now.
-            "project.sync" => match active_file(self) {
-                Some(path) => {
-                    Ok(aad_engine::projectsync::status(std::path::Path::new(&path), params.get("ack").and_then(Value::as_bool).unwrap_or(false)))
-                }
-                None => Ok(serde_json::json!({ "state": "none", "text": "" })),
-            },
+            "project.sync" => Ok(self.project_sync(params, false)),
+            "sync.set" => self.sync_set(params),
+            "sync.now" => self.sync_now(params),
+            "sync.status" => self.sync_status(),
             "autosave.now" => {
                 self.autosave.force = true;
                 self.autosave.tick(&self.session, autosave_interval());
@@ -3055,6 +3057,9 @@ fn is_app_method(method: &str) -> bool {
         "app.peek"
             | "autosave.status"
             | "project.sync"
+            | "sync.set"
+            | "sync.now"
+            | "sync.status"
             | "host.managed"
             | "project.config.poll"
             | "autosave.now"

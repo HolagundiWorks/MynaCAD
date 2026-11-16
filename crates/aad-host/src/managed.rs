@@ -112,12 +112,17 @@ impl Host {
         let Some(m) = self.managed.as_ref() else {
             return Ok(json!({ "state": "none", "text": "" }));
         };
+        // Realtime sync off: the configuration is not read and nothing is applied until Sync now (`force`) or switching on.
+        if !self.sync.on && !params.get("force").and_then(Value::as_bool).unwrap_or(false) {
+            return Ok(json!({ "state": "paused", "text": crate::syncctl::SYNC_OFF }));
+        }
         let project = m.project.clone();
         let project_text = project.to_string_lossy().into_owned();
         let on_project = self.session.state().ok().and_then(|st| st.path.clone()).is_some_and(|p| same_file(&p, &project));
         if !on_project {
             return Ok(json!({ "state": "none", "text": "" }));
         }
+        self.sync.reads += 1;
         let loaded = match aad_odp::config::probe(&project) {
             Ok(l) => l,
             Err(e) => return Ok(json!({ "state": "unreadable", "text": "Project configuration unreadable", "reason": e.to_string() })),
