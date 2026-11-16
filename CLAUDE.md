@@ -41,6 +41,8 @@ A crash loses someone's drawing. **This outranks feature work.**
 Details (start with `cargo run --release -p aad -- --sample --control PORT`, JSON-lines control channel on `127.0.0.1:PORT`, screenshots, headless `aad-cli`) are in `.claude/rules/running-the-app.md`; it loads when you touch the host, UI or WinUI shell files. For UI work, look at the result (screenshot). Parallel agents: separate `CARGO_TARGET_DIR` per agent, edit only the crates you own.
 
 ## Documentation rules
+- **Document first, then implement.** Write or update the design or contract in the docs before the code (what, why, areas touched, acceptance, out of scope), implement to it, then update the docs with what was built and what was run. A change without its documentation is not finished.
+- **Clean up after testing.** When testing is complete, delete the temp files and temp builds you made (your own `CARGO_TARGET_DIR` and output folders, scratch files, logs, junctions, test projects); never another session's cache or the user's data, never a sweep of `%TEMP%` (`MSBuildTemp` must exist). Say what was removed.
 Full policy: [docs/documentation-policy.md](docs/documentation-policy.md). Summary:
 - English only. Technical documentation only: architecture, APIs, configuration, installation, testing and maintenance. No marketing or promotional text.
 - Documentation must reflect reality: never claim a feature works unless the implementation exists and has been verified (tests run, not merely written). Update code, tests and docs in the same change.
