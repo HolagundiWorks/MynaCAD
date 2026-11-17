@@ -51,13 +51,8 @@ fn window(app: &mut CadApp, ctx: &egui::Context, open: &mut bool) -> Action {
         return None;
     };
     let names = aad_doc::plot_style_table_names(d);
-    let layout = match app.session.layout_space() {
-        aad_doc::Space::Paper(n) => d.layout(&n).map(|l| (n.clone(), l.page.plot_style_table.clone(), l.page.show_plot_styles)),
-        aad_doc::Space::Model => None,
-    };
     let mut sel = temp::<String>(ctx, "pstyle_sel")
         .filter(|s| names.iter().any(|n| n.eq_ignore_ascii_case(s)))
-        .or_else(|| layout.as_ref().map(|l| l.1.clone()).filter(|n| names.iter().any(|x| x.eq_ignore_ascii_case(n))))
         .or_else(|| names.first().cloned())
         .unwrap_or_default();
     let table = aad_doc::plot_style_table(d, &sel);
@@ -92,21 +87,6 @@ fn window(app: &mut CadApp, ctx: &egui::Context, open: &mut bool) -> Action {
                 action = Some(("stylesmanager", json!({ "action": "delete", "name": sel })));
             }
         });
-        if let Some((name, current, show)) = &layout {
-            ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(crate::tf!("Layout {name}: {table}", name = name, table = if current.is_empty() { "None" } else { current }))
-                        .color(t.text_dim),
-                );
-                if ui.add_enabled(!current.eq_ignore_ascii_case(&sel), egui::Button::new(crate::tl!("Use for this layout"))).clicked() {
-                    action = Some(("pagesetup", json!({ "layout": name, "plotStyleTable": sel })));
-                }
-                let mut s = *show;
-                if ui.checkbox(&mut s, crate::tl!("Display plot styles")).changed() {
-                    action = Some(("pagesetup", json!({ "layout": name, "displayPlotStyles": s })));
-                }
-            });
-        }
         ui.separator();
         let Some(table) = &table else {
             ui.label(crate::tl!("No plot style tables."));

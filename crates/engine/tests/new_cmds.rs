@@ -93,30 +93,6 @@ fn adcenter_lists_blocks() {
 }
 
 #[test]
-fn vpclip_sets_viewport_polygon() {
-    let mut s = Session::new();
-    s.execute("layout.set", &json!({ "name": "Layout1" })).unwrap();
-    // Ensure a viewport exists on the layout.
-    let vp = s.doc().unwrap().layouts.iter().flat_map(|l| l.entities.iter()).find(|e| matches!(e.kind, EntityKind::Viewport(ref v) if v.id != 1));
-    if vp.is_none() {
-        s.execute("viewport.add", &json!({ "count": 1 })).unwrap();
-    }
-    let h = s
-        .doc()
-        .unwrap()
-        .layouts
-        .iter()
-        .flat_map(|l| l.entities.iter())
-        .find(|e| matches!(e.kind, EntityKind::Viewport(ref v) if v.id != 1))
-        .unwrap()
-        .handle;
-    s.set_selection(vec![h]);
-    s.execute("vpclip", &json!({ "points": [[0, 0], [100, 0], [100, 80], [0, 80]] })).unwrap();
-    let EntityKind::Viewport(v) = &s.doc().unwrap().entity(h).unwrap().kind else { panic!() };
-    assert_eq!(v.clip.len(), 4);
-}
-
-#[test]
 fn eattext_and_dataextraction() {
     let mut s = Session::new();
     s.execute("line", &json!({ "points": [[0, 0], [1, 0]] })).unwrap();

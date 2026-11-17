@@ -215,7 +215,6 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
     let osnap_off = aad_engine::snap::mode::OFF;
     let mut space = "Model".to_string();
     let mut layer = "0".to_string();
-    let mut layouts = vec!["Model".to_string()];
     let mut levels: Vec<serde_json::Value> = Vec::new();
     let mut sheet_sets: Vec<serde_json::Value> = Vec::new();
     let mut views: Vec<serde_json::Value> = Vec::new();
@@ -253,11 +252,6 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
             aad_engine::doc::Space::Paper(name) => name.clone(),
         };
         layer = state.doc.header.str("CLAYER", "0");
-        let mut papers: Vec<_> = state.doc.layouts.iter().collect();
-        papers.sort_by_key(|layout| layout.tab_order);
-        for layout in papers.into_iter().take(32) {
-            layouts.push(layout.name.clone());
-        }
     }
     let documents: Vec<_> = session
         .docs
@@ -284,7 +278,7 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
             .take(aad_engine::doc::MAX_SHEET_SETS)
             .map(|s| serde_json::json!({ "id": s.id.0, "name": s.name, "active": state.doc.active_sheet == Some(s.id), "layerPrefix": s.layer_prefix, "layers": s.layers, "blocks": s.blocks }))
             .collect();
-        // Sections and elevations: the second tab group, between the levels and the layouts.
+        // Sections and elevations: the second tab group, after the levels.
         views = state
             .doc
             .view_spaces
@@ -307,7 +301,6 @@ pub fn chrome_json(session: &Session, cursor: Option<aad_geom::Vec2>, draft: &st
         "prompt": session.prompt_text(),
         "history": history,
         "space": space,
-        "layouts": layouts,
         "levels": levels,
         "sheetSets": sheet_sets,
         "views": views,

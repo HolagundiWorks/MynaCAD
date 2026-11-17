@@ -14,7 +14,7 @@ fn near(a: f64, b: f64) -> bool {
 }
 
 #[test]
-fn zoom_center_scale_dynamic_and_paper_space_all() {
+fn zoom_center_scale_and_dynamic() {
     let mut s = Session::new();
     s.viewport_px = (1600.0, 900.0);
     s.execute("limits", &json!({ "min": [0, 0], "max": [420, 297] })).unwrap();
@@ -46,14 +46,4 @@ fn zoom_center_scale_dynamic_and_paper_space_all() {
     s.script("ZOOM D 0,0 160,90\n").unwrap();
     let v = view(&s);
     assert!(v.center.near(Vec2::new(80.0, 45.0), 1e-9) && near(v.height, 90.0), "{v:?}");
-
-    // Paper space: All and Extents (no paper objects) fit the sheet, not the model limits.
-    s.execute("layout.set", &json!({ "name": "Layout1" })).unwrap();
-    let sheet = s.zoom_limits().unwrap();
-    assert!(sheet.min == Vec2::ZERO && !near(sheet.max.x, 420.0), "the sheet, not the limits: {sheet:?}");
-    s.cmdline("ZOOM E").unwrap();
-    assert!(view(&s).center.near(sheet.center(), 1e-9), "{:?} vs {sheet:?}", view(&s));
-    s.cmdline("ZOOM A").unwrap();
-    let v = view(&s);
-    assert!(v.center.near(sheet.center(), 1e-9) && v.height < 297.0 && v.height >= sheet.height(), "{v:?} vs {sheet:?}");
 }

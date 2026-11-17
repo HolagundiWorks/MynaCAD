@@ -1,5 +1,7 @@
 # Levels and sheet sets
 
+> **Superseded (2026-11-17, package H6 of [layout-book.md](layout-book.md)).** Compose Views, Master Layouts, Publisher Sets, layout viewports by level and the Navigator were removed from the user interface. `compose.view.list/save/set/delete`, levels, sheet sets, view spaces and `exchange.export` stay; `compose.view.apply`, `master.*`, `publisher.*`, `viewport.*` and the Navigator are deleted and the `compose1` and `VPBIND` data are kept for round trips. See the "Compose and publish" and "Layout viewports by level" rows of [status.md](status.md).
+
 **Status: the engine side of all five phases is done. The WinUI shell has level tabs, drawing tabs
 above the drawing, a Trace settings form, and a Navigator for Compose Views, Master Layouts and Publisher Sets
 (see "WinUI shell status" and "Compose and publish").** The annotation tool strip, a viewport Level /

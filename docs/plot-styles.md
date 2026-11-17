@@ -1,5 +1,7 @@
 # Plot styles
 
+> **Superseded (2026-11-17, package H6 of [layout-book.md](layout-book.md)).** Layouts were removed from MynaCAD, so a plot style table can no longer be attached to a layout (`pagesetup` `plotStyleTable`, `displayPlotStyles`). Tables are still edited (`stylesmanager`, `plotstyle`) and are chosen when printing with the `plotStyleTable` parameter of `plot` / `exportpdf`. Passages below about layout page setup describe removed behaviour.
+
 A plot style table decides how objects print. MynaCAD applies it to PDF plots (PLOT,
 EXPORTPDF and anything that plots through them). It also applies it to a layout shown with
 **Display plot styles** on: on screen and in the layout's PNG and SVG exports.

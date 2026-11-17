@@ -77,9 +77,7 @@ public sealed partial class MainWindow : Window
     private LayerManagerWindow? _layersWindow;
     private Window? _unitsWindow;
     private Window? _textStyleWindow;
-    private Window? _pageSetupWindow;
     private Window? _plotStyleWindow;
-    private Window? _batchPlotWindow;
     private Window? _dimStyleWindow;
     private Window? _linetypeWindow;
     private Window? _parametersWindow;
@@ -556,7 +554,7 @@ public sealed partial class MainWindow : Window
     private bool CloseOpenComboBoxes()
     {
         var closed = false;
-        foreach (var box in new ComboBox?[] { LayerBox, UnitsBox, PaperBox, OrientBox })
+        foreach (var box in new ComboBox?[] { LayerBox, UnitsBox })
         {
             if (box is { IsDropDownOpen: true })
             {
@@ -587,6 +585,11 @@ public sealed partial class MainWindow : Window
             _ = PickFile(id);
             return;
         }
+        if (id == "ui.publish")
+        {
+            PublishViaOps();
+            return;
+        }
         if (id == "backup.restore")
         {
             _ = ShowBackupsAsync();
@@ -611,22 +614,6 @@ public sealed partial class MainWindow : Window
         if (id == "new")
         {
             _ = NewDrawingReplacingAsync();
-            return;
-        }
-        if (id == "page.manager")
-        {
-            OpenPageLayoutManager();
-            return;
-        }
-        if (id is "compose.view.list" or "compose.view.save" or "compose.view.apply" or "master.list" or "master.new" or "master.apply"
-            or "publisher.list" or "publisher.new" or "publisher.publish" or "publisher")
-        {
-            OpenComposeNavigator();
-            return;
-        }
-        if (id is "sheet.list" or "sheet.new" or "sheetindex.build" or "sheetindex.publish" or "issue.create")
-        {
-            OpenSheetIndexWindow();
             return;
         }
         if (id == "notes.manager")
@@ -734,19 +721,9 @@ public sealed partial class MainWindow : Window
             _ = BeginPlot(id);
             return;
         }
-        if (id == "pagesetup")
-        {
-            OpenPageSetup();
-            return;
-        }
         if (id == "stylesmanager")
         {
             OpenPlotStyles();
-            return;
-        }
-        if (id == "plot.batch")
-        {
-            OpenBatchPlot();
             return;
         }
         if (id is "dimstyle" or "dimstyle.dimension")
@@ -1456,9 +1433,7 @@ public sealed partial class MainWindow : Window
         return id is "units" or "un"
             or "layer" or "la" or "layers"
             or "style" or "st"
-            or "pagesetup"
             or "stylesmanager"
-            or "plot.batch"
             or "dimstyle"
             or "linetype" or "lt" or "ltype"
             or "hatchedit" or "he" or "hatch.patterns"
@@ -1475,21 +1450,6 @@ public sealed partial class MainWindow : Window
     private string _pendingPlotCommand = "plot";
     /// <summary>When true, finish with an on-screen PDF preview instead of a save dialog.</summary>
     private bool _pendingPlotPreview;
-    /// <summary>Nameplate layout from <c>plotl</c> / <c>plotp</c> (or OrientBox).</summary>
-    private string _pendingPlotLayout = "Nameplate L";
-
-    private string PlotCommandForOrientation()
-    {
-        var portrait = string.Equals(OrientBox.SelectedItem as string, "Portrait", StringComparison.OrdinalIgnoreCase);
-        return portrait ? "plotp" : "plotl";
-    }
-
-    private string NameplateForOrientation()
-    {
-        var portrait = string.Equals(OrientBox.SelectedItem as string, "Portrait", StringComparison.OrdinalIgnoreCase);
-        return portrait ? "Nameplate P" : "Nameplate L";
-    }
-
     private async Task BeginPlot(string id)
     {
         if (_host == IntPtr.Zero || _plotBusy)
@@ -1498,9 +1458,8 @@ public sealed partial class MainWindow : Window
         }
         _pendingPlotCommand = id == "exportpdf" ? "exportpdf" : "plot";
         _pendingPlotPreview = false;
-        _pendingPlotLayout = NameplateForOrientation();
-        // plotl / plotp: pick window, then finish on the matching nameplate.
-        if (Native.CommandLine(_host, PlotCommandForOrientation()) != 0)
+        // plotl: pick the model window, then plot it on landscape paper (no layout is created).
+        if (Native.CommandLine(_host, "plotl") != 0)
         {
             History.Text = Native.LastError(_host);
         }
@@ -1516,8 +1475,7 @@ public sealed partial class MainWindow : Window
         }
         _pendingPlotCommand = "plot";
         _pendingPlotPreview = true;
-        _pendingPlotLayout = NameplateForOrientation();
-        if (Native.CommandLine(_host, PlotCommandForOrientation()) != 0)
+        if (Native.CommandLine(_host, "plotl") != 0)
         {
             History.Text = Native.LastError(_host);
         }
@@ -1538,7 +1496,7 @@ public sealed partial class MainWindow : Window
         return state == 2;
     }
 
-    private async Task FinishPlot(string command, double[]? window)
+    private async Task FinishPlot(string command, double[]? window, bool? landscape = null)
     {
         if (_host == IntPtr.Zero || _plotBusy)
         {
@@ -1577,6 +1535,10 @@ public sealed partial class MainWindow : Window
             {
                 body["window"] = window;
             }
+            if (landscape is bool land)
+            {
+                body["landscape"] = land;
+            }
             History.Text = "Plotting...";
             if (!await PlotFileAsync(command, JsonSerializer.Serialize(body)))
             {
@@ -1607,7 +1569,7 @@ public sealed partial class MainWindow : Window
             return;
         }
         double[]? window = null;
-        var layout = _pendingPlotLayout;
+        bool? landscape = null;
         var preview = _pendingPlotPreview;
         try
         {
@@ -1620,9 +1582,9 @@ public sealed partial class MainWindow : Window
                     window[i] = win[i].GetDouble();
                 }
             }
-            if (doc.RootElement.TryGetProperty("layout", out var lay) && lay.GetString() is string name && name.Length > 0)
+            if (doc.RootElement.TryGetProperty("landscape", out var orient) && orient.ValueKind is JsonValueKind.True or JsonValueKind.False)
             {
-                layout = name;
+                landscape = orient.ValueKind == JsonValueKind.True;
             }
             if (doc.RootElement.TryGetProperty("preview", out var prev) && prev.ValueKind == JsonValueKind.True)
             {
@@ -1635,49 +1597,31 @@ public sealed partial class MainWindow : Window
             return;
         }
         _pendingPlotPreview = false;
-        _ = FinishPlotOnNameplate(_pendingPlotCommand, window, layout, preview);
+        _ = FinishPlotWindow(_pendingPlotCommand, window, landscape, preview);
     }
 
-    private async Task FinishPlotOnNameplate(string command, double[]? window, string layout, bool preview)
+    /// <summary>The second half of plotl / plotp: a model-space window (or the whole drawing) on landscape or portrait paper.</summary>
+    private async Task FinishPlotWindow(string command, double[]? window, bool? landscape, bool preview)
     {
         if (_host == IntPtr.Zero || _plotBusy)
         {
             return;
         }
-        var landscape = !layout.Equals("Nameplate P", StringComparison.OrdinalIgnoreCase);
-        if (Native.Execute(_host, "sheet.designer", JsonSerializer.Serialize(new Dictionary<string, object> { ["landscape"] = landscape })) != 0)
-        {
-            History.Text = Native.LastError(_host);
-            AfterCommand();
-            return;
-        }
-        var fit = new Dictionary<string, object?> { ["layout"] = layout };
-        if (window is { Length: 4 })
-        {
-            fit["window"] = window;
-        }
-        if (Native.Execute(_host, "sheet.plotwindow", JsonSerializer.Serialize(fit)) != 0)
-        {
-            History.Text = Native.LastError(_host);
-            AfterCommand();
-            return;
-        }
         if (preview)
         {
-            await PreviewPlotOnNameplate(command);
+            await PreviewPlot(command, window, landscape);
         }
         else
         {
-            await FinishPlot(command, window: null);
+            await FinishPlot(command, window, landscape);
         }
         if (_host != IntPtr.Zero)
         {
-            Native.Execute(_host, "layout.set", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = "Model" }));
             AfterCommand();
         }
     }
 
-    private async Task PreviewPlotOnNameplate(string command)
+    private async Task PreviewPlot(string command, double[]? window, bool? landscape)
     {
         if (_host == IntPtr.Zero || _plotBusy)
         {
@@ -1688,7 +1632,16 @@ public sealed partial class MainWindow : Window
         {
             var path = Path.Combine(Path.GetTempPath(), "odraft-plot-preview-" + Guid.NewGuid().ToString("N") + ".pdf");
             History.Text = "Building plot preview...";
-            if (!await PlotFileAsync(command, JsonSerializer.Serialize(new Dictionary<string, object> { ["path"] = path })))
+            var preview = new Dictionary<string, object> { ["path"] = path };
+            if (window is { Length: 4 })
+            {
+                preview["window"] = window;
+            }
+            if (landscape is bool land)
+            {
+                preview["landscape"] = land;
+            }
+            if (!await PlotFileAsync(command, JsonSerializer.Serialize(preview)))
             {
                 History.Text = Native.LastError(_host);
                 return;
@@ -1849,59 +1802,9 @@ public sealed partial class MainWindow : Window
         HideWelcome();
         Native.Execute(_host, "new", "{}");
         await KeepOnlyActiveDrawingAsync();
-        EnsureModelSpace();
         _docKey = "";
         AfterCommand();
     }
-
-    private void OnNameplateMenu(object sender, RoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement anchor)
-        {
-            return;
-        }
-        var flyout = new MenuFlyout();
-        var landscape = new MenuFlyoutItem { Text = "Nameplate L (landscape)" };
-        landscape.Click += (_, _) => OpenNameplate(landscape: true);
-        var portrait = new MenuFlyoutItem { Text = "Nameplate P (portrait)" };
-        portrait.Click += (_, _) => OpenNameplate(landscape: false);
-        flyout.Items.Add(landscape);
-        flyout.Items.Add(portrait);
-        flyout.ShowAt(anchor);
-    }
-
-    private void OnNameplateDesigner(object sender, RoutedEventArgs e) => OpenNameplate(landscape: true);
-
-    private void OpenNameplate(bool landscape)
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        if (Native.Execute(_host, "sheet.designer", JsonSerializer.Serialize(new Dictionary<string, object>
-            {
-                ["open"] = true,
-                ["landscape"] = landscape,
-            })) != 0)
-        {
-            History.Text = Native.LastError(_host);
-            return;
-        }
-        _filling = true;
-        try
-        {
-            OrientBox.SelectedItem = landscape ? "Landscape" : "Portrait";
-        }
-        finally
-        {
-            _filling = false;
-        }
-        _docKey = "";
-        AfterCommand();
-    }
-
-    /// <summary>The drawing tab whose page the hidden paper, orientation and scale boxes show.</summary>
-    private string _pageTab = "Design";
 
     /// <summary>The tab that is active now.</summary>
     private string _activeTabName = "Design";
@@ -1943,15 +1846,6 @@ public sealed partial class MainWindow : Window
         _docKey = "";
         RefreshChrome();
         await Task.CompletedTask;
-    }
-
-    private void EnsureModelSpace()
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        Native.Execute(_host, "layout.set", JsonSerializer.Serialize(new Dictionary<string, object> { ["name"] = "Model" }));
     }
 
     /// <summary>Import an MynaHub company pack into the drawing for title blocks. Does not open the company file.</summary>
@@ -2705,9 +2599,7 @@ public sealed partial class MainWindow : Window
         _formWindow = null;
         _unitsWindow = null;
         _textStyleWindow = null;
-        _pageSetupWindow = null;
         _plotStyleWindow = null;
-        _batchPlotWindow = null;
         _dimStyleWindow = null;
         _linetypeWindow = null;
         _parametersWindow = null;
@@ -2734,7 +2626,7 @@ public sealed partial class MainWindow : Window
         foreach (var window in new Window?[]
         {
             _calc, _pomodoro, _toolsWindow, _leftFloat, _pdfWindow, _formWindow,
-            _unitsWindow, _textStyleWindow, _pageSetupWindow, _plotStyleWindow, _batchPlotWindow,
+            _unitsWindow, _textStyleWindow, _plotStyleWindow,
             _dimStyleWindow, _linetypeWindow, _parametersWindow, _revisionsWindow, _historyWindow, _smartBlockWindow, _hatchWindow, _pointStyleWindow, _mleaderStyleWindow,
             _roomSettingsWindow, _draftingWindow, _quickWindow, _quickSelectWindow,
         })
@@ -3501,8 +3393,6 @@ public sealed partial class MainWindow : Window
     }
 
     private static readonly string[] DraftingUnitChoices = ["mm", "cm", "m", "in", "ft"];
-    private static readonly string[] PaperChoices = ["A0", "A1", "A2", "A3", "A4"];
-    private static readonly string[] OrientChoices = ["Landscape", "Portrait"];
 
     private void EnsureUnitsBox()
     {
@@ -3514,264 +3404,6 @@ public sealed partial class MainWindow : Window
         {
             UnitsBox.Items.Add(unit);
         }
-    }
-
-    private void EnsurePaperBox()
-    {
-        if (PaperBox.Items.Count > 0)
-        {
-            return;
-        }
-        foreach (var paper in PaperChoices)
-        {
-            PaperBox.Items.Add(paper);
-        }
-    }
-
-    private void EnsureOrientBox()
-    {
-        if (OrientBox.Items.Count > 0)
-        {
-            return;
-        }
-        foreach (var orient in OrientChoices)
-        {
-            OrientBox.Items.Add(orient);
-        }
-    }
-
-    private void SyncPaperSize()
-    {
-        EnsurePaperBox();
-        EnsureOrientBox();
-        _filling = true;
-        try
-        {
-            if (PaperBox.SelectedItem == null)
-            {
-                PaperBox.SelectedItem = "A1";
-                PaperBox.PlaceholderText = null;
-            }
-            if (OrientBox.SelectedItem == null)
-            {
-                OrientBox.SelectedItem = "Landscape";
-            }
-            SyncOrientFromNameplate();
-        }
-        finally
-        {
-            _filling = false;
-        }
-    }
-
-    private void SyncOrientFromNameplate()
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        // Prefer Nameplate L / P (or legacy Title plate) so the status bar matches the active plate.
-        if (Native.Execute(_host, "pagesetup", "{}") != 0)
-        {
-            return;
-        }
-        try
-        {
-            using var doc = JsonDocument.Parse(Native.ReadResult(_host));
-            if (!doc.RootElement.TryGetProperty("layouts", out var layouts) || layouts.ValueKind != JsonValueKind.Array)
-            {
-                return;
-            }
-            JsonElement? page = null;
-            var preferL = !string.Equals(OrientBox.SelectedItem as string, "Portrait", StringComparison.OrdinalIgnoreCase);
-            string[] prefer = preferL
-                ? ["Nameplate L", "Title plate", "Nameplate P"]
-                : ["Nameplate P", "Title plate", "Nameplate L"];
-            foreach (var wantName in prefer)
-            {
-                foreach (var layout in layouts.EnumerateArray())
-                {
-                    var name = layout.TryGetProperty("name", out var n) ? n.GetString() : null;
-                    if (string.Equals(name, wantName, StringComparison.OrdinalIgnoreCase)
-                        && layout.TryGetProperty("page", out var tp))
-                    {
-                        page = tp;
-                        break;
-                    }
-                }
-                if (page != null)
-                {
-                    break;
-                }
-            }
-            if (page == null)
-            {
-                foreach (var layout in layouts.EnumerateArray())
-                {
-                    if (layout.TryGetProperty("page", out var first))
-                    {
-                        page = first;
-                        break;
-                    }
-                }
-            }
-            if (page is not { } p)
-            {
-                return;
-            }
-            if (p.TryGetProperty("paper", out var paperEl) && paperEl.GetString() is string paper && paper.Length > 0)
-            {
-                var match = PaperChoices.FirstOrDefault(c => paper.Contains(c, StringComparison.OrdinalIgnoreCase));
-                if (match != null && !Equals(PaperBox.SelectedItem, match))
-                {
-                    PaperBox.SelectedItem = match;
-                }
-            }
-            var landscape = !p.TryGetProperty("landscape", out var land) || land.ValueKind != JsonValueKind.False;
-            var want = landscape ? "Landscape" : "Portrait";
-            if (!Equals(OrientBox.SelectedItem, want))
-            {
-                OrientBox.SelectedItem = want;
-            }
-        }
-        catch (JsonException)
-        {
-        }
-    }
-
-    /// <summary>Show the saved paper size and orientation of a tab (A1 landscape until one is chosen).</summary>
-    private void FillPageFor(string tab)
-    {
-        if (_host == IntPtr.Zero || Native.Execute(_host, "sheet.page", JsonSerializer.Serialize(new Dictionary<string, object> { ["tab"] = tab })) != 0)
-        {
-            return;
-        }
-        try
-        {
-            using var doc = JsonDocument.Parse(Native.ReadResult(_host));
-            EnsurePaperBox();
-            EnsureOrientBox();
-            EnsureScaleBox();
-            _filling = true;
-            try
-            {
-                var paper = doc.RootElement.TryGetProperty("paper", out var p) ? p.GetString() : "A1";
-                PaperBox.SelectedItem = PaperChoices.FirstOrDefault(c => string.Equals(c, paper, StringComparison.OrdinalIgnoreCase)) ?? "A1";
-                var landscape = !doc.RootElement.TryGetProperty("landscape", out var l) || l.ValueKind != JsonValueKind.False;
-                OrientBox.SelectedItem = landscape ? "Landscape" : "Portrait";
-                var scale = doc.RootElement.TryGetProperty("scale", out var sc) ? sc.GetString() ?? "1:100" : "1:100";
-                if (!ScaleBox.Items.Contains(scale))
-                {
-                    ScaleBox.Items.Add(scale);
-                }
-
-                ScaleBox.SelectedItem = scale;
-            }
-            finally
-            {
-                _filling = false;
-            }
-        }
-        catch (JsonException)
-        {
-        }
-    }
-
-    private static readonly string[] ScaleChoices = ["1:10", "1:20", "1:50", "1:100", "1:200", "1:500"];
-
-    private void EnsureScaleBox()
-    {
-        if (ScaleBox.Items.Count > 0)
-        {
-            return;
-        }
-
-        foreach (var scale in ScaleChoices)
-        {
-            ScaleBox.Items.Add(scale);
-        }
-    }
-
-    private void OnScalePicked(object sender, SelectionChangedEventArgs e)
-    {
-        if (_filling || _host == IntPtr.Zero || ScaleBox.SelectedItem is not string)
-        {
-            return;
-        }
-
-        SavePageFor(_pageTab);
-        AfterCommand();
-    }
-
-    /// <summary>Remember the paper size and orientation shown for the tab being edited.</summary>
-    private void SavePageFor(string tab)
-    {
-        if (_host == IntPtr.Zero || PaperBox.SelectedItem is not string paper || OrientBox.SelectedItem is not string orient)
-        {
-            return;
-        }
-        Native.Execute(_host, "sheet.page", JsonSerializer.Serialize(new Dictionary<string, object>
-        {
-            ["tab"] = tab,
-            ["paper"] = paper,
-            ["landscape"] = !string.Equals(orient, "Portrait", StringComparison.OrdinalIgnoreCase),
-            ["scale"] = ScaleBox.SelectedItem as string ?? "1:100",
-        }));
-        _sheetKey = "";
-    }
-
-    private void OnPaperPicked(object sender, SelectionChangedEventArgs e)
-    {
-        if (_filling || _host == IntPtr.Zero || PaperBox.SelectedItem is not string paper || paper.Length == 0)
-        {
-            return;
-        }
-        SavePageFor(_pageTab);
-        // The paper size is kept for the tab and set on the layouts. It does not rescale the drawing: plot.config with apply resizes every
-        // dimension and text to the paper (and, with no scale set, forced 1:100), which made the arrows and text huge.
-        ApplyNameplatePage();
-        AfterCommand();
-    }
-
-    private void OnOrientPicked(object sender, SelectionChangedEventArgs e)
-    {
-        if (_filling || _host == IntPtr.Zero || OrientBox.SelectedItem is not string)
-        {
-            return;
-        }
-        SavePageFor(_pageTab);
-        ApplyNameplatePage();
-        AfterCommand();
-    }
-
-    /// <summary>Push paper size onto Nameplate L and Nameplate P; orientation picks which plate Orient uses.</summary>
-    private void ApplyNameplatePage()
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        var paper = PaperBox.SelectedItem as string ?? "A1";
-        var landscape = !string.Equals(OrientBox.SelectedItem as string, "Portrait", StringComparison.OrdinalIgnoreCase);
-        // Choosing a paper size or orientation only sets the pages of the layouts. (sheet.designer was called here too; it draws the
-        // nameplate into the drawing, which a paper choice must not do.)
-        foreach (var (name, land) in new (string, bool)[] { ("Nameplate L", true), ("Nameplate P", false) })
-        {
-            var setup = new Dictionary<string, object>
-            {
-                ["layout"] = name,
-                ["paper"] = paper,
-                ["landscape"] = land,
-            };
-            Native.Execute(_host, "pagesetup", JsonSerializer.Serialize(setup));
-        }
-        // Legacy single Title plate, if still present.
-        Native.Execute(_host, "pagesetup", JsonSerializer.Serialize(new Dictionary<string, object>
-        {
-            ["layout"] = "Title plate",
-            ["paper"] = paper,
-            ["landscape"] = landscape,
-        }));
     }
 
     private void SyncDraftingUnits(string chromeLabel)
@@ -3860,20 +3492,6 @@ public sealed partial class MainWindow : Window
         PresentToolWindow(_textStyleWindow);
     }
 
-    private void OpenPageSetup()
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        if (_pageSetupWindow == null)
-        {
-            _pageSetupWindow = PageSetupWindow.Open(this, _host, AfterCommand);
-            _pageSetupWindow.Closed += (_, _) => _pageSetupWindow = null;
-        }
-        PresentToolWindow(_pageSetupWindow);
-    }
-
     private void OpenPlotStyles()
     {
         if (_host == IntPtr.Zero)
@@ -3886,20 +3504,6 @@ public sealed partial class MainWindow : Window
             _plotStyleWindow.Closed += (_, _) => _plotStyleWindow = null;
         }
         PresentToolWindow(_plotStyleWindow);
-    }
-
-    private void OpenBatchPlot()
-    {
-        if (_host == IntPtr.Zero)
-        {
-            return;
-        }
-        if (_batchPlotWindow == null)
-        {
-            _batchPlotWindow = BatchPlotWindow.Open(this, _host, AfterCommand);
-            _batchPlotWindow.Closed += (_, _) => _batchPlotWindow = null;
-        }
-        PresentToolWindow(_batchPlotWindow);
     }
 
     private void OpenDimStyle()
@@ -5836,7 +5440,6 @@ public sealed partial class MainWindow : Window
         {
             var currentLayer = snapshot.Layers.FirstOrDefault(layer => layer.Current)?.Name;
             FillCombo(LayerBox, snapshot.Layers.Select(layer => (layer.Name, layer.Name)), currentLayer);
-            SyncPaperSize();
         }
         finally
         {
@@ -6445,7 +6048,7 @@ public sealed partial class MainWindow : Window
         AddPhasePickers();
     }
 
-    /// <summary>Bottom status strip: open drawings (model space only) + Nameplate button.</summary>
+    /// <summary>Bottom status strip: open drawings (model space only).</summary>
     private void ShowDrawingTabs(ChromeState state)
     {
         _documents.Clear();
@@ -6527,15 +6130,13 @@ public sealed partial class MainWindow : Window
         var doc = _documents.FirstOrDefault(item => item.Index == index);
         if (doc is { Active: true })
         {
-            EnsureModelSpace();
-            AfterCommand();
+                AfterCommand();
             return;
         }
         if (Native.Execute(_host, "document.switch", JsonSerializer.Serialize(new Dictionary<string, object> { ["index"] = index })) != 0)
         {
             History.Text = Native.LastError(_host);
         }
-        EnsureModelSpace();
         _docKey = "";
         _panelKey = "";
         AfterCommand();
@@ -6825,8 +6426,6 @@ public sealed partial class MainWindow : Window
         CommandItem(window, "Calculator", OpenCalculator);
         CommandItem(window, "Pomodoro", OpenPomodoro);
         CommandItem(window, "Customize tool bar", OpenTools);
-        CommandItem(window, "Nameplate L (landscape)", () => OpenNameplate(landscape: true));
-        CommandItem(window, "Nameplate P (portrait)", () => OpenNameplate(landscape: false));
         CommandItem(window, "UCS icon", () =>
         {
             _ucs = !_ucs;
@@ -7460,7 +7059,6 @@ public sealed partial class MainWindow : Window
         public string Prompt { get; set; } = "Command:";
         public List<string> History { get; set; } = new();
         public string Space { get; set; } = "Model";
-        public List<string> Layouts { get; set; } = new();
         public string Layer { get; set; } = "0";
         public bool Ortho { get; set; }
         public bool Polar { get; set; }

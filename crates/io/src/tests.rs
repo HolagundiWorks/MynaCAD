@@ -346,6 +346,147 @@ fn hostile_dxf_does_not_panic() {
     }
 }
 
+/// Layouts are invisible in the product (docs/layout-book.md 11.1) but a foreign drawing still carries them:
+/// hostile layout, viewport and paper-space data must read, render and write back without a panic.
+#[test]
+fn hostile_dxf_layouts_do_not_panic() {
+    let hostile = [
+        "0
+SECTION
+2
+BLOCKS
+0
+BLOCK
+2
+*Paper_Space
+67
+1
+0
+VIEWPORT
+10
+nan
+20
+1e308
+40
+-1
+41
+0
+68
+1
+69
+1
+0
+LINE
+8
+0
+10
+0
+20
+0
+11
+1
+21
+1
+67
+1
+0
+ENDBLK
+0
+ENDSEC
+0
+SECTION
+2
+OBJECTS
+0
+LAYOUT
+1
+Layout1
+70
+1
+71
+0
+10
+0
+20
+0
+11
+99999999
+21
+-5
+40
+1e308
+41
+0
+0
+ENDSEC
+0
+EOF
+",
+        "0
+SECTION
+2
+OBJECTS
+0
+LAYOUT
+1
+
+71
+-3
+0
+LAYOUT
+1
+Layout1
+71
+99999999999
+0
+ENDSEC
+0
+EOF
+",
+        "0
+SECTION
+2
+ENTITIES
+0
+VIEWPORT
+67
+1
+10
+0
+20
+0
+40
+0
+41
+0
+69
+9999999
+0
+ENDSEC
+0
+EOF
+",
+    ];
+    for t in hostile {
+        if let Ok(d) = read(t.as_bytes(), "x.dxf") {
+            for l in &d.layouts {
+                let sp = Space::Paper(l.name.clone());
+                let _ = aad_render::build(&d, &sp, &aad_render::Options::default());
+                let _ = d.extents(&sp);
+            }
+            let _ = write_dxf(&d);
+            let _ = write(&d, "x.dxf");
+        }
+    }
+    // A well-formed layout survives a DXF write and read (no data is lost by the removal of the layout commands).
+    let mut d = sample();
+    let before = d.layouts.len();
+    assert!(before > 0, "the sample has a layout");
+    let back = read_dxf(write_dxf(&d).as_bytes()).unwrap();
+    assert_eq!(back.layouts.len(), before);
+    d.layouts.clear();
+}
+
 #[test]
 fn svg_and_png_export() {
     let d = sample();

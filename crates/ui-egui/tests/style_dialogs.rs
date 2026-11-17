@@ -9,7 +9,7 @@ use serde_json::json;
 fn menu_items_open_their_dialogs() {
     let mut app = CadApp::new(Session::new(), Services::default());
     let ctx = egui::Context::default();
-    for (cmd, dialog) in [("pagesetup", "pagesetup"), ("linetype", "linetype"), ("mleaderstyle", "mleaderstyle"), ("ddptype", "ptype")] {
+    for (cmd, dialog) in [("linetype", "linetype"), ("mleaderstyle", "mleaderstyle"), ("ddptype", "ptype")] {
         app.ui.dialog = None;
         menus::activate(&mut app, cmd);
         assert_eq!(app.ui.dialog.as_deref(), Some(dialog), "{cmd}");

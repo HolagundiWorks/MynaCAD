@@ -15,6 +15,7 @@ pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("ui.open", "Open...", &[], Some("Cmd+O")),
     ("ui.saveas", "Save As...", &[], None),
     ("ui.sample", "Open Sample Drawing", &["Help", "Open Sample Drawing"], None),
+    ("ui.publish", "Publish...", &["File", "Publish..."], None),
     ("ui.panel.properties", "Properties Inspector", &["Window", "Properties Inspector"], Some("Cmd+1")),
     ("ui.panel.layers", "Layers Palette", &["Window", "Layers Palette"], None),
     ("ui.toggle.systemcursor", "Show System Cursor", &["View", "Accessibility", "Show System Cursor"], None),
@@ -119,12 +120,6 @@ fn run_ui_command_inner(app: &mut CadApp, id: &str, params: &Value) -> Option<Re
             }
             Ok(Value::Null)
         }
-        // Batch Plot (menu or typed): choose what to plot in the window; the command itself runs
-        // from the window's Plot button, never from a bare menu click.
-        "plot.batch" if params.is_null() => {
-            crate::plotwindow::open(app);
-            Ok(Value::Null)
-        }
         // Open Project (menu or typed): pick the project file or its main drawing.
         "project.open" if params.is_null() && app.services.pick_open.is_some() => {
             if let Some(p) = app.services.pick_open.as_ref().and_then(|f| f()) {
@@ -172,6 +167,11 @@ fn run_ui_command_inner(app: &mut CadApp, id: &str, params: &Value) -> Option<Re
                 Err(e) => e.clone(),
             });
             r
+        }
+        // Publish is a shortcut to MynaOps (the Windows shell starts it); this shell only says where sheets are made.
+        "ui.publish" => {
+            app.set_status("Sheets are published from MynaOps (the Publisher page arrives with the layout book).");
+            Ok(Value::Null)
         }
         "ui.sample" => {
             let d = aad_engine::sample::default_sample();
@@ -665,22 +665,6 @@ mod tests {
         app.cmdline("4,5");
         finish(&mut app);
         assert_eq!(asked.borrow().len(), 1, "the dialog was cancelled: nothing is written");
-    }
-
-    #[test]
-    fn a_layout_is_plotted_as_it_is_without_asking_for_a_window() {
-        if !install_fake_plotter() {
-            return;
-        }
-        let path = std::env::temp_dir().join(format!("aad-print-layout-{}.pdf", std::process::id()));
-        let ps = path.to_string_lossy().to_string();
-        let (mut app, asked) = app_with_picker(Some(ps));
-        let name = app.run("layout.new", json!({})).unwrap()["name"].as_str().unwrap().to_string();
-        app.run("layout", json!({"option": "set", "name": name})).unwrap();
-        app.start("plot");
-        assert!(app.session.running.is_none(), "no window question in paper space");
-        assert_eq!(asked.borrow().len(), 1, "it goes straight to where to save");
-        let _ = std::fs::remove_file(&path);
     }
 }
 

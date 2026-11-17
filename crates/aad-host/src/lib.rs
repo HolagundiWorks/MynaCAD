@@ -370,7 +370,7 @@ pub const POINTER_MIDDLE_DOWN: u32 = 5;
 pub const POINTER_MIDDLE_UP: u32 = 6;
 /// Right button. Enter while a command is running.
 pub const POINTER_RIGHT: u32 = 7;
-/// Left button double-click. Edits text, or enters a layout viewport.
+/// Left button double-click. Edits the text under the pointer.
 pub const POINTER_LEFT_DOUBLE: u32 = 8;
 /// Middle button double-click. Zooms to the drawing extents.
 pub const POINTER_MIDDLE_DOUBLE: u32 = 9;
@@ -2064,24 +2064,6 @@ impl Host {
         if self.session.running.is_some() {
             return Ok(());
         }
-        let (on_paper, paper, inside, had_viewport) = {
-            let state = self.session.state().map_err(|e| e.to_string())?;
-            let on_paper = matches!(state.space, aad_engine::doc::Space::Paper(_));
-            let paper = self.screen_on(ev.x, ev.y, state.paper_view());
-            let viewport = state.active_viewport();
-            let inside = viewport
-                .as_ref()
-                .is_some_and(|(_, view)| (paper.x - view.center.x).abs() <= view.width / 2.0 && (paper.y - view.center.y).abs() <= view.height / 2.0);
-            (on_paper, paper, inside, viewport.is_some())
-        };
-        if on_paper && !inside {
-            self.hot = None;
-            let at = serde_json::json!({ "at": [paper.x, paper.y] });
-            if self.session.execute("mspace", &at).is_err() && had_viewport {
-                let _ = self.session.execute("pspace", &serde_json::json!({}));
-            }
-            return Ok(());
-        }
         let world = self.screen_to_world(ev.x, ev.y)?;
         self.edit_text_at(world)
     }
@@ -2110,14 +2092,6 @@ impl Host {
         self.panning = false;
         self.press = None;
         self.session.zoom_extents().map_err(|e| e.to_string())
-    }
-
-    fn screen_on(&self, x: f64, y: f64, view: aad_engine::View) -> Vec2 {
-        let height = f64::from(self.height.max(1));
-        let scale = height / view.height.max(1e-12);
-        let cx = f64::from(self.width.max(1)) * 0.5;
-        let cy = height * 0.5;
-        Vec2::new(view.center.x + (x - cx) / scale, view.center.y - (y - cy) / scale)
     }
 
     fn right_click(&mut self, ev: Pointer) -> Result<(), String> {
@@ -2149,13 +2123,13 @@ impl Host {
     }
 
     /// JSON for a finished `plot.window` / `plotl` / `plotp` request. Empty when nothing is waiting.
-    /// `window` null means Extents; `layout` is the nameplate; `preview` asks for on-screen PDF.
+    /// `window` null means Extents; `landscape` is the paper orientation (null = default); `preview` asks for on-screen PDF.
     pub fn plot_request_json(&self) -> String {
         match &self.session.plot_request {
             None => String::new(),
             Some(req) => serde_json::json!({
                 "window": req.window,
-                "layout": req.layout,
+                "landscape": req.landscape,
                 "preview": req.preview,
             })
             .to_string(),
@@ -4041,9 +4015,9 @@ mod tests {
     fn plot_window_request_json_is_exposed_to_the_shell() {
         let mut host = Host::create(false);
         assert!(host.plot_request_json().is_empty());
-        host.session.plot_request = Some(aad_engine::PlotRequest { window: None, layout: String::new(), preview: false });
+        host.session.plot_request = Some(aad_engine::PlotRequest { window: None, landscape: None, preview: false });
         assert!(host.plot_request_json().contains("null"), "{}", host.plot_request_json());
-        host.session.plot_request = Some(aad_engine::PlotRequest { window: Some([1.0, 2.0, 3.0, 4.0]), layout: "Nameplate L".into(), preview: true });
+        host.session.plot_request = Some(aad_engine::PlotRequest { window: Some([1.0, 2.0, 3.0, 4.0]), landscape: Some(true), preview: true });
         let json = host.plot_request_json();
         assert!(json.contains('1') && json.contains('4'), "{json}");
         host.clear_plot_request();

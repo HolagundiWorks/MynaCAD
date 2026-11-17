@@ -22,7 +22,6 @@ pub fn show(app: &mut CadApp, ctx: &egui::Context) {
         "commands" => commands(app, ctx, &mut open),
         "blocks" => blocks(app, ctx, &mut open),
         "stylesmanager" => crate::plotstyles::dialog(app, ctx, &mut open),
-        "plotbatch" => crate::plotwindow::dialog(app, ctx, &mut open),
         "customizetop" => crate::topbar::dialog(app, ctx, &mut open),
         "parameters" => parameters(app, ctx, &mut open),
         other => crate::managers::dialog(app, ctx, other, &mut open),

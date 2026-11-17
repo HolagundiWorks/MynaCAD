@@ -453,7 +453,7 @@ fn draw_table_on(s: &mut Session, layout: &str, at: Option<Vec2>, height_mm: f64
     let layout_owned = layout.to_string();
     let handles = {
         let prev = s.layout_space();
-        s.execute("layout.set", &json!({ "name": layout_owned }))?;
+        super::view::show_space(s, &layout_owned)?;
         let result = (|| -> Result<Vec<aad_doc::Handle>> {
             super::hcw::ensure_layer(s.doc_mut()?, TABLE_LAYER, 7, "Continuous", 25, "Revision table");
             let mut hs = Vec::new();
@@ -491,7 +491,7 @@ fn draw_table_on(s: &mut Session, layout: &str, at: Option<Vec2>, height_mm: f64
             Space::Paper(n) => n,
             Space::Model => "Model".to_string(),
         };
-        let _ = s.execute("layout.set", &json!({ "name": back }));
+        let _ = super::view::show_space(s, &back);
         result?
     };
 

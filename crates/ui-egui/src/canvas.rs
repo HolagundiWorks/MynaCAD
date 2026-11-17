@@ -833,25 +833,6 @@ pub fn show(app: &mut CadApp, ui: &mut egui::Ui) {
         }
         Err(_) => (xf, None),
     };
-    // Double-click a viewport to work inside it; double-click the sheet outside it to return.
-    if inside
-        && dbl_primary
-        && app.session.running.is_none()
-        && matches!(app.session.layout_space(), aad_doc::Space::Paper(_))
-        && let Some(hp) = hover_pos
-    {
-        let pp = xf_paper.to_world(hp);
-        let in_active = active_vp.as_ref().is_some_and(|v| (pp.x - v.center.x).abs() <= v.width / 2.0 && (pp.y - v.center.y).abs() <= v.height / 2.0);
-        if !in_active {
-            app.canvas.hot_grip = None;
-            if app.run("mspace", serde_json::json!({"at": [pp.x, pp.y]})).is_err() && active_vp.is_some() {
-                let _ = app.run("pspace", serde_json::json!({}));
-            }
-            app.canvas.list = None;
-            return;
-        }
-    }
-
     let raw_world = hover_pos.filter(|_| inside).map(|p| xf.to_world(p));
     let dyn_frame = crate::cmdline::dyn_frame(app);
     if let Some(w) = raw_world {

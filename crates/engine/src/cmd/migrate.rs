@@ -35,7 +35,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("level.import", "Import Level", run_import)
             .menu(&["Architecture", "Levels", "Import Level"])
-            .params("{path, name? (default the file name), elevation?, height?, after?, sheetSet? (import as that sheet set's annotation of `level` instead), level? (default the active one), ignoreUnits?, layerMap? ({file layer: layer to put its objects on}; layers not listed keep their names)} → {level, id, objects, ...}. Reads a DXF/DWG (flattened to 2D) as a new level."),
+            .params("{path, name? (default the file name), elevation?, height?, after?, sheetSet? (import as that sheet set's annotation of `level` instead), level? (default the active one), ignoreUnits?, layerMap? ({file layer: layer to put its objects on}; layers not listed keep their names)} → {level, id, objects, ...}. Reads a DXF/DWG (flattened to 2D) as a new level. Layouts of the file are not imported; those with content are listed as `layoutsNotImported: [{name, objects, viewports, status}]`."),
         CommandSpec::new("layer.mapplan", "Plan Layer Mapping", run_mapplan)
             .menu(&["Architecture", "Levels", "Plan Layer Mapping"])
             .params("{path} → {layers: [{name, objects, suggested?}], targets: [{name, tab, description}]}. Lists the layers of a DXF/DWG with their object counts and the standard layer each most likely stands for, to be passed as `layerMap` to `level.import`. Changes nothing.")
@@ -300,6 +300,21 @@ fn run_mapplan(_s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "path": path, "layers": layers, "targets": targets }))
 }
 
+/// The layouts a foreign drawing carries that have content, for the import report. Layouts are not imported
+/// (docs/layout-book.md 8.1, D5): sheets are made in MynaOps. Empty layouts (every DXF has a `Layout1`) are not listed.
+fn foreign_layouts(src: &Drawing) -> Vec<Value> {
+    src.layouts
+        .iter()
+        .take(64)
+        .filter_map(|l| {
+            let viewports = l.entities.iter().filter(|e| matches!(&e.kind, EntityKind::Viewport(v) if v.id != 1)).count();
+            let objects = l.entities.iter().filter(|e| !matches!(e.kind, EntityKind::Viewport(_))).count();
+            (viewports + objects > 0)
+                .then(|| json!({ "name": l.name, "objects": objects, "viewports": viewports, "status": "not imported: sheets are made in MynaOps" }))
+        })
+        .collect()
+}
+
 fn run_import(s: &mut Session, p: &Value) -> Result<Value> {
     let path = str_param(p, "path")
         .filter(|t| !t.trim().is_empty() && t.len() < 1024 && !t.contains('\0'))
@@ -317,8 +332,9 @@ fn run_import(s: &mut Session, p: &Value) -> Result<Value> {
     take_units(&mut d, &src, &path, ignore)?;
     remap_layers(&mut d, &mut src, &map);
     let objects = src.model.len();
+    let skipped_layouts = foreign_layouts(&src);
     let given = |key: &str| p.get(key).filter(|v| !v.is_null());
-    let out = if let Some(sv) = given("sheetSet") {
+    let mut out = if let Some(sv) = given("sheetSet") {
         // Annotation of an existing sheet set on a level.
         let set = set_in(&d, sv).ok_or_else(|| bad("level.import", format!("no sheet set `{sv}`")))?;
         ensure_levels(&mut d)?;
@@ -340,6 +356,11 @@ fn run_import(s: &mut Session, p: &Value) -> Result<Value> {
         json!({ "level": d.level(id).map(|l| l.name.clone()), "id": id.0, "objects": objects })
     };
     *s.doc_mut()? = d;
+    if !skipped_layouts.is_empty()
+        && let Some(o) = out.as_object_mut()
+    {
+        o.insert("layoutsNotImported".into(), Value::Array(skipped_layouts));
+    }
     Ok(out)
 }
 

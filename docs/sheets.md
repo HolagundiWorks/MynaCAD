@@ -1,5 +1,7 @@
 # Sheets and batch plotting
 
+> **Superseded (2026-11-17, package H6 of [layout-book.md](layout-book.md)).** The layout, nameplate, viewport, sheet-template, sheet-index and batch-plot commands and windows described below were removed from MynaCAD (`layout.*`, `mview`, `viewport.*`, `pagesetup`, `sheet.designer`, `sheet.titleblock`, `sheet.fields`, `sheet.template.*`, `sheet.plotwindow`, `sheet.index`, `plot.batch`, `floor.viewport`). Only model-space `plot`, `plot.window`, `plotl`, `plotp` and `exportpdf` remain; there is no layout or sheet printing in MynaCAD until the MynaOps publisher exists. The text below is kept as a record of the removed behaviour and of the data format that foreign layouts still use.
+
 A new drawing has two paper layouts for print: **Nameplate L** (landscape) and **Nameplate P**
 (portrait). `sheet.designer` replaces empty Layout1 and Layout2 with those sheets (each with its
 own title block and page setup) so each orientation can be designed separately. A drawing that

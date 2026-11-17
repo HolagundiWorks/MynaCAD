@@ -80,7 +80,6 @@ mod takeoff;
 mod takeoffann;
 mod takeoffphase;
 pub use takeoffphase::phases_json as takeoff_phases_json;
-pub mod pagesetup;
 mod takeofflevels;
 mod takeoffrec;
 mod texttools;
@@ -260,7 +259,6 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(takeoffrec::specs());
         v.extend(floorregion::specs());
         v.extend(underlay::specs());
-        v.extend(pagesetup::specs());
         v.extend(pdfimport::specs());
         v.extend(import::specs());
         v.extend(schedule::specs());
@@ -295,7 +293,6 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(wizard::specs());
         v.extend(exchange::specs());
         v.extend(migrate::specs());
-        v.extend(sheet::specs());
         v.extend(compose::specs());
         v.extend(layout::specs());
         v.extend(props::specs());

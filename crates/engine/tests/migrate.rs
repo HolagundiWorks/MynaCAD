@@ -58,6 +58,38 @@ fn objects(s: &Session, level: &str) -> usize {
 // ---------------- level.import ----------------
 
 #[test]
+fn layouts_of_a_foreign_file_are_not_imported_and_are_named_in_the_report() {
+    use aad_engine::doc::{Common, Line, Space};
+    use aad_geom::Vec3;
+    let dir = temp("layouts");
+    let file = dir.join("With sheets.dxf");
+    write_file(&file, "mm", |s| {
+        line(s, 0.0);
+        // Layout1 stays empty (every DXF has one); Layout2 holds a paper annotation.
+        let d = s.doc_mut().unwrap();
+        d.add(
+            &Space::Paper("Layout2".into()),
+            Common::default(),
+            aad_engine::doc::EntityKind::Line(Line { a: Vec3::new(0.0, 0.0, 0.0), b: Vec3::new(5.0, 0.0, 0.0) }),
+        )
+        .unwrap();
+        if d.layout("Layout2").is_none() {
+            panic!("the drawing has no Layout2 to hold the paper line");
+        }
+    });
+    let mut s = session("mm");
+    line(&mut s, 50.0);
+    let r = s.execute("level.import", &json!({"path": file.to_string_lossy(), "name": "Sheets"})).unwrap();
+    assert_eq!(r["objects"], 1, "only model space is imported");
+    let listed = r["layoutsNotImported"].as_array().expect("the report lists the skipped layouts");
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert_eq!(listed[0]["name"], "Layout2");
+    assert_eq!(listed[0]["status"], "not imported: sheets are made in MynaOps");
+    assert!(s.doc().unwrap().layouts.iter().all(|l| l.entities.is_empty()), "no layout content came along");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn a_file_becomes_a_level_with_fresh_handles_and_its_dimension_still_attached() {
     let dir = temp("import");
     let file = dir.join("Basement plan.dxf");

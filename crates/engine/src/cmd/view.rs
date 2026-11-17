@@ -81,11 +81,6 @@ pub fn specs() -> Vec<CommandSpec> {
             Ok(json!({"center": [v.center.x, v.center.y], "height": v.height, "viewportPx": [s.viewport_px.0, s.viewport_px.1]}))
         })
         .noundo(),
-        CommandSpec::new("layout.set", "Switch Layout", run_layout_set)
-            .menu(&["View", "Layout", "Switch"])
-            .alias(&["layout", "tilemode"])
-            .params("{name: \"Model\" | layout name}")
-            .noundo(),
     ]
 }
 
@@ -248,17 +243,17 @@ fn run_view_set(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
-fn run_layout_set(s: &mut Session, p: &Value) -> Result<Value> {
-    let name = str_param(p, "name").unwrap_or("Model");
+/// Show `Model` or a layout of the drawing (internal: the revision register draws its tables on the layouts a foreign
+/// drawing brought along). The layout tabs and the `layout.set` command were removed with paper space.
+pub(crate) fn show_space(s: &mut Session, name: &str) -> Result<()> {
     let space = if name.eq_ignore_ascii_case("model") {
         Space::Model
     } else {
-        let l = s.doc()?.layout(name).ok_or_else(|| bad("layout.set", format!("no layout `{name}`")))?;
+        let l = s.doc()?.layout(name).ok_or_else(|| bad("revision", format!("no layout `{name}`")))?;
         Space::Paper(l.name.clone())
     };
-    // Already on this tab and not in a viewport: no-op (WinUI EnsureModelSpace re-calls this often).
     if s.layout_space() == space && s.state()?.mspace.is_none() {
-        return ok();
+        return Ok(());
     }
     let st = s.state_mut()?;
     st.space = space.clone();
@@ -267,14 +262,13 @@ fn run_layout_set(s: &mut Session, p: &Value) -> Result<Value> {
     if let Space::Paper(n) = &space
         && !st.views.iter().any(|(sp, _)| sp == &space)
     {
-        // Default paper view: the sheet.
         let page = st.doc.layout(n).map(|l| l.page.clone()).unwrap_or_default();
         let (w, h) = if page.landscape { (page.height_mm, page.width_mm) } else { (page.width_mm, page.height_mm) };
         let unit = if st.doc.header.i64("MEASUREMENT", 0) == 1 { 1.0 } else { 1.0 / 25.4 };
         st.set_view_quiet(View { center: Vec2::new(w * unit / 2.0, h * unit / 2.0), height: h * unit * 1.15 });
     }
     s.touch();
-    ok()
+    Ok(())
 }
 
 #[derive(Default)]

@@ -70,4 +70,4 @@ ground floor's beam layout shown over it while the ground floor plan itself is h
 | Adding or removing a floor after setup | Not built |
 | Opening schedule: door/window can place a plan block and sync schedule width from the drawing | Built (`wall.door` / `wall.window` `block`, `openings.sync`); full Type catalog / reconciliation report still not built |
 | Floor-wise electrical schedules and cross-floor coordination | Not built |
-| Batch print by floor and category | Implemented and tested (`plot.batch`, [sheets.md](sheets.md)); PDF only |
+| Batch print by floor and category | **Removed** (`plot.batch` was deleted with paper space, H6; [layout-book.md](layout-book.md) 11.1) |

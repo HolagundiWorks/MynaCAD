@@ -272,8 +272,6 @@ public sealed partial class MainWindow
         var active = state.SheetSets.FirstOrDefault(x => x.Active);
         _activeTabName = active?.Name ?? "Design";
         _activeLayerPrefix = active?.LayerPrefix ?? "";
-        _tabNames = new List<string> { "Design" };
-        _tabNames.AddRange(state.SheetSets.Select(x => x.Name));
         TabRow.Children.Add(MakeTopTab(
             "Design",
             "Design: draw the building. Sheet-set annotation is not shown.",
@@ -331,9 +329,6 @@ public sealed partial class MainWindow
     private MenuFlyout BuildDesignSheetMenu()
     {
         var menu = new MenuFlyout { Placement = FlyoutPlacementMode.RightEdgeAlignedTop };
-        var page = new MenuFlyoutItem { Text = "Page layout..." };
-        page.Click += (_, _) => OpenPageLayoutManager("Design");
-        menu.Items.Add(page);
         var history = new MenuFlyoutItem { Text = "History" };
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
         menu.Items.Add(history);
@@ -346,9 +341,6 @@ public sealed partial class MainWindow
         var saveMilestone = new MenuFlyoutItem { Text = "Save milestone..." };
         saveMilestone.Click += (_, _) => _ = SaveMilestoneAsync("sheet", set.Id, set.Name);
         menu.Items.Add(saveMilestone);
-        var page = new MenuFlyoutItem { Text = "Page layout..." };
-        page.Click += (_, _) => OpenPageLayoutManager(set.Name);
-        menu.Items.Add(page);
         var history = new MenuFlyoutItem { Text = "History" };
         history.Click += (_, _) => ShowSidePanel(SideTab.History);
         menu.Items.Add(history);

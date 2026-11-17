@@ -1,5 +1,7 @@
 # Structured sheet set: sheet index, revisions and issue sets
 
+> **Superseded (2026-11-17, package H6 of [layout-book.md](layout-book.md)).** The sheet index, revisions per sheet, issue sets and publish-by-issue commands and the Sheet index window were removed from MynaCAD. Only `sheet.scheme` stays (the Ops-first project configuration sets the numbering scheme) and the stored key `sheetidx1` is kept byte for byte. Adoption of the records into the layout book is package H7. The text below describes the removed behaviour and the stored format.
+
 Status: engine commands and the WinUI **Sheet index** window are built and the window was driven by hand once; see "Verification" at the end for what was run. Planned items are marked as such. Related: the Compose and
 publish section of [levels-and-sheet-sets.md](levels-and-sheet-sets.md) (Compose Views, Master
 Layouts, Publisher Sets), [sheets.md](sheets.md) (title block, `sheet.index`),

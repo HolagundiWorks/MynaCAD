@@ -837,7 +837,6 @@ mod tests {
         s.execute("floor.current", &json!({})).unwrap();
         s.execute("floor.current", &json!({ "name": "Ground" })).unwrap();
         s.execute("drawing.units", &json!({ "units": "in", "mode": "metadata" })).unwrap();
-        s.execute("layout.set", &json!({ "name": "Model" })).unwrap();
         assert!(!s.state().unwrap().is_dirty(), "shell chrome must not mark a blank drawing dirty");
     }
 
@@ -862,7 +861,7 @@ mod tests {
         s.execute("line", &json!({ "points": [[0, 0], [1, 1]] })).unwrap();
         s.execute("selectall", &json!({})).unwrap();
         s.execute("block", &json!({ "name": "Part", "base": [0, 0], "keep": "delete" })).unwrap();
-        s.execute("layout.set", &json!({ "name": "Layout1" })).unwrap();
+        super::super::view::show_space(&mut s, "Layout1").unwrap();
         s.execute("line", &json!({ "points": [[0, 0], [1, 1]] })).unwrap();
         s.execute("layer.set", &json!({ "name": "A", "newName": "B" })).unwrap();
         let d = s.doc().unwrap();

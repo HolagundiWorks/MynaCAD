@@ -81,7 +81,8 @@ fn status_labels_never_overlap_at_standard_and_compact_sizes() {
 
 #[test]
 fn compact_toolbar_overflow_keeps_the_last_tools_reachable() {
-    let mut h = harness(900.0, 560.0, 1.0, false);
+    // Two buttons (Batch Publish, Page Setup Manager) left the bar with paper space, so the bar overflows at a narrower window now.
+    let mut h = harness(820.0, 560.0, 1.0, false);
     h.get_by_label("More toolbar commands").click();
     h.run_steps(3);
     h.get_by_label("Area").click();

@@ -11,12 +11,9 @@ Detail lives in `docs/levels-and-sheet-sets.md`, `docs/sheet-index.md`, `docs/la
 - **Sections and elevations (Phase 6):** view spaces tied to section and elevation markers, with projection guides drawn faded under the open view (snappable, never saved), `section.*` and `view.*` commands, and a Section / Elevation tab group in the WinUI bottom bar. Layout viewports can show a view (`viewport.set {view}`) and `sheetindex.build` binds view sheets. The tab group was driven by hand through UI Automation: a section made from the New section flyout, switching between a level tab and the view tab.
 
 ## Plotting
-- Compose Views, Master Layouts and Publisher Sets with a Navigator, PDF and DWG publish.
-- **Sheet index (BIM-style):** sheet records numbered by discipline (A-101, S-201, E-301, P-401 pattern), `sheetindex.build` (a layout per level), a sheet list table, per-sheet revisions, issue sets and publish by issue, discipline or sheet list. The WinUI Sheet index window was opened and driven by hand (UI Automation): the tree listed four sheets (two levels, two sections), Apply fields on a changed number renamed the layout, Renumber and New issue set worked. Real PDF and DWG output through the new publish path has not been produced; drag-to-reorder was not tried.
-- The standard title block now carries CHECKED, APPROVED, DISCIPLINE, STATUS and ISSUE; a renumbered sheet renames its layout; `issue.delete` exists. A viewport made at 1:100 on a millimetre drawing shows only part of a tall section: the sheet scale is not chosen from the view's size.
-
-## Planned
-A Delete issue button in the Sheet index window, a scale chosen from the view's size for view sheets.
+- **Model-space PDF/SVG/PNG only.** `plot`, `plot.window`, `plotl`, `plotp` and `exportpdf` plot the drawing or a picked window; `plotl` / `plotp` choose landscape or portrait paper and create no layout. A plot style table is chosen with `plotStyleTable`.
+- **Removed (package H6, 2026-11-17):** layouts and layout tabs, viewports, page setup, Nameplate designer, sheet templates, the sheet index and issue sets, Master Layouts, Publisher Sets, the Navigator, Batch Plot. There is no layout or sheet printing in MynaCAD until the MynaOps publisher exists; File > Publish starts MynaOps. Foreign DXF/DWG layouts are kept invisibly and written back on export. See `docs/layout-book.md` 11.1.
+- Still there: `sheet.scheme` (the numbering scheme set by the Ops-first project configuration), `compose.view.*` (saved display recipes), `printblock*`, revision clouds and the revision register.
 
 ## Bridge to MynaOps
 Take-off rows carry the level name and, new, `level_id`; the header lists levels with `id` and `elevation_mm`. See `docs/bridge/LEVEL-IDS.md` in MynaOps.

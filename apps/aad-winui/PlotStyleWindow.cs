@@ -157,34 +157,11 @@ internal static class PlotStyleWindow
 
         void LoadLayoutChrome()
         {
-            var paper = !state.Space.Equals("Model", StringComparison.OrdinalIgnoreCase);
-            useLayout.IsEnabled = paper;
-            displayStyles.IsEnabled = paper;
-            if (!paper)
-            {
-                layoutLabel.Text = "Model space has no layout plot style table.";
-                return;
-            }
-            if (!Run("pagesetup", new { layout = state.Space }))
-            {
-                return;
-            }
-            try
-            {
-                using var doc = JsonDocument.Parse(Native.ReadResult(host));
-                var page = doc.RootElement.GetProperty("page");
-                var table = page.TryGetProperty("plotStyleTable", out var t) ? t.GetString() ?? "" : "";
-                state.LayoutTable = table;
-                var show = page.TryGetProperty("showPlotStyles", out var s) && s.ValueKind == JsonValueKind.True;
-                loading = true;
-                displayStyles.IsChecked = show;
-                loading = false;
-                layoutLabel.Text = "Layout " + state.Space + ": " + (table.Length == 0 ? "None" : table);
-            }
-            catch (JsonException)
-            {
-                layoutLabel.Text = "Layout " + state.Space;
-            }
+            // Plot style tables were attached to layouts, which MynaCAD no longer has (docs/layout-book.md 11.1).
+            // A table is used by passing plotStyleTable to plot / exportpdf; here only the tables are edited.
+            useLayout.IsEnabled = false;
+            displayStyles.IsEnabled = false;
+            layoutLabel.Text = "Layouts were removed from MynaCAD: tables are edited here and chosen when printing.";
         }
 
         void LoadTable(string? preferStyle)
@@ -398,31 +375,6 @@ internal static class PlotStyleWindow
             if (Run("stylesmanager", new { action = "delete", name }))
             {
                 Reload(null, null);
-            }
-        };
-        useLayout.Click += (_, _) =>
-        {
-            if (SelectedTable() is not string name || state.Space.Equals("Model", StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-            if (Run("pagesetup", new { layout = state.Space, plotStyleTable = name }))
-            {
-                LoadLayoutChrome();
-            }
-        };
-        displayStyles.Checked += (_, _) =>
-        {
-            if (!loading && !state.Space.Equals("Model", StringComparison.OrdinalIgnoreCase))
-            {
-                Run("pagesetup", new { layout = state.Space, displayPlotStyles = true });
-            }
-        };
-        displayStyles.Unchecked += (_, _) =>
-        {
-            if (!loading && !state.Space.Equals("Model", StringComparison.OrdinalIgnoreCase))
-            {
-                Run("pagesetup", new { layout = state.Space, displayPlotStyles = false });
             }
         };
         apply.Click += (_, _) => ApplyStyle();
