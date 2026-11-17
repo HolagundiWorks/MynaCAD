@@ -179,7 +179,7 @@ fn snap_groups(session: &Session) -> Vec<Vec<serde_json::Value>> {
         groups.push(row.iter().map(|(bit, id)| typed(name(*bit), id)).collect());
     }
     groups.push(vec![typed("None", "_non")]);
-    groups.push(vec![serde_json::json!({ "label": "Osnap Settings...", "id": "dsettings", "enabled": true, "run": "command" })]);
+    groups.push(vec![serde_json::json!({ "label": "Osnap Settings...", "id": "osnap.settings", "enabled": true, "run": "command" })]);
     groups
 }
 

@@ -64,6 +64,12 @@ pub fn specs() -> Vec<CommandSpec> {
             .enabled(always)
             .noundo()
             .transparent(),
+        CommandSpec::new("osnap.settings", "Osnap Settings...", run_osnap_settings)
+            .menu(&["Tools", "Osnap Settings..."])
+            .alias(&["osnapsettings", "osettings"])
+            .params("{osmode?: n, modes?: [names], all?: bool, none?: bool, on?: bool, aperture?: px (1..50), hatch?: bool, tracking?: bool}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("dsettings", "Drafting Settings...", run_dsettings)
             .menu(&["Tools", "Drafting Settings..."])
             .alias(&["ds", "se"])
@@ -87,27 +93,7 @@ fn run_osnap(s: &mut Session, p: &Value) -> Result<Value> {
         s.settings.osmode = (n as u32) & 0x7fff;
     }
     if let Some(ms) = p.get("modes").and_then(Value::as_array) {
-        let mut bits = 0u32;
-        for m in ms.iter().filter_map(Value::as_str) {
-            let b = match m.to_ascii_lowercase().get(..3).unwrap_or("") {
-                "end" => mode::END,
-                "mid" => mode::MID,
-                "cen" => mode::CEN,
-                "nod" => mode::NOD,
-                "qua" => mode::QUA,
-                "int" => mode::INT,
-                "ins" => mode::INS,
-                "per" => mode::PER,
-                "tan" => mode::TAN,
-                "nea" => mode::NEA,
-                "gce" => mode::GCEN,
-                "app" => mode::APP,
-                "ext" => mode::EXT,
-                "par" => mode::PAR,
-                _ => 0,
-            };
-            bits |= b;
-        }
+        let bits = ms.iter().filter_map(Value::as_str).fold(0u32, |acc, m| acc | mode_bit(m));
         s.settings.osmode = bits;
     }
     if p.get("osmode").is_none() && p.get("modes").is_none() {
@@ -122,6 +108,79 @@ fn run_osnap(s: &mut Session, p: &Value) -> Result<Value> {
     let on = s.settings.osmode & mode::OFF == 0;
     let active: Vec<&str> = mode::ALL.iter().filter(|(b, _)| s.settings.osmode & b != 0).map(|(_, n)| *n).collect();
     Ok(json!({ "on": on, "osmode": s.settings.osmode, "modes": active, "message": format!("<Osnap {}>", if on { "on" } else { "off" }) }))
+}
+
+/// The OSMODE bit for a mode name (first three letters, any case); 0 for an unknown name.
+fn mode_bit(name: &str) -> u32 {
+    use crate::snap::mode;
+    match name.to_ascii_lowercase().get(..3).unwrap_or("") {
+        "end" => mode::END,
+        "mid" => mode::MID,
+        "cen" => mode::CEN,
+        "nod" => mode::NOD,
+        "qua" => mode::QUA,
+        "int" => mode::INT,
+        "ins" => mode::INS,
+        "per" => mode::PER,
+        "tan" => mode::TAN,
+        "nea" => mode::NEA,
+        "gce" => mode::GCEN,
+        "app" => mode::APP,
+        "ext" => mode::EXT,
+        "par" => mode::PAR,
+        _ => 0,
+    }
+}
+
+/// OSNAP settings: every running mode, the master switch, aperture, hatch and tracking.
+fn run_osnap_settings(s: &mut Session, p: &Value) -> Result<Value> {
+    use crate::snap::mode;
+    let known = mode::ALL.iter().fold(0u32, |acc, (b, _)| acc | b);
+    let cur = s.settings.osmode;
+    let mut bits = cur & known;
+    if let Some(n) = p.get("osmode").and_then(Value::as_u64) {
+        bits = (n & u64::from(known)) as u32;
+    }
+    if let Some(ms) = p.get("modes").and_then(Value::as_array) {
+        bits = ms.iter().filter_map(Value::as_str).fold(0u32, |acc, m| acc | mode_bit(m));
+    }
+    if p.get("all").and_then(Value::as_bool) == Some(true) {
+        bits = known;
+    }
+    if p.get("none").and_then(Value::as_bool) == Some(true) {
+        bits = 0;
+    }
+    let mut off = cur & mode::OFF;
+    if let Some(on) = p.get("on").and_then(Value::as_bool) {
+        off = if on { 0 } else { mode::OFF };
+    }
+    s.settings.osmode = bits | off;
+    if let Some(a) = p.get("aperture").and_then(Value::as_f64).filter(|a| a.is_finite()) {
+        s.settings.aperture = a.clamp(1.0, 50.0);
+    }
+    if let Some(h) = p.get("hatch").and_then(Value::as_bool) {
+        s.settings.osnaphatch = h;
+    }
+    if let Some(t) = p.get("tracking").and_then(Value::as_bool) {
+        s.settings.otrack = t;
+    }
+    // A report-only call (the pane refreshing itself) must not mark the drawing changed.
+    if p.as_object().is_some_and(|m| !m.is_empty()) {
+        s.touch();
+    }
+    let osmode = s.settings.osmode;
+    let modes: Vec<Value> = mode::ALL
+        .iter()
+        .map(|(b, n)| json!({ "id": n.to_ascii_lowercase().replace(' ', "_"), "name": n, "bit": b, "enabled": osmode & b != 0 }))
+        .collect();
+    Ok(json!({
+        "on": osmode & mode::OFF == 0,
+        "osmode": osmode,
+        "aperture": s.settings.aperture,
+        "hatch": s.settings.osnaphatch,
+        "tracking": s.settings.otrack,
+        "modes": modes,
+    }))
 }
 
 fn run_dsettings(s: &mut Session, p: &Value) -> Result<Value> {
