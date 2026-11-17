@@ -337,7 +337,7 @@
                 </StackPanel>
             </ScrollViewer>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource SpaceSm}">
-                <ToggleButton x:Name="SnapButton" Tag="osnap" Click="OnMode" AutomationProperties.Name="Object snap (F3)" ToolTipService.ToolTip="Object snap (F3)" Style="{StaticResource IconToggleButtonStyle}">
+                <ToggleButton x:Name="SnapButton" Tag="osnap" Click="OnMode" ContextRequested="OnSnapContextRequested" AutomationProperties.Name="Object snap (F3)" ToolTipService.ToolTip="Object snap (F3)" Style="{StaticResource IconToggleButtonStyle}">
                     <local:DrawnIcon Kind="osnap" />
                 </ToggleButton>
                 <ToggleButton x:Name="OrthoButton" Tag="ortho" Click="OnMode" AutomationProperties.Name="Ortho mode (F8)" ToolTipService.ToolTip="Ortho (F8)" Style="{StaticResource IconToggleButtonStyle}">

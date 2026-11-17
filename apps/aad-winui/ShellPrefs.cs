@@ -82,6 +82,16 @@ internal static class ShellPrefs
         public Dictionary<string, WindowSize> WindowSizes { get; set; } = new();
         /// <summary>Recently opened drawing paths (newest first), at most 12.</summary>
         public List<string> Recent { get; set; } = new();
+        /// <summary>Object snap choices (docs/osnap-settings.md); null until the Osnap settings pane changes one.</summary>
+        public OsnapPref? Osnap { get; set; }
+    }
+
+    internal sealed class OsnapPref
+    {
+        public uint Osmode { get; set; } = 4133;
+        public double Aperture { get; set; } = 10;
+        public bool Hatch { get; set; }
+        public bool Tracking { get; set; } = true;
     }
 
     /// <summary>Remember <paramref name="path"/> at the front of the recent list (deduped, capped).</summary>

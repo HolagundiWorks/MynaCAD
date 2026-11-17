@@ -100,6 +100,7 @@ public sealed partial class MainWindow : Window
     private readonly ToolColumnPanel ArchBar = new();
     private bool _plotBusy;
     private DraftingWindow? _draftingWindow;
+    private OsnapSettingsWindow? _osnapWindow;
     private QuickWindow? _quickWindow;
     private QuickSelectWindow? _quickSelectWindow;
     private string? _quickJson;
@@ -163,6 +164,7 @@ public sealed partial class MainWindow : Window
         {
             Native.Theme(_host, _dark);
             ApplySaveSettings();
+            OsnapPrefs.Apply(_host);
         }
         AppWindow.Changed += (_, args) =>
         {
@@ -790,6 +792,11 @@ public sealed partial class MainWindow : Window
         if (id == "room.settings")
         {
             OpenRoomSettings();
+            return;
+        }
+        if (id is "osnap.settings" or "osnapsettings" or "osettings" or "ui.dialog.osnap")
+        {
+            OpenOsnapSettings();
             return;
         }
         if (id is "dsettings" or "ds" or "se" or "ui.dialog.dsettings")
@@ -1459,6 +1466,7 @@ public sealed partial class MainWindow : Window
             or "mleaderstyle" or "mls"
             or "room.settings"
             or "dsettings" or "ds" or "se"
+            or "osnap.settings" or "osnapsettings" or "osettings"
             or "qselect" or "qs"
             or "cal" or "quickcalc" or "qc" or "calc";
     }
@@ -3265,6 +3273,7 @@ public sealed partial class MainWindow : Window
             SyncDraftingUnits(state.Units);
             ShowDrawingTabs(state);
             ShowLevelBars(state);
+            _osnapWindow?.Reload();
             _draftingWindow?.Reload(state.Polar, state.Osnap, state.Dynmode, state.Ortho, state.Osmode, state.Polarang, state.DynpiCartesian, state.DynpiAbsolute);
             UpdateQuick();
             PlaceCommandBar();
@@ -3452,6 +3461,26 @@ public sealed partial class MainWindow : Window
     }
 
     private void OnLayers(object sender, RoutedEventArgs e) => OpenLayers();
+
+    private void OnSnapContextRequested(UIElement sender, Microsoft.UI.Xaml.Input.ContextRequestedEventArgs e)
+    {
+        e.Handled = true;
+        OpenOsnapSettings();
+    }
+
+    private void OpenOsnapSettings()
+    {
+        if (_host == IntPtr.Zero)
+        {
+            return;
+        }
+        if (_osnapWindow == null)
+        {
+            _osnapWindow = new OsnapSettingsWindow(Content as FrameworkElement, _host, () => RefreshChrome());
+            _osnapWindow.Closed += (_, _) => _osnapWindow = null;
+        }
+        PresentToolWindow(_osnapWindow);
+    }
 
     private void OpenDrafting()
     {
