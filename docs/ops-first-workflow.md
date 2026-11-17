@@ -6,7 +6,7 @@ MynaCAD carries an identical copy. Suite-wide decision record: `docs/SUITE.md` (
 
 Related, read together: live-sync.md (MynaCAD branch `claude/osp-live-sync-aa35c6`, MynaOps branch `live-sync`; change detection and a status text between the two
 running apps; not merged when this was written), [NATIVE-OPEN.md](NATIVE-OPEN.md), [AUTOSAVE-BACKUP.md](AUTOSAVE-BACKUP.md),
-[levels-and-sheet-sets.md](levels-and-sheet-sets.md), [PROJECT_WIZARD.md](PROJECT_WIZARD.md), [PROJECT-FILE.md](PROJECT-FILE.md).
+[levels-and-sheet-sets.md](levels-and-sheet-sets.md), [PROJECT_WIZARD.md](PROJECT_WIZARD.md), [PROJECT-FILE.md](PROJECT-FILE.md), [layout-book.md](layout-book.md) (layout book and publisher sets in MynaOps, paper space removed from MynaCAD; design 2026-11-17).
 
 ## 0. The owner's decision (verbatim, typos cleaned)
 
@@ -130,6 +130,8 @@ Extends the live-sync table (live-sync.md, "Who owns what"). A program writes on
 | `meta.config.applied.cad` (what MynaCAD has applied: revision, time, per-item result), `meta.config.proposal` (section 4.5, one-time adoption proposal) | MynaCAD, **local keys: no revision** (like `native.*`, `Edit::set_local_meta`) | MynaOps |
 | `sync.last`, `meta.revision` | whoever commits | both |
 | `meta.session.holder` (advisory, 2.3) | MynaOps | both |
+| `book.*` (layout book, view map folders, masters, pen sets, publisher sets, issues, revisions; [layout-book.md](layout-book.md), design 2026-11-17) | **MynaOps** | MynaCAD (read only, through `publish.*`) |
+| `cad.views` (saved views, [layout-book.md](layout-book.md)) and local `book.proposal` | **MynaCAD** | MynaOps |
 
 `config.applied.cad` and `config.proposal` are the only two config-prefixed keys MynaCAD writes; they are reports, not configuration, so the "Ops writes config" rule holds.
 
