@@ -23,9 +23,12 @@ fn drawing() -> Session {
         s.execute("insert", &json!({ "name": "Valve", "at": [0, 0], "attribs": { "TAG": "V-1" } })).unwrap()["handle"].as_str().unwrap().to_string();
     s.execute("block", &json!({ "name": "Assy", "base": [0, 0], "handles": [h], "keep": "convert" })).unwrap();
     s.execute("insert", &json!({ "name": "Valve", "at": [5, 0], "attribs": { "TAG": "V-2" } })).unwrap();
-    s.execute("layout.set", &json!({ "name": "Layout1" })).unwrap();
-    s.execute("insert", &json!({ "name": "Valve", "at": [1, 1] })).unwrap();
-    s.execute("layout.set", &json!({ "name": "Model" })).unwrap();
+    // An insert in a layout (a foreign drawing brings those along; the layout commands were removed, docs/layout-book.md 11.1).
+    let (common, kind) = {
+        let e = s.doc().unwrap().model.last().unwrap().clone();
+        (e.common.clone(), e.kind.clone())
+    };
+    s.doc_mut().unwrap().add(&aad_engine::doc::Space::Paper("Layout1".into()), common, kind).unwrap();
     s
 }
 

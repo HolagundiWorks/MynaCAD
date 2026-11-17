@@ -23,12 +23,23 @@ fn drawing() -> Session {
     line_on(&mut s, "B", 2.0);
     s.execute("layer.current", &json!({ "name": "0" })).unwrap();
     s.execute("insert", &json!({ "name": "Part", "at": [5, 5] })).unwrap();
-    s.execute("layout.set", &json!({ "name": "Layout1" })).unwrap();
-    line_on(&mut s, "A", 3.0);
+    // A paper-space A line and a viewport that freezes A and colours B. The layout commands were removed (docs/layout-book.md 11.1), so
+    // the data a foreign drawing brings along is built directly.
+    {
+        use aad_engine::doc::{Common, Line, Space, Viewport};
+        use aad_geom::Vec3;
+        let d = s.doc_mut().unwrap();
+        let on = |l: &str| Common { layer: l.into(), ..Common::default() };
+        let paper = Space::Paper("Layout1".into());
+        d.add(&paper, on("A"), EntityKind::Line(Line { a: Vec3::new(0.0, 3.0, 0.0), b: Vec3::new(10.0, 3.0, 0.0) })).unwrap();
+        let vp = Viewport {
+            frozen_layers: vec!["A".into(), "C".into()],
+            layer_colors: vec![("B".into(), aad_engine::doc::color::Color::Index(1))],
+            ..Viewport::default()
+        };
+        d.add(&paper, on("0"), EntityKind::Viewport(vp)).unwrap();
+    }
     s.execute("layer.current", &json!({ "name": "0" })).unwrap();
-    let vp = s.execute("mview", &json!({ "layout": "Layout1" })).unwrap()["viewports"][0].as_str().unwrap().to_string();
-    s.execute("viewport.set", &json!({ "handle": vp, "freeze": ["A", "C"], "colors": { "B": 1 } })).unwrap();
-    s.execute("layout.set", &json!({ "name": "Model" })).unwrap();
     s
 }
 

@@ -291,17 +291,6 @@ fn levels_come_from_the_floor_list_and_a_rename_keeps_the_floor_data_in_step() {
 }
 
 #[test]
-fn a_renamed_level_updates_the_floor_field_of_the_title_block() {
-    let mut s = Session::new();
-    s.execute("floors", &json!({"floors": [{"name": "Ground"}, {"name": "First"}]})).unwrap();
-    s.execute("level.fromfloors", &json!({})).unwrap();
-    s.execute("layout.set", &json!({"name": "Layout1"})).unwrap();
-    s.execute("sheet.titleblock", &json!({"fields": {"FLOOR": "First"}})).unwrap();
-    s.execute("level.set", &json!({"level": "First", "name": "Podium"})).unwrap();
-    assert_eq!(s.execute("sheet.fields", &json!({})).unwrap()["fields"]["FLOOR"], "Podium");
-}
-
-#[test]
 fn audit_finds_and_repairs_errors_on_a_level_that_is_not_being_edited() {
     use aad_engine::doc::{Common, Entity, EntityKind, Line};
     use aad_engine::geom::Vec3;

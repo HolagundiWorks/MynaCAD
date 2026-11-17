@@ -15,11 +15,7 @@ const TOOLBAR: &[&[(Icon, &str, &str, Option<&str>)]] = &[
         (Icon::SaveAs, "saveas", "Save As", None),
     ],
     &[(Icon::Undo, "u", "Undo", Some("Cmd+Z")), (Icon::Redo, "redo", "Redo", Some("Cmd+Shift+Z"))],
-    &[
-        (Icon::Plot, "plot", "Print", None),
-        (Icon::Publish, "publish", "Batch Publish", None),
-        (Icon::PageSetup, "pagesetup", "Page Setup Manager", None),
-    ],
+    &[(Icon::Plot, "plot", "Print", None)],
     &[(Icon::Import, "import", "Import", None), (Icon::Export, "export", "Export", None), (Icon::Attach, "attach", "Attach", None)],
     &[(Icon::ZoomWindow, "zoom.window", "Zoom Window", None), (Icon::Pan, "pan", "Pan", None)],
     &[
@@ -422,22 +418,7 @@ pub fn status_bar(app: &mut CadApp, ui: &mut egui::Ui) {
                 aad_engine::units::format_distance(0.0, lu, lp)
             )
         });
-        // MODEL / PAPER (layouts only): toggles MSPACE and PSPACE like AutoCAD's status button.
-        let mut coord_right = rx - 8.0;
-        if matches!(app.session.layout_space(), aad_doc::Space::Paper(_)) {
-            let model = app.session.state().is_ok_and(|st| st.mspace.is_some());
-            let label = if model { "MODEL" } else { "PAPER" };
-            let br = Rect::from_min_max(pos2(rx - 60.0, r.center().y - 9.0), pos2(rx - 6.0, r.center().y + 9.0));
-            let resp = ui.interact(br, ui.id().with("mspace_toggle"), Sense::click());
-            p.rect_filled(br, 3.0, if resp.hovered() { t.control_hover } else { t.toggle_on.gamma_multiply(0.25) });
-            p.text(br.center(), egui::Align2::CENTER_CENTER, crate::i18n::t(label), crate::theme::small(), t.text);
-            icons::describe_control(ui, &resp, label, None, false);
-            if resp.on_hover_text(crate::tl!("Switch between model space in a viewport and paper space")).clicked() {
-                let _ = app.run(if model { "pspace" } else { "mspace" }, json!({}));
-                app.canvas.list = None;
-            }
-            coord_right = br.left() - 10.0;
-        }
+        let coord_right = rx - 8.0;
         // A transient message occupies the same bounded readout slot as coordinates.
         // Ellipsis and a tooltip keep either value readable in the status readout.
         let message = app.status.as_ref().filter(|(_, at)| crate::now_ms() - at < 5000.0).map(|(message, _)| message);

@@ -276,6 +276,51 @@ Rule for every package: document first (update this page and the affected pages)
 | **H7 Adoption and import report** | `book.proposal`, MynaOps Adopt layouts, import report lists foreign layouts | `crates/engine/src/cmd/import.rs`, MynaOps adoption | A legacy project's compose views, sheets and issues appear in the book after adopting; nothing deleted from the drawing; the report names each skipped foreign layout |
 | **H8 End to end and cleanup** | Both real apps: create views, place, publish, issue; remove dead code left by H6 (`MasterLayout`, `PublisherSet`, `compose1` writers), narrow `Space::Paper` where safe | both repos | Written run log in [ops-first-workflow.md](ops-first-workflow.md) style; all docs reconciled; leftover list |
 
+### 11.1 H6 executed early (owner order 2026-11-17) - contract
+
+The owner ordered "remove pages setting and layouts from MynaCAD" before H1 to H5 exist. This deviates from D15 on purpose: **until the MynaOps publisher exists there is no layout, sheet or batch printing in MynaCAD.** Scope of this change (MynaCAD only):
+
+- Deleted: every command of the 8.1 "Commands deleted" row except the ones listed under "Kept for the Ops-first flow" below; the WinUI dialogs `PageSetupWindow`, `PageLayoutWindow`, `BatchPlotWindow`, `SheetIndexWindow`, the status-bar layout tabs, File > Page Setup Manager, Batch Plot, the paper boxes and the plot-on-Nameplate flow; the `layouts` array of `chrome_json`; the paper overlay and layout-tab state in `aad-host`; the egui layout tabs and page-setup dialogs; tests of deleted commands.
+- Kept (data): `Space::Paper`, `Layout`, `PageSetup`, `Viewport`, DXF/DWG layout read and write, native `.osp` bytes (`layout:<n>`, `compose1`, `sheetidx1`, `printblocks1`, `revisions`). A foreign drawing with layouts opens, imports and exports without loss; its layouts are invisible and not editable.
+- Kept (commands): model-space `plot`, `plot.window`, `plotl`, `plotp` (now a model-space window plot with landscape or portrait paper, no Nameplate layout), `exportpdf`; `plotstyle`, `stylesmanager`; revision clouds; `compose.view.*`; `levels`, `sheetset.*`, `section.*`, `view.*`.
+- Publish: File > Publish starts or activates MynaOps with a message that the Publisher page arrives with the layout book (informational message if no launch helper exists).
+- Out of scope here: the H7 import report line (only if small), `book.*`, saved views evolution (H2), deleting `MasterLayout`/`PublisherSet` types (H8).
+
+**Kept for the Ops-first flow or by a later package (deviations from the 8.1 "Commands deleted" row, found by searching both repositories):**
+
+| Kept | Why |
+|---|---|
+| `sheet.scheme` and the `sheetidx1` model | `project.config.apply` sets the sheet numbering scheme through it (`cmd/projconfig.rs`, `apply_scheme`, `scheme_value`); the module is cut down to the scheme command and the serde model so that sheets and issues already stored are written back unchanged |
+| `printblock`, `printblock.list/set/delete` | MynaOps' current Outputs > Layout page reads `printblocks1` from the drawing; 8.1 deletes them only after the conversion to saved views (H2) |
+| `compose.view.list/save/set/delete` | 8.1 "Commands kept" (they become saved views, H2). `compose.view.apply` is deleted because it only wrote a layout viewport |
+| `revision.*` (register, clouds, table) | not in the delete list. `revision.issue` and `revision.table` still act on layouts that a foreign drawing brought along, through an internal helper (`cmd/view.rs` `show_space`); the `layout.set` command itself is deleted |
+| `xclip` | block clip, not a layout command (`vpclip`, the viewport clip, is deleted) |
+| `floor.*` except `floor.viewport` and `plot.batch` | project floors; only the two paper-space commands are deleted |
+
+MynaOps (`D:\Work Development\Repos\MynaOps`) was searched read only for the deleted command ids (quoted names in `*.cs`, `*.json`, `*.md`): the only hit outside docs is the navigation id `layout` of its own `LayoutPage`, not a MynaCAD command. The Ops-first flow, the take-off bridge (`takeoff.record`) and the pipe do not call a deleted command; `project.config.apply` is the one dependent, handled above.
+
+**Deviations from 8.1 and 9 (listed so the owner can reverse them):**
+
+1. The WinUI **Navigator** (`ComposeNavigator.cs`) is deleted as a whole (its Views, Masters and Publisher trees). Section 9 wants a Views panel to replace the Views tree; that panel is H2. Until then saved views are managed with `compose.view.*` on the command line only.
+2. The **Publish** entry is a UI command `ui.publish` (File > Publish...). The Windows shell starts or activates MynaOps through `MynaOpsLauncher.Open()` and writes an informational message in the status area; it does not open a Publisher page (none exists) and does not pass the project to it. The egui shell only shows the same message.
+3. Plot style tables can no longer be attached to a layout (`pagesetup`); `plotStyleTable` of `plot` / `exportpdf` selects one at print time. The Plot Style window edits tables only.
+4. `plotl` / `plotp` stay as commands but no longer create or use a Nameplate layout: they plot the picked model window on landscape or portrait paper. The Orient and Paper boxes of the status bar flyout are deleted with the Page layout flyout.
+5. The H7 import report line is implemented (it was small): `level.import` returns `layoutsNotImported: [{name, objects, viewports, status}]` for layouts that have content; empty layouts are not listed. The import dialog does not show it yet.
+
+### 11.2 H6 as built: what ran (2026-11-17, branch `claude/h6-remove-layouts-a2d712`)
+
+**Deleted commands (58 ids, all absent from the catalog; test `layouts_removed.rs`):** `layout`, `layout.new/delete/rename/copy/list/set`, `mview`, `viewport.set/list/add/remove`, `vplayer`, `vpclip`, `mspace`, `pspace`, `page.manager`, `page.toggle`, `pagesetup`, `sheet.page`, `sheet.titleblock`, `sheet.designer`, `sheet.fields`, `sheet.template.save/list/apply/delete`, `sheet.index`, `sheet.plotwindow`, `sheet.list/new/set/delete/renumber/move`, `sheetindex.build/fill/table/publish`, `sheet.revision.add/list`, `issue.create/delete/list`, `master.list/new/set/delete/apply`, `publisher.list/new/set/delete/check/publish`, `plot.batch`, `floor.viewport`, `compose.view.apply`; aliases `lo`, `mv`, `ms`, `ps`, `publish`, `batchplot`, `publisher`, `tilemode`. Deleted UI: `PageSetupWindow`, `PageLayoutWindow` (with the Page layout flyout: paper, orientation, scale boxes and Nameplate button), `BatchPlotWindow`, `SheetIndexWindow`, `ComposeNavigator`, the Nameplate menu items, the egui Page Setup Manager, Batch Plot window, Model/Paper status toggle, viewport double-click, toolbar buttons Batch Publish and Page Setup, the paper-frame overlay of `aad-host`, and `layouts` of `chrome_json`. Ten engine test files of deleted commands were deleted; tests that used deleted commands as set-up were rewritten to build the data directly.
+
+**Kept as data:** `Space::Paper`, `Layout`, `PageSetup`, `Viewport`, DXF/DWG layout read and write, native `.osp` bytes. Evidence: `aad-cli convert` of a DXF with a paper-space layout wrote the layout back; `hostile_dxf_layouts_do_not_panic` (hostile LAYOUT/VIEWPORT data reads, renders, writes) and the existing round-trip tests pass.
+
+**Run:**
+- `cargo fmt --all --check`: ok. `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test -p aad-engine`: 919 passed, 0 failed (after fixing the tests above); `cargo test --workspace --exclude aad-engine`: 981 passed, 0 failed after one fix (`chrome_geometry`: the toolbar lost two buttons, the overflow test now uses a 820 px window); the new tests `layouts_removed` (4), `migrate::layouts_of_a_foreign_file_are_not_imported...`, `hostile_dxf_layouts_do_not_panic` pass.
+- `cargo xtask layers`, `assets`, `ui`, `licenses --check`, `wasm`, `parity` (183/319 menu items, `parity-checklist.md` regenerated): ok.
+- `dotnet build apps/aad-winui/Aad.WinUi.csproj -c Debug -p:Platform=x64`: 0 warnings, 0 errors.
+
+**Not run:** `cargo xtask ci` as a whole (its parts were run one by one, above); the Windows shell was started and shows only the "MynaCAD opens projects from MynaOps" launch window (Ops-first mode), so no drawing was opened in it: no hand check of missing layout tabs, of the Publish message or of opening a DXF with layouts in the shell (the engine/CLI paths were tested instead). A start with a file argument hands the file to the installed MynaOps (Ops-first), which was therefore started once by this test run. The import report line is not shown in the import dialog.
+
 Order: H1, then H2 and H3 in parallel (disjoint files), H4, H5, H7, **then** H6 (users keep layouts and Publish until MynaOps replaces them), H8. H4 needs H3's `publish.preview`.
 
 ## 12. Decisions the owner must make (recommendation first)
@@ -304,4 +349,4 @@ Out of scope: 3D, a constraint solver, DWG/DXF publishing, a PDF/A or signed PDF
 
 ## 14. What was read and what was not run
 
-Read: both repos' `CLAUDE.md`, [ops-first-workflow.md](ops-first-workflow.md) (sections 2 to 4 in detail, the rest by headings), [levels-and-sheet-sets.md](levels-and-sheet-sets.md) in full, [status.md](status.md), [sheet-index.md](sheet-index.md) (head), [plot-styles.md](plot-styles.md) (head), `crates/doc` layout, viewport, compose and plot style types, `cmd/compose.rs` publish code, the command registrations of the layout and sheet files, `crates/io/src/pdf.rs` (options, plot, page setup), `dxf_read.rs`/`dxf_write.rs`/`native.rs` layout hits, `flatten.rs`, `apps/aad-cli/src/main.rs` usage, MynaOps `LayoutPage.cs`, `SheetLayoutBook.cs`, `ExportSheetLayout`, `DraftPrintBlocks.cs`, `OdpFile.cs` schema. Not read in detail: [NATIVE-OPEN.md](NATIVE-OPEN.md) and [ARCHITECTURE.md](ARCHITECTURE.md) beyond what [status.md](status.md) quotes, `ViewTabs.cs`, `MainWindow.xaml.cs` outside the paper lines, the egui crate, MynaOps' installer. No code was changed, no build and no test was run for this page.
+Read: both repos' `CLAUDE.md`, [ops-first-workflow.md](ops-first-workflow.md) (sections 2 to 4 in detail, the rest by headings), [levels-and-sheet-sets.md](levels-and-sheet-sets.md) in full, [status.md](status.md), [sheet-index.md](sheet-index.md) (head), [plot-styles.md](plot-styles.md) (head), `crates/doc` layout, viewport, compose and plot style types, `cmd/compose.rs` publish code, the command registrations of the layout and sheet files, `crates/io/src/pdf.rs` (options, plot, page setup), `dxf_read.rs`/`dxf_write.rs`/`native.rs` layout hits, `flatten.rs`, `apps/aad-cli/src/main.rs` usage, MynaOps `LayoutPage.cs`, `SheetLayoutBook.cs`, `ExportSheetLayout`, `DraftPrintBlocks.cs`, `OdpFile.cs` schema. Not read in detail: [NATIVE-OPEN.md](NATIVE-OPEN.md) and [ARCHITECTURE.md](ARCHITECTURE.md) beyond what [status.md](status.md) quotes, `ViewTabs.cs`, `MainWindow.xaml.cs` outside the paper lines, the egui crate, MynaOps' installer. This page was written as design only; section 11.2 records the H6 build and what ran.

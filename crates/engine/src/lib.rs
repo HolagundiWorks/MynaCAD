@@ -1396,13 +1396,13 @@ fn form_factory(s: &Session) -> Result<Box<dyn Interactive>> {
 }
 
 /// What `plot.window` / `plotl` / `plotp` asked for. The application fits `window` into the
-/// nameplate (`layout`) and either saves a PDF or shows a preview.
+/// page (`landscape`) and either saves a PDF or shows a preview.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlotRequest {
     /// Whole drawing when `None`; otherwise a model-space rectangle `[x0, y0, x1, y1]`.
     pub window: Option<[f64; 4]>,
-    /// Nameplate layout to plot through (`Nameplate L` / `Nameplate P`). Empty = model-space plot.
-    pub layout: String,
+    /// Paper orientation chosen by PLOTL (`Some(true)`) or PLOTP (`Some(false)`); `None` = the shell's default.
+    pub landscape: Option<bool>,
     /// When true, the shell shows a PDF preview instead of a save dialog.
     pub preview: bool,
 }

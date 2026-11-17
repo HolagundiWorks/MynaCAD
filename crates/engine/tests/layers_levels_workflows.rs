@@ -427,30 +427,6 @@ fn several_layers_are_deleted_in_one_step_and_the_ones_in_use_are_kept() {
 // Level tabs
 
 #[test]
-fn choosing_a_level_while_a_layout_is_shown_brings_that_level_to_the_model_tab() {
-    let mut s = Session::new();
-    line_on(&mut s, "A-WALL", 0.0);
-    s.execute("level.new", &json!({ "name": "First", "first": "Ground" })).unwrap();
-    s.execute("layout", &json!({ "option": "set", "name": "Layout1" })).unwrap();
-    assert!(matches!(s.layout_space(), aad_doc::Space::Paper(_)), "a layout is on screen");
-    s.execute("level.activate", &json!({ "level": "First" })).unwrap();
-    assert_eq!(s.layout_space(), aad_doc::Space::Model, "the Model tab is shown again");
-    assert_eq!(s.doc().unwrap().active_level_ref().unwrap().name, "First", "and the level is the one asked for");
-    // The same level chosen again while a layout is shown still returns to the Model tab.
-    s.execute("layout", &json!({ "option": "set", "name": "Layout1" })).unwrap();
-    s.execute("level.activate", &json!({ "level": "First" })).unwrap();
-    assert_eq!(s.layout_space(), aad_doc::Space::Model);
-    // Next / previous go the same way.
-    s.execute("layout", &json!({ "option": "set", "name": "Layout1" })).unwrap();
-    s.execute("level.next", &json!({})).unwrap();
-    assert_eq!(s.layout_space(), aad_doc::Space::Model);
-    // A refused level leaves the displayed tab as it was.
-    s.execute("layout", &json!({ "option": "set", "name": "Layout1" })).unwrap();
-    assert!(s.execute("level.activate", &json!({ "level": "Nope" })).is_err());
-    assert!(matches!(s.layout_space(), aad_doc::Space::Paper(_)));
-}
-
-#[test]
 fn the_active_level_and_the_objects_shown_follow_every_tab_switch() {
     let mut s = Session::new();
     let a = line_on(&mut s, "A-WALL", 0.0);

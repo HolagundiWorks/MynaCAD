@@ -249,6 +249,19 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// File &gt; Publish: sheets are made in MynaOps (docs/layout-book.md 11.1). MynaCAD no longer prints layouts or sheet sets, so this starts or
+    /// activates MynaOps and says that the Publisher page arrives with the layout book.
+    /// </summary>
+    private void PublishViaOps()
+    {
+        var problem = MynaOpsLauncher.Open();
+        History.Text = problem == null
+            ? "Publish: sheets are made in MynaOps. Its Publisher page arrives with the layout book; until then there is no sheet printing. For a quick PDF of the model use File > Print."
+            : problem;
+        AfterCommand();
+    }
+
     /// <summary>Nothing interactive is going on in the shell: no dialog, no tool window with a form, no busy overlay, no question being asked.</summary>
     private bool ShellIdle()
     {

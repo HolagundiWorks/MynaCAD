@@ -34,7 +34,6 @@ pub mod managers;
 pub mod menus;
 pub mod palettes;
 pub mod plotstyles;
-pub mod plotwindow;
 pub mod quick;
 pub mod theme;
 pub mod toolbars;

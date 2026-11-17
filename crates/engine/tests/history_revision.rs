@@ -100,12 +100,10 @@ fn second_unchanged_milestone_shares_object_rows() {
 }
 
 #[test]
-fn revision_issue_updates_register_and_rev_field() {
+fn revision_issue_updates_register() {
     let path = temp_dxf("rev");
     let mut s = session_with_path(&path);
     s.execute("project", &json!({"details": {"title": "Test"}})).unwrap();
-    s.execute("layout.set", &json!({"name": "Layout1"})).unwrap();
-    s.execute("sheet.titleblock", &json!({})).unwrap();
     s.execute("line", &json!({"points": [[0.0, 0.0], [5.0, 0.0]]})).unwrap();
 
     let r = s
@@ -128,9 +126,6 @@ fn revision_issue_updates_register_and_rev_field() {
     assert_eq!(entries[0]["code"], "A");
     assert_eq!(entries[0]["description"], "First issue");
 
-    let fields = s.execute("sheet.fields", &json!({"layout": "Layout1"})).unwrap();
-    assert_eq!(fields["fields"]["REV"], "A");
-
     // Void keeps the milestone; second issue gets B.
     s.execute("revision.void", &json!({"code": "A"})).unwrap();
     let r2 = s.execute("revision.issue", &json!({"description": "Second", "scope": "project"})).unwrap();
@@ -148,9 +143,7 @@ fn revision_issue_updates_register_and_rev_field() {
 fn revision_table_replaces_on_second_draw() {
     let path = temp_dxf("table");
     let mut s = session_with_path(&path);
-    s.execute("layout.set", &json!({"name": "Layout1"})).unwrap();
     s.execute("revision.issue", &json!({"description": "One", "scope": "project", "code": "P1"})).unwrap();
-    s.execute("layout.set", &json!({"name": "Layout1"})).unwrap();
     let d1 = s.execute("revision.table", &json!({"layout": "Layout1"})).unwrap();
     let n1 = d1["drawn"][0]["objects"].as_u64().unwrap();
     let count = |s: &Session| {

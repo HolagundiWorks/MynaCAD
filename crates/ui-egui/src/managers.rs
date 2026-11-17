@@ -1,5 +1,5 @@
 //! Style and settings dialogs opened from the menus: Linetype Manager, Point Style,
-//! Multileader Style and Page Setup Manager.
+//! Multileader Style (the Page Setup Manager was removed with paper space).
 //!
 //! Typed or chosen from a menu (no parameters) these commands open their dialog; JSON calls run
 //! the command. The dialogs read the drawing and change it only through the same commands
@@ -24,7 +24,6 @@ pub fn route(app: &mut CadApp, id: &str, params: &Value) -> Option<Result<Value,
         "style" | "st" => "textstyle",
         "mleaderstyle" | "mls" => "mleaderstyle",
         "room.settings" => "roomsettings",
-        "pagesetup" => "pagesetup",
         _ => return None,
     };
     app.ui.dialog = Some(dialog.into());
@@ -39,7 +38,6 @@ pub fn dialog(app: &mut CadApp, ctx: &egui::Context, name: &str, open: &mut bool
         "mleaderstyle" => mleader_style(app, ctx, open),
         "textstyle" => text_style(app, ctx, open),
         "roomsettings" => room_settings(app, ctx, open),
-        "pagesetup" => page_setup(app, ctx, open),
         _ => {
             *open = false;
             None
@@ -380,120 +378,6 @@ fn style_manager(ctx: &egui::Context, open: &mut bool, title: &str, cmd: &'stati
     });
     set_temp(ctx, &sel_key, sel);
     set_temp(ctx, &new_key, new_name);
-    action
-}
-
-// ---------- Page Setup Manager ----------
-
-fn page_setup(app: &mut CadApp, ctx: &egui::Context, open: &mut bool) -> Action {
-    let t = Tokens::get();
-    let Ok(d) = app.session.doc() else {
-        no_drawing(ctx, "Page Setup Manager", open);
-        return None;
-    };
-    let mut layouts: Vec<(u32, String, aad_doc::PageSetup)> = d.layouts.iter().map(|l| (l.tab_order, l.name.clone(), l.page.clone())).collect();
-    layouts.sort_by_key(|l| l.0);
-    let shown = match app.session.layout_space() {
-        aad_doc::Space::Paper(n) => Some(n),
-        aad_doc::Space::Model => None,
-    };
-    let mut sel = temp::<String>(ctx, "pagesetup_sel")
-        .filter(|s| layouts.iter().any(|l| l.1 == *s))
-        .or(shown)
-        .or_else(|| layouts.first().map(|l| l.1.clone()))
-        .unwrap_or_default();
-    let mut action = None;
-    egui::Window::new("Page Setup Manager").open(open).default_size(vec2(560.0, 300.0)).resizable(true).show(ctx, |ui| {
-        if layouts.is_empty() {
-            ui.label("This drawing has no layouts.");
-            return;
-        }
-        ui.columns(2, |cols| {
-            let [left, right] = cols else { return };
-            left.label(RichText::new("Layouts").strong());
-            egui::ScrollArea::vertical().id_salt("pagesetup_list").max_height(200.0).auto_shrink([false, true]).show(left, |ui| {
-                for (_, name, _) in &layouts {
-                    if ui.selectable_label(*name == sel, name).clicked() {
-                        sel = name.clone();
-                    }
-                }
-            });
-            let Some((_, name, page)) = layouts.iter().find(|l| l.1 == sel) else { return };
-            right.label(RichText::new(format!("Page setup of {name}")).strong());
-            let set = |k: &str, v: Value| Some(("pagesetup", json!({ "layout": name, k: v })));
-            egui::Grid::new("pagesetup_grid").num_columns(2).spacing(vec2(10.0, 6.0)).show(right, |ui| {
-                ui.label("Paper size");
-                egui::ComboBox::from_id_salt("pagesetup_paper").selected_text(page.paper.as_str()).width(190.0).show_ui(ui, |ui| {
-                    for p in aad_render::PAPER_SIZES {
-                        if ui.selectable_label(p.name == page.paper, p.name).clicked() && p.name != page.paper {
-                            action = set("paper", json!(p.name));
-                        }
-                    }
-                });
-                ui.end_row();
-                ui.label("Orientation");
-                ui.horizontal(|ui| {
-                    if ui.radio(!page.landscape, "Portrait").clicked() && page.landscape {
-                        action = set("landscape", json!(false));
-                    }
-                    if ui.radio(page.landscape, "Landscape").clicked() && !page.landscape {
-                        action = set("landscape", json!(true));
-                    }
-                });
-                ui.end_row();
-                ui.label("Plot area");
-                egui::ComboBox::from_id_salt("pagesetup_area").selected_text(page.plot_area.as_str()).show_ui(ui, |ui| {
-                    for a in ["layout", "extents", "display", "limits"] {
-                        if ui.selectable_label(page.plot_area == a, a).clicked() && page.plot_area != a {
-                            action = set("plotArea", json!(a));
-                        }
-                    }
-                });
-                ui.end_row();
-                ui.label("");
-                let mut fit = page.scale_to_fit;
-                if ui.checkbox(&mut fit, "Fit to paper").changed() {
-                    action = set("scaleToFit", json!(fit));
-                }
-                ui.end_row();
-                ui.label("Scale");
-                ui.add_enabled_ui(!page.scale_to_fit, |ui| {
-                    // A number (paper units per drawing unit) or a ratio such as 1:50.
-                    if let Some(v) = expr_field(ui, egui::Id::new(("pagesetup_scale", name)), &fmt_num(page.scale)) {
-                        action = set("scale", v.parse::<f64>().map_or(json!(v), |n| json!(n)));
-                    }
-                });
-                ui.end_row();
-                if page.scale_to_fit {
-                    let b = d.extents(&aad_doc::Space::Paper(name.clone()));
-                    if let Some(sheet) = aad_render::sheet(d, name)
-                        && !b.is_empty()
-                    {
-                        let s = (sheet.printable.width() / b.width().max(1e-12)).min(sheet.printable.height() / b.height().max(1e-12));
-                        let n = aad_engine::annot::nearest_plot_scale(s);
-                        ui.label("");
-                        ui.label(RichText::new(format!("Nearest scale that fits: {}", n.nearest)).color(t.text_dim));
-                        ui.end_row();
-                    }
-                }
-                ui.label("");
-                let mut center = page.center;
-                if ui.checkbox(&mut center, "Center the plot").changed() {
-                    action = set("center", json!(center));
-                }
-                ui.end_row();
-                ui.label("");
-                let mut lw = page.lineweights;
-                if ui.checkbox(&mut lw, "Plot object lineweights").changed() {
-                    action = set("lineweights", json!(lw));
-                }
-                ui.end_row();
-            });
-            let (w, h) = if page.landscape { (page.height_mm, page.width_mm) } else { (page.width_mm, page.height_mm) };
-            right.label(RichText::new(format!("{w:.1} × {h:.1} mm")).color(t.text_dim));
-        });
-    });
-    set_temp(ctx, "pagesetup_sel", sel);
     action
 }
 

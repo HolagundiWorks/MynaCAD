@@ -25,8 +25,9 @@
 //! can be shown with the ground floor's beam layout over it without activating either.
 //!
 //! Not implemented here: enforcing that a floor file that is not the active one cannot be edited
-//! (opening it directly still allows editing), adding or removing a floor after setup, and
-//! batch print and export (they read these flags).
+//! (opening it directly still allows editing) and adding or removing a floor after setup. Batch
+//! plot (`plot.batch`) and viewport floors (`floor.viewport`) were removed with paper space
+//! (`docs/layout-book.md` 11.1).
 
 use std::path::{Component, Path, PathBuf};
 
@@ -74,14 +75,6 @@ pub fn specs() -> Vec<CommandSpec> {
             .alias(&["floor"])
             .params("{name: floor, category?: layout id (default the floor plan)} → {floor, file, index, overlays}")
             .noundo(),
-        CommandSpec::new("plot.batch", "Batch Plot", run_plot_batch)
-            .menu(&["File", "Batch Plot"])
-            .alias(&["publish", "batchplot"])
-            .params("{items?: [{floor, category?}] (default every floor and layout marked for printing), sheets?: [layout names of this drawing], includeHidden?: bool, folder? (default Exports), paper?: \"A3\", landscape?: bool} → {files, skipped, warnings}")
-            .noundo(),
-        CommandSpec::new("floor.viewport", "Viewport Floors", run_viewport)
-            .menu(&["Architecture", "Floors", "Viewport Floors"])
-            .params("{handle: viewport, floors?: [floor names] (default all), categories?: [layout ids], plans?: bool (default true)} → {shown, frozen}"),
         CommandSpec::new("floor.current", "Current Floor", run_current)
             .menu(&["Architecture", "Floors", "Current Floor"])
             .params("{name?: floor to make current} → {mode: project|drawing, floor, floors}")
@@ -756,178 +749,6 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
     s.active = here;
     apply_flags(s, &m);
     Ok(json!({ "entry": node(&m, &target).clone(), "changed": changed }))
-}
-
-/// Make a viewport show only some floors: the plans of `floors` (all when not given) and, from
-/// those floors, the layouts in `categories`. The other floors' Xref layers are frozen in that
-/// viewport only, so the same main drawing can carry one sheet per floor.
-fn run_viewport(s: &mut Session, p: &Value) -> Result<Value> {
-    let handle = str_param(p, "handle").ok_or_else(|| bad("floor.viewport", "`handle` (a viewport) is required"))?.to_string();
-    let (_, m) = find_manifest(s)?;
-    let names = |k: &str| -> Option<Vec<String>> {
-        p.get(k).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_ascii_lowercase).collect())
-    };
-    let floors = names("floors");
-    let cats = names("categories").unwrap_or_default();
-    let plans = bool_or(p, "plans", true);
-    if let Some(f) = &floors {
-        for n in f {
-            find_entry(&m, n, None)?;
-        }
-    }
-    for c in &cats {
-        if !m["categories"].as_array().is_some_and(|a| a.iter().any(|x| x["id"].as_str().is_some_and(|id| id.eq_ignore_ascii_case(c)))) {
-            return Err(bad("floor.viewport", format!("the project has no layout category `{c}`")));
-        }
-    }
-    let mut freeze: Vec<String> = Vec::new();
-    let mut thaw: Vec<String> = Vec::new();
-    let mut shown: Vec<String> = Vec::new();
-    for e in entries(&m) {
-        let f = &m["floors"][e.floor];
-        let in_floors = floors
-            .as_ref()
-            .is_none_or(|fl| [f["name"].as_str(), f["key"].as_str()].into_iter().flatten().any(|n| fl.contains(&n.to_ascii_lowercase())));
-        let wanted = in_floors
-            && match e.layout {
-                None => plans,
-                Some(j) => f["layouts"][j]["id"].as_str().is_some_and(|id| cats.contains(&id.to_ascii_lowercase())),
-            };
-        let prefix = format!("{}|", e.key);
-        let layers: Vec<String> = s.doc()?.layers.iter().filter(|l| l.name.starts_with(&prefix)).map(|l| l.name.clone()).collect();
-        if wanted {
-            shown.push(e.key.clone());
-            thaw.extend(layers);
-        } else {
-            freeze.extend(layers);
-        }
-    }
-    s.execute("viewport.set", &json!({ "handle": handle, "freeze": freeze, "thaw": thaw }))?;
-    Ok(json!({ "shown": shown, "frozen": freeze.len() }))
-}
-
-// ---------------- batch plotting ----------------
-
-/// One drawing of the project to plot, and why it is or is not included.
-struct PlotItem {
-    entry: Entry,
-    label: String,
-}
-
-fn item_label(m: &Value, e: &Entry) -> String {
-    let floor = m["floors"][e.floor]["name"].as_str().unwrap_or("");
-    match e.layout {
-        None => floor.to_string(),
-        Some(j) => format!("{floor} / {}", m["floors"][e.floor]["layouts"][j]["name"].as_str().unwrap_or("")),
-    }
-}
-
-/// Plot floors, layouts and sheets of the project to PDF files, one each. A floor or layout is
-/// included when it is marked for printing, shown and not frozen (or when `includeHidden` is set);
-/// it is read from its saved file. A `sheets` entry is a layout of the drawing you are in (the main
-/// drawing), whose hidden and frozen Xref layers stay out of the output.
-fn run_plot_batch(s: &mut Session, p: &Value) -> Result<Value> {
-    let hook = super::file::io().and_then(|h| h.plot).ok_or_else(|| bad("plot.batch", "plotting is not available in this build"))?;
-    let io = super::file::io().ok_or_else(|| bad("plot.batch", "file formats are not available in this build"))?;
-    // A drawing that is not in a project can still plot its own sheets.
-    let found = find_manifest(s).ok();
-    if found.is_none() && p.get("sheets").is_none() {
-        return find_manifest(s).map(|_| Value::Null);
-    }
-    let (mpath, m) = found.unwrap_or_else(|| (PathBuf::new(), json!({ "floors": [], "main": "x" })));
-    let dir = mpath.parent().map(Path::to_path_buf).unwrap_or_default();
-    let own_dir = s.state()?.path.as_deref().and_then(|x| Path::new(x).parent().map(Path::to_path_buf));
-    let out_dir = match str_param(p, "folder") {
-        Some(f) => PathBuf::from(f),
-        None if mpath.as_os_str().is_empty() => own_dir.unwrap_or_else(std::env::temp_dir).join("Exports"),
-        None => dir.join("Exports"),
-    };
-    std::fs::create_dir_all(&out_dir).map_err(|e| bad("plot.batch", format!("{}: {e}", out_dir.display())))?;
-    let include_hidden = bool_or(p, "includeHidden", false);
-    let all = entries(&m);
-    // Which drawings: the `items` asked for ({floor, category?}), else every one marked for printing.
-    let chosen: Vec<Entry> = match p.get("items").and_then(Value::as_array) {
-        Some(list) => {
-            if list.len() > 500 {
-                return Err(bad("plot.batch", "too many items"));
-            }
-            let mut v = Vec::new();
-            for it in list {
-                let f = it.get("floor").and_then(Value::as_str).ok_or_else(|| bad("plot.batch", "every item needs a `floor`"))?;
-                v.push(find_entry(&m, f, it.get("category").and_then(Value::as_str))?);
-            }
-            v
-        }
-        None if p.get("sheets").is_some() => Vec::new(),
-        None => all.clone(),
-    };
-    let mut files = Vec::new();
-    let mut skipped = Vec::new();
-    let mut warnings: Vec<String> = Vec::new();
-    for e in chosen {
-        let item = PlotItem { label: item_label(&m, &e), entry: e };
-        let e = &item.entry;
-        let (print, visible, frozen) = (flag(&m, e, "print", true), flag(&m, e, "visible", true), flag(&m, e, "frozen", false));
-        if !include_hidden && (!print || !visible || frozen) {
-            let why = if !print {
-                "not marked for printing"
-            } else if frozen {
-                "frozen"
-            } else {
-                "hidden"
-            };
-            skipped.push(json!({ "item": item.label, "reason": why }));
-            continue;
-        }
-        let abs = dir.join(&e.file);
-        if !abs.is_file() {
-            skipped.push(json!({ "item": item.label, "reason": "the file is missing" }));
-            continue;
-        }
-        if s.docs.iter().any(|d| d.path.as_deref().is_some_and(|dp| same_file(Path::new(dp), &abs)) && !std::sync::Arc::ptr_eq(&d.doc, &d.saved)) {
-            warnings.push(format!("{} has unsaved changes; the output uses the saved file", item.label));
-        }
-        let bytes = std::fs::read(&abs).map_err(|x| bad("plot.batch", format!("{}: {x}", abs.display())))?;
-        let name = abs.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        let doc = (io.read)(&bytes, &name).map_err(|x| bad("plot.batch", format!("{}: {x}", item.label)))?;
-        // A drawing with a sheet (a layout with a viewport) plots the sheet; otherwise its model.
-        let sheet = doc
-            .layouts
-            .iter()
-            .filter(|l| l.entities.iter().any(|x| matches!(&x.kind, aad_doc::EntityKind::Viewport(v) if v.id != 1)))
-            .min_by_key(|l| l.tab_order)
-            .map(|l| l.name.clone());
-        let (space, opts) = match sheet {
-            Some(n) => (aad_doc::Space::Paper(n), json!({})),
-            None => (
-                aad_doc::Space::Model,
-                json!({ "paper": str_param(p, "paper").unwrap_or("A3"), "landscape": bool_or(p, "landscape", true), "fit": true }),
-            ),
-        };
-        let pdf = hook(&doc, &space, &opts).map_err(|x| bad("plot.batch", format!("{}: {x}", item.label)))?;
-        let file = out_dir.join(format!("{}.pdf", e.key));
-        std::fs::write(&file, &pdf).map_err(|x| bad("plot.batch", format!("{}: {x}", file.display())))?;
-        files.push(json!({ "item": item.label, "path": file.display().to_string(), "bytes": pdf.len(), "space": match &space { aad_doc::Space::Model => "Model".to_string(), aad_doc::Space::Paper(n) => n.clone() } }));
-    }
-    // Sheets of the drawing being worked in.
-    if let Some(list) = p.get("sheets").and_then(Value::as_array) {
-        let stem = s
-            .state()?
-            .path
-            .as_deref()
-            .and_then(|x| Path::new(x).file_stem().map(|n| n.to_string_lossy().to_string()))
-            .unwrap_or_else(|| "Sheet".into());
-        for n in list.iter().filter_map(Value::as_str).take(500) {
-            let layout =
-                s.doc()?.layout(n).map(|l| l.name.clone()).ok_or_else(|| bad("plot.batch", format!("no sheet named `{n}` in this drawing")))?;
-            let pdf = hook(s.doc()?, &aad_doc::Space::Paper(layout.clone()), &json!({})).map_err(|x| bad("plot.batch", format!("{layout}: {x}")))?;
-            let file = out_dir.join(format!("{}_{}.pdf", safe(&stem), safe(&layout)));
-            std::fs::write(&file, &pdf).map_err(|x| bad("plot.batch", format!("{}: {x}", file.display())))?;
-            files.push(json!({ "item": format!("sheet {layout}"), "path": file.display().to_string(), "bytes": pdf.len(), "space": layout }));
-        }
-    }
-    let message = format!("Plotted {} file(s) to {} ({} skipped)", files.len(), out_dir.display(), skipped.len());
-    Ok(json!({ "files": files, "skipped": skipped, "warnings": warnings, "folder": out_dir.display().to_string(), "message": message }))
 }
 
 /// `floor.current`: the floor new objects belong to. In a project it is the manifest's active floor
