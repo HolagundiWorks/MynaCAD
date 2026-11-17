@@ -40,7 +40,7 @@ Other names:
 | **Take-off** | Quantities measured from a drawing. Recorded by MynaCAD into the project file; read by MynaOps |
 | **Revision** | The counter inside a project file (`meta.revision`). Every save by any program is one revision. Apps compare revisions to know someone else wrote |
 | **Active-project pointer** | **Removed in Ops-first package E** ([ops-first-workflow.md](ops-first-workflow.md) 16.6). MynaCAD no longer writes `active-project.json`; MynaOps deletes a stale one at start and reads nothing from it. "Which file is open where" is the lease (`<hash>.cad.lock`, `<hash>.ops.lock`); MynaOps starts MynaCAD with the project |
-| **Shared project file** | One `.osp` opened in **MynaCAD** and **MynaOps**. Double-click (the **Open** verb) opens it in MynaOps, which starts MynaCAD with the project (Ops-first package E, [ops-first-workflow.md](ops-first-workflow.md) 16.2); MynaCAD has no `.osp` verb. MynaCAD writes the drawing and take-off; MynaOps writes quantities, the estimate, bills, and the project maps and layouts |
+| **Shared project file** | One `.osp` opened in **MynaCAD** and **MynaOps**. Double-click (the **Open** verb) opens it in MynaOps, which starts MynaCAD with the project (Ops-first package E, [ops-first-workflow.md](ops-first-workflow.md) 16.2); MynaCAD has no `.osp` verb. MynaCAD writes the drawing and take-off; MynaOps writes quantities, the estimate, bills, and the project maps and layouts. **Planned (design 2026-11-17, [layout-book.md](layout-book.md)):** the layout book and publisher sets (ArchiCAD-style sheets, drawings placed as live references to saved views, PDF publishing) are written by MynaOps as `book.*` keys, MynaCAD writes saved views as `cad.views`, and paper space leaves MynaCAD |
 | **Backups of a project file** | `<name>.backups\<name> <UTC yyyyMMddTHHmmssZ> <reason>.osp` beside the file, each a whole project file. MynaCAD makes one before every save that changes the drawing (`save`), before a re-import or a restore, and prunes to its `BACKUPCOUNT` (default 5, 90 days); MynaOps' manager adds `manual` ones (MynaCAD `docs/AUTOSAVE-BACKUP.md`) |
 | **Persona** | In MynaOps, Project Manager/PMC or Contractor: each has its own letterhead and numbering |
 | **AI agent** | Olmo 3 7B Instruct (Q4_K_M GGUF in `%LOCALAPPDATA%\HumanCentricWorks\models\`), served by `llama-server` (llama.cpp b11976, bundled in MynaOps' `runtime\`) behind MynaOps' `AiCoreListener` on `127.0.0.1:8742`. Runs on this computer only. **MynaOps** hosts it; **MynaCAD** is a client; MynaHub does not use it |
@@ -166,6 +166,7 @@ Saving: MynaCAD writes the drawing back into the `.osp` only when its bytes chan
 | Topic | Document |
 |---|---|
 | Project file format and sync plan | MynaHub `docs/ODP-PROJECT-FILE-AND-SYNC.md` (filename keeps the working name) |
+| Layout book, publisher sets, removal of paper space (design) | MynaCAD and MynaOps `docs/layout-book.md` |
 | Project file backups, autosave, recovery | MynaCAD `docs/AUTOSAVE-BACKUP.md` |
 | Project hierarchy and security | MynaHub `docs/PROJECT-HIERARCHY-AND-SECURITY.md` |
 | Suite architecture and integration map | MynaHub `docs/suite-architecture.md`, `docs/suite-hub.md` |

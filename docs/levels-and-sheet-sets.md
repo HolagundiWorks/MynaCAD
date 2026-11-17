@@ -42,6 +42,8 @@ levels read-only). Every phase is useful and testable alone, starting with level
 
 ## Compose and publish (engine)
 
+**Superseded by design (2026-11-17): [layout-book.md](layout-book.md).** The owner decided that paper space, layouts, masters and publisher sets leave MynaCAD and become the MynaOps layout book and publisher sets. Compose Views are kept and evolve into saved views (`cad.views`); Master Layouts and Publisher Sets, `sheetidx1` and the layout commands are to be migrated and removed in packages H1 to H8 of that page. Nothing below has been removed yet; it describes the code as it is.
+
 ArchiCAD separates Stories → Views → Layout Book → Publisher. MynaCAD maps that as Levels → Compose Views → Layouts (with Masters) → Publisher Sets. The WinUI **Navigator** window (File > Publish, or Architecture > Sheets) shows the three trees and the one-button **Publish and record take-off**.
 
 | Command family | Purpose |
